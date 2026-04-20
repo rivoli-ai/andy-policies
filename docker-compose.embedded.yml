@@ -1,0 +1,42 @@
+# Embedded mode: SQLite only, no PostgreSQL container.
+# Use this for Conductor integration or standalone deployment.
+#
+# Usage: docker compose -f docker-compose.embedded.yml up
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      additional_contexts:
+        certs: ./certs
+    container_name: andy-policies-embedded
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=https://+:8443;http://+:8080
+      - Database__Provider=Sqlite
+      - ConnectionStrings__DefaultConnection=Data Source=/data/andy_policies.db
+      - AndyAuth__Authority=https://host.docker.internal:5001
+      - AndyAuth__Audience=urn:andy-policies-api
+      - Rbac__ApiBaseUrl=https://host.docker.internal:5003
+      - Rbac__ApplicationCode=andy-policies
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "5112:8443"
+      - "5113:8080"
+    volumes:
+      - ./certs:/usr/local/share/ca-certificates/custom:ro
+      - sqlite_data:/data
+      - dpkeys:/app/.aspnet/DataProtection-Keys
+    healthcheck:
+      test: ["CMD", "curl", "-fk", "https://localhost:8443/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+
+volumes:
+  dpkeys:
+  sqlite_data:

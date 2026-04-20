@@ -1,0 +1,27 @@
+# Gitleaks configuration for Andy ecosystem services.
+# https://github.com/gitleaks/gitleaks
+#
+# Usage:
+#   gitleaks detect --source . --config .gitleaks.toml
+#   gitleaks protect --staged --config .gitleaks.toml
+
+title = "Andy Service Gitleaks Config"
+
+[allowlist]
+  description = "Known safe patterns"
+  paths = [
+    '''\.md$''',
+    '''package-lock\.json$''',
+    '''\.csproj$''',
+    '''config/auth-seed\.sql$''',
+    '''config/rbac-seed\.json$''',
+    '''examples/''',
+    '''\.gitleaks\.toml$''',
+  ]
+  regexes = [
+    # Dev-only default passwords in docker-compose / appsettings
+    '''_dev_password''',
+    '''devcert''',
+    '''Test123!''',
+    '''change-in-production''',
+  ]

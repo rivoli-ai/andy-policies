@@ -1,0 +1,54 @@
+/* Copyright (c) Rivoli AI 2026. All rights reserved. */
+
+.app-header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+}
+
+.nav-bar {
+  display: flex;
+  align-items: center;
+  height: 56px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.logo {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+  margin-right: 32px;
+}
+
+.nav-links {
+  display: flex;
+  gap: 16px;
+  flex: 1;
+
+  a {
+    color: var(--text-secondary);
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 14px;
+    &.active { color: var(--primary); background: rgba(26, 115, 232, 0.08); }
+    &:hover { background: var(--background); }
+  }
+}
+
+.auth-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-name {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.app-content {
+  max-width: 1200px;
+  margin: 24px auto;
+  padding: 0 24px;
+}

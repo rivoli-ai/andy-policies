@@ -1,0 +1,68 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: andy-policies-postgres
+    environment:
+      POSTGRES_DB: andy_policies
+      POSTGRES_USER: andy_policies
+      POSTGRES_PASSWORD: andy_policies_dev_password
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5439:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U andy_policies -d andy_policies"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - andy-policies-network
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      additional_contexts:
+        certs: ./certs
+    container_name: andy-policies-api
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=https://+:8443;http://+:8080
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=andy_policies;Username=andy_policies;Password=andy_policies_dev_password
+      - AndyAuth__Authority=https://host.docker.internal:5001
+      - AndyAuth__Audience=urn:andy-policies-api
+      - AndyAuth__RequireHttpsMetadata=false
+      - Rbac__ApiBaseUrl=https://host.docker.internal:5003
+      - Rbac__ApplicationCode=andy-policies
+      - AndySettings__ApiBaseUrl=https://host.docker.internal:5300
+      - AndySettings__ApplicationCode=andy-policies
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "5112:8443"
+      - "5113:8080"
+    volumes:
+      - ./certs:/usr/local/share/ca-certificates/custom:ro
+      - dpkeys:/app/.aspnet/DataProtection-Keys
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fk", "https://localhost:8443/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+    networks:
+      - andy-policies-network
+
+volumes:
+  dpkeys:
+  postgres_data:
+
+networks:
+  andy-policies-network:
+    driver: bridge

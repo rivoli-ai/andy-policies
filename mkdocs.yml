@@ -1,0 +1,18 @@
+site_name: Andy Policies
+site_description: Governance policy catalog — structured, versioned policy documents with lifecycle and audit trail, consumed by Conductor for story admission, verification, and compliance reporting (content only; enforcement lives in consumers)
+repo_url: https://github.com/rivoli-ai/andy-policies
+
+theme:
+  name: material
+  palette:
+    primary: blue
+    accent: blue
+
+nav:
+  - Home: index.md
+  - Features: features.md
+  - Architecture: architecture.md
+  - Implementation: implementation.md
+  - Testing: testing.md
+  - Deployment: deployment.md
+  - Security: security.md

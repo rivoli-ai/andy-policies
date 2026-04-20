@@ -1,0 +1,59 @@
+// Copyright (c) Rivoli AI 2026. All rights reserved.
+// Licensed under the Apache License, Version 2.0.
+
+syntax = "proto3";
+
+option csharp_namespace = "Andy.Policies.Api.Protos";
+
+package andy_policies;
+
+service ItemsService {
+  rpc GetAll (GetAllItemsRequest) returns (GetAllItemsResponse);
+  rpc GetById (GetItemByIdRequest) returns (ItemResponse);
+  rpc Create (CreateItemGrpcRequest) returns (ItemResponse);
+  rpc Update (UpdateItemGrpcRequest) returns (ItemResponse);
+  rpc Delete (DeleteItemRequest) returns (DeleteItemResponse);
+}
+
+message GetAllItemsRequest {}
+
+message GetAllItemsResponse {
+  repeated ItemMessage items = 1;
+}
+
+message GetItemByIdRequest {
+  string id = 1;
+}
+
+message CreateItemGrpcRequest {
+  string name = 1;
+  string description = 2;
+}
+
+message UpdateItemGrpcRequest {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+}
+
+message DeleteItemRequest {
+  string id = 1;
+}
+
+message DeleteItemResponse {
+  bool success = 1;
+}
+
+message ItemMessage {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  string status = 4;
+  string created_by = 5;
+  string created_at = 6;
+  string updated_at = 7;
+}
+
+message ItemResponse {
+  ItemMessage item = 1;
+}
