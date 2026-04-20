@@ -1,0 +1,113 @@
+{
+  "$schema": "../../andy-service-template/docs/registration.schema.json",
+  "service": {
+    "name": "andy-policies",
+    "displayName": "Andy Policies",
+    "description": "Governance policy catalog — structured, versioned policy documents with lifecycle and audit trail, consumed by Conductor for story admission, verification, and compliance reporting (content only; enforcement lives in consumers).",
+    "embeddedProxyPrefix": "/policies",
+    "ports": {
+      "dotnetHttps": 5112,
+      "dotnetHttp": 5113,
+      "dotnetPostgres": 5439,
+      "dotnetClient": 4206,
+      "dockerHttps": 7112,
+      "dockerHttp": 7113,
+      "dockerPostgres": 7439,
+      "dockerClient": 6206,
+      "embeddedProxy": 9100
+    }
+  },
+  "auth": {
+    "audience": "urn:andy-policies-api",
+    "apiClient": {
+      "clientId": "andy-policies-api",
+      "clientType": "confidential",
+      "clientSecretEnvVar": "ANDY_POLICIES_API_SECRET",
+      "displayName": "Andy Policies API",
+      "description": "Service-to-service client for Andy Policies",
+      "grantTypes": ["authorization_code", "refresh_token", "client_credentials"],
+      "scopes": ["email", "profile", "roles", "scp:urn:andy-policies-api"]
+    },
+    "webClient": {
+      "clientId": "andy-policies-web",
+      "clientType": "public",
+      "displayName": "Andy Policies Web",
+      "description": "Angular SPA for policy authoring, lifecycle management, and audit viewing",
+      "grantTypes": ["authorization_code", "refresh_token"],
+      "scopes": ["email", "profile", "roles", "scp:urn:andy-policies-api"],
+      "redirectUris": [
+        "https://localhost:4206/callback",
+        "https://localhost:6206/callback",
+        "http://localhost:9100/policies/callback"
+      ],
+      "postLogoutRedirectUris": [
+        "https://localhost:4206/",
+        "https://localhost:6206/",
+        "http://localhost:9100/policies/"
+      ]
+    },
+    "productionUris": {
+      "redirectUris": [],
+      "postLogoutRedirectUris": []
+    }
+  },
+  "rbac": {
+    "applicationCode": "andy-policies",
+    "applicationName": "Andy Policies",
+    "description": "Governance policy catalog — structured, versioned policy documents with lifecycle and audit trail.",
+    "resourceTypes": [
+      { "code": "policy",   "name": "Policy",          "supportsInstances": true  },
+      { "code": "binding",  "name": "Policy Binding",  "supportsInstances": true  },
+      { "code": "audit",    "name": "Audit Event",     "supportsInstances": true  },
+      { "code": "settings", "name": "Settings",        "supportsInstances": false }
+    ],
+    "roles": [
+      { "code": "admin",    "name": "Administrator",          "description": "Full access: author, publish, transition, edit bindings, manage overrides.", "isSystem": true },
+      { "code": "author",   "name": "Policy Author",          "description": "May author drafts and propose publish; cannot approve own publishes.",        "isSystem": true },
+      { "code": "approver", "name": "Publish Approver",       "description": "Approves transitions of drafts to active versions.",                          "isSystem": true },
+      { "code": "risk",     "name": "Risk / Compliance",      "description": "Read-all plus audit-export.",                                                  "isSystem": true },
+      { "code": "viewer",   "name": "Viewer",                 "description": "Read-only access to active policies and public audit trail.",                 "isSystem": true }
+    ],
+    "testUserRole": "admin"
+  },
+  "settings": {
+    "definitions": [
+      {
+        "key": "andy.policies.bundleVersionPinning",
+        "displayName": "Bundle Version Pinning",
+        "description": "When true, consumers must pin a bundle version; floating reads are rejected.",
+        "category": "Publishing",
+        "dataType": "Boolean",
+        "defaultValue": "true",
+        "allowedScopes": ["Machine", "Application"]
+      },
+      {
+        "key": "andy.policies.rationaleRequired",
+        "displayName": "Require Rationale on Publish",
+        "description": "Every publish/transition must include a non-empty rationale note.",
+        "category": "Audit",
+        "dataType": "Boolean",
+        "defaultValue": "true",
+        "allowedScopes": ["Machine", "Application"]
+      },
+      {
+        "key": "andy.policies.auditRetentionDays",
+        "displayName": "Audit Retention Days",
+        "description": "Audit log retention in days. Use 0 for indefinite.",
+        "category": "Audit",
+        "dataType": "Integer",
+        "defaultValue": "0",
+        "allowedScopes": ["Machine", "Application"]
+      },
+      {
+        "key": "andy.policies.experimentalOverridesEnabled",
+        "displayName": "Allow Experimental Overrides",
+        "description": "Enables per-principal or per-cohort experimental policy overrides (with approver + expiry).",
+        "category": "Experimentation",
+        "dataType": "Boolean",
+        "defaultValue": "false",
+        "allowedScopes": ["Machine", "Application", "Team"]
+      }
+    ]
+  }
+}

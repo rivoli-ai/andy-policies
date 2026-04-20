@@ -1,5 +1,5 @@
 # -- Node build stage (Angular SPA) ────────────────────────────────────────────
-FROM node:22-alpine AS node-build
+FROM node:24-alpine AS node-build
 WORKDIR /node-build
 
 # Trust corporate CAs (must happen before apk/npm can reach HTTPS registries)
