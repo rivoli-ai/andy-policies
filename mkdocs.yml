@@ -16,3 +16,5 @@ nav:
   - Testing: testing.md
   - Deployment: deployment.md
   - Security: security.md
+  - ADRs:
+    - 0006 Audit hash chain: adr/0006-audit-hash-chain.md
