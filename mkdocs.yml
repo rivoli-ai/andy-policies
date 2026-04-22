@@ -17,5 +17,6 @@ nav:
   - Deployment: deployment.md
   - Security: security.md
   - ADRs:
+    - 0001 Policy versioning: adr/0001-policy-versioning.md
     - 0006 Audit hash chain: adr/0006-audit-hash-chain.md
     - 0007 Edit RBAC: adr/0007-edit-rbac.md
