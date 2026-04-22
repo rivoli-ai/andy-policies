@@ -5,6 +5,7 @@ using Andy.Policies.Domain.Entities;
 using Andy.Policies.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace Andy.Policies.Infrastructure.Data;
 
@@ -65,6 +66,51 @@ public class AppDbContext : DbContext
             entity.Property(v => v.RulesJson)
                 .IsRequired()
                 .HasColumnType(isNpgsql ? "jsonb" : "TEXT");
+
+            // Dimensions (ADR 0001 §6): RFC-2119 posture, triage tier, applicability tags.
+            entity.Property(v => v.Enforcement)
+                .HasConversion<string>()
+                .HasMaxLength(16)
+                .IsRequired();
+
+            entity.Property(v => v.Severity)
+                .HasConversion<string>()
+                .HasMaxLength(16)
+                .IsRequired();
+
+            // Scopes: Postgres gets a native text[] (zero-query membership checks via ANY()).
+            // SQLite has no array type — we use a `|`-delimited string via a value converter.
+            // Scope elements are constrained by PolicyScope.RegexPattern (no `|`) so the
+            // delimiter is safe.
+            if (isNpgsql)
+            {
+                entity.Property(v => v.Scopes)
+                    .HasColumnType("text[]")
+                    .IsRequired();
+            }
+            else
+            {
+                var converter = new ValueConverter<IList<string>, string>(
+                    v => string.Join('|', v),
+                    v => v.Length == 0
+                        ? new List<string>()
+                        : v.Split('|', StringSplitOptions.RemoveEmptyEntries).ToList());
+
+                var comparer = new ValueComparer<IList<string>>(
+                    (a, b) => (a ?? new List<string>()).SequenceEqual(b ?? new List<string>()),
+                    v => v == null
+                        ? 0
+                        : v.Aggregate(0, (h, s) => HashCode.Combine(h, s.GetHashCode())),
+                    v => v.ToList());
+
+                entity.Property(v => v.Scopes)
+                    .HasConversion(converter)
+                    .Metadata.SetValueComparer(comparer);
+                entity.Property(v => v.Scopes).IsRequired();
+            }
+
+            entity.HasIndex(v => v.Enforcement);
+            entity.HasIndex(v => v.Severity);
 
             entity.Property(v => v.CreatedBySubjectId).IsRequired().HasMaxLength(256);
             entity.Property(v => v.ProposerSubjectId).IsRequired().HasMaxLength(256);
@@ -145,6 +191,9 @@ public class AppDbContext : DbContext
             nameof(PolicyVersion.PublishedBySubjectId),
             nameof(PolicyVersion.SupersededByVersionId),
             nameof(PolicyVersion.Revision),
+            // Shadow properties (e.g. Npgsql's `xmin` concurrency token if ever re-enabled)
+            // are never user-supplied; treat them as allow-listed so state-transition writes
+            // that happen to touch shadow props do not throw.
         };
 
         foreach (var entry in ChangeTracker.Entries<PolicyVersion>())
