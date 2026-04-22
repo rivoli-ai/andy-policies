@@ -78,6 +78,10 @@ public class PolicyMigrationTests : IDisposable
             await db.Database.MigrateAsync();
         }
 
+        using var countCmdAfterFirst = _connection.CreateCommand();
+        countCmdAfterFirst.CommandText = "SELECT COUNT(*) FROM \"__EFMigrationsHistory\"";
+        var countAfterFirst = (long)(await countCmdAfterFirst.ExecuteScalarAsync() ?? 0L);
+
         // A second `MigrateAsync` on the same connection is a no-op — the migration history
         // table is consulted and no pending migrations are found.
         using (var db = new AppDbContext(_options))
@@ -85,10 +89,11 @@ public class PolicyMigrationTests : IDisposable
             await db.Database.MigrateAsync();
         }
 
-        using var migrationsCmd = _connection.CreateCommand();
-        migrationsCmd.CommandText = "SELECT COUNT(*) FROM \"__EFMigrationsHistory\"";
-        var count = (long)(await migrationsCmd.ExecuteScalarAsync() ?? 0L);
-        Assert.Equal(1L, count);
+        using var countCmdAfterSecond = _connection.CreateCommand();
+        countCmdAfterSecond.CommandText = "SELECT COUNT(*) FROM \"__EFMigrationsHistory\"";
+        var countAfterSecond = (long)(await countCmdAfterSecond.ExecuteScalarAsync() ?? 0L);
+
+        Assert.Equal(countAfterFirst, countAfterSecond);
     }
 
     [Fact]

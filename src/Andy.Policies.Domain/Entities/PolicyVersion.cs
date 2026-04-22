@@ -38,6 +38,29 @@ public class PolicyVersion
     public string Summary { get; set; } = string.Empty;
 
     /// <summary>
+    /// RFC 2119 posture (see <see cref="EnforcementLevel"/>). Defaults to
+    /// <see cref="EnforcementLevel.Should"/> per ADR 0001 §6. Consumers interpret; this
+    /// service does not enforce.
+    /// </summary>
+    public EnforcementLevel Enforcement { get; set; } = EnforcementLevel.Should;
+
+    /// <summary>
+    /// Triage tier (see <see cref="Domain.Enums.Severity"/>). Defaults to
+    /// <see cref="Domain.Enums.Severity.Moderate"/> per ADR 0001 §6.
+    /// </summary>
+    public Severity Severity { get; set; } = Severity.Moderate;
+
+    /// <summary>
+    /// Flat list of applicability scopes (e.g. <c>prod</c>, <c>repo:rivoli-ai/conductor</c>,
+    /// <c>tool:write-branch</c>). The hierarchy + stricter-tightens-only resolution is
+    /// Epic P4 (rivoli-ai/andy-policies#4); P1 stores a flat list so consumers have a
+    /// non-null scope field from day 1. Service-layer validation (P1.4) enforces the
+    /// canonical regex <c>^[a-z][a-z0-9:._-]{0,62}$</c>, rejects the reserved wildcard
+    /// <c>*</c>, deduplicates, and sorts before persistence.
+    /// </summary>
+    public IList<string> Scopes { get; set; } = new List<string>();
+
+    /// <summary>
     /// Opaque JSON blob carrying the allow/deny/flags DSL preserved from the superseded
     /// rivoli-ai/andy-rbac#17 (Epic V1). This service never interprets it — consumers
     /// (Conductor ActionBus, andy-tasks approval gates) own the schema. Byte-stable storage
