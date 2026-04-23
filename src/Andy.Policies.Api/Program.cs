@@ -80,6 +80,7 @@ if (!string.IsNullOrEmpty(settingsBaseUrl))
 
 // --- Services ---
 builder.Services.AddScoped<IItemService, ItemService>();
+builder.Services.AddScoped<IPolicyService, PolicyService>();
 builder.Services.AddDataProtection();
 
 // --- OpenTelemetry ---
