@@ -43,13 +43,27 @@ namespace Andy.Policies.Tests.E2E;
 /// </summary>
 public sealed class EndToEndAuthSmokeTest : IAsyncLifetime
 {
-    private const string AuthTokenUrl = "http://localhost:7002/connect/token";
+    private const string AuthBaseUrl = "http://localhost:7002";
+    private const string AuthTokenUrl = AuthBaseUrl + "/connect/token";
     private const string PoliciesBaseUrl = "http://localhost:7113";
     private const string RbacBaseUrl = "http://localhost:7004";
     private const string SettingsBaseUrl = "http://localhost:7301";
     private const string ClientId = "andy-policies-api";
     private const string ClientSecret = "e2e-test-secret-not-for-production";
     private const string Audience = "urn:andy-policies-api";
+
+    // andy-policies-web — public OAuth client declared in
+    // config/registration.json; allowed redirect URIs include the one below.
+    private const string WebClientId = "andy-policies-web";
+    private const string WebRedirectUri = "http://localhost:9100/policies/callback";
+
+    // Test user is auto-seeded by andy-auth in non-Production environments
+    // (DbSeeder.cs:1093). Id is pinned to a well-known constant by #56/#57
+    // so andy-rbac (#52/#53) can pre-bind roles via manifest.testUserRole
+    // before the user ever authenticates.
+    private const string TestUserEmail = "test@andy.local";
+    private const string TestUserPassword = "Test123!";
+    private const string TestUserWellKnownId = "00000000-0000-0000-0000-000000000001";
 
     private readonly HttpClient _http = new();
 
@@ -170,6 +184,76 @@ public sealed class EndToEndAuthSmokeTest : IAsyncLifetime
         // settings client wiring), where we'll exercise that path naturally.
         var health = await _http.GetAsync($"{SettingsBaseUrl}/health");
         Assert.Equal(HttpStatusCode.OK, health.StatusCode);
+    }
+
+    [Fact]
+    [Trait("Category", "E2E")]
+    public async Task UserAuthCode_TokenAccepted_ByPoliciesApi()
+    {
+        if (!E2EEnabled) return;
+
+        // 1. Acquire JWT for test@andy.local via authorization_code + PKCE.
+        //    Uses andy-auth's TestLogin endpoint (Development-only, ignores
+        //    anti-forgery) to establish the session cookie, then walks
+        //    /connect/authorize → /connect/token like a real public client.
+        // We only request the API audience scope — the andy-policies-web client
+        // is seeded with raw "email"/"profile"/"roles" permission strings (no
+        // scp: prefix, an upstream andy-auth quirk), so requesting those would
+        // be rejected. The audience scope is the one we actually need on the
+        // resulting access token anyway.
+        using var flow = new AuthorizationCodeFlow(
+            authBaseUrl: AuthBaseUrl,
+            clientId: WebClientId,
+            redirectUri: WebRedirectUri,
+            scope: Audience);
+
+        var token = await flow.AcquireUserAccessTokenAsync(TestUserEmail, TestUserPassword);
+        Assert.False(string.IsNullOrEmpty(token), "andy-auth returned an empty access_token for test user");
+
+        // 2. Use the user JWT against andy-policies. Today this returns 200
+        //    for any authenticated user — RBAC enforcement lands in Epic P7
+        //    (#51 IRbacChecker + #57 authorization handlers). When P7 ships,
+        //    add a companion test that asserts a non-admin user gets 403.
+        var req = new HttpRequestMessage(HttpMethod.Get, $"{PoliciesBaseUrl}/api/policies");
+        req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        var res = await _http.SendAsync(req);
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+    }
+
+    [Fact]
+    [Trait("Category", "E2E")]
+    public async Task AndyRbac_TestUser_HasAdminRoleBindingForPolicies()
+    {
+        if (!E2EEnabled) return;
+
+        // Verifies the cross-repo coordination from rivoli-ai/andy-auth#57
+        // + rivoli-ai/andy-rbac#53: andy-rbac's DataSeeder consumes
+        // testUserRole from andy-policies/config/registration.json and binds
+        // the well-known test subject to the admin role on andy-policies.
+        // /api/subjects/by-external is anonymous in andy-rbac today, so we
+        // can introspect without a JWT.
+        var url = $"{RbacBaseUrl}/api/subjects/by-external/andy-auth/{TestUserWellKnownId}";
+        var res = await _http.GetAsync(url);
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+
+        using var doc = JsonDocument.Parse(await res.Content.ReadAsStringAsync());
+        var roles = doc.RootElement.GetProperty("roles");
+
+        var hasAdminOnPolicies = false;
+        foreach (var role in roles.EnumerateArray())
+        {
+            var roleCode = role.GetProperty("roleCode").GetString();
+            var appCode = role.TryGetProperty("applicationCode", out var ac) ? ac.GetString() : null;
+            if (roleCode == "admin" && appCode == "andy-policies")
+            {
+                hasAdminOnPolicies = true;
+                break;
+            }
+        }
+
+        Assert.True(hasAdminOnPolicies,
+            $"Expected test user ({TestUserEmail}) to have admin role on andy-policies after manifest seeding. " +
+            $"Roles found: {roles}");
     }
 
     private async Task<string> AcquireAccessTokenAsync()
