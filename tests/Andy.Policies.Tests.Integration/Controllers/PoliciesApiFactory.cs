@@ -47,6 +47,12 @@ public sealed class PoliciesApiFactory : WebApplicationFactory<Program>
                 // Bearer registration runs without throwing; the scheme is never invoked
                 // because ConfigureServices below installs TestAuthHandler as the default.
                 ["AndyAuth:Authority"] = "https://test-auth.invalid",
+                // Same posture as AndyAuth: Program.cs throws on missing
+                // AndySettings:ApiBaseUrl (#108 — no silent dev bypass).
+                // Test fixture supplies a placeholder; the registered HTTP
+                // client never gets called because nothing in the controller
+                // tests reads settings yet (consumers land in P2.4/P5.4/etc.).
+                ["AndySettings:ApiBaseUrl"] = "https://test-settings.invalid",
             });
         });
 

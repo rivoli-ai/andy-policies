@@ -47,8 +47,25 @@ ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt \
     DOTNET_NUGET_SIGNATURE_VERIFICATION=false
 
 COPY Directory.Build.props ./
-COPY nuget.config ./
 RUN mkdir -p local-packages
+
+# Andy.Settings.Client — local pre-release feed produced by
+# `bash ../andy-settings/scripts/pack-local.sh`. docker-compose mounts the
+# folder via `additional_contexts: andy-settings-artifacts: ../andy-settings/artifacts`
+# so restore can pull the .nupkg from a local source. Mirrors the andy-rbac
+# pattern. Once CI publishes Andy.Settings.Client to nuget.org, this can
+# fall back to the public feed.
+COPY --from=andy-settings-artifacts . /andy-settings-artifacts/
+RUN printf '<?xml version="1.0" encoding="utf-8"?>\n\
+<configuration>\n\
+  <packageSources>\n\
+    <clear />\n\
+    <add key="andy-settings-local" value="/andy-settings-artifacts" />\n\
+    <add key="local" value="/build/local-packages" />\n\
+    <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />\n\
+  </packageSources>\n\
+</configuration>\n' > /build/nuget.config
+
 COPY src/Andy.Policies.Api/Andy.Policies.Api.csproj src/Andy.Policies.Api/
 COPY src/Andy.Policies.Application/Andy.Policies.Application.csproj src/Andy.Policies.Application/
 COPY src/Andy.Policies.Domain/Andy.Policies.Domain.csproj src/Andy.Policies.Domain/
