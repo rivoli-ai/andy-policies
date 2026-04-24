@@ -10,6 +10,9 @@ services:
       dockerfile: Dockerfile
       additional_contexts:
         certs: ./certs
+        # Andy.Settings.Client (local pre-release feed). Run
+        # `bash ../andy-settings/scripts/pack-local.sh` once before build.
+        andy-settings-artifacts: ../andy-settings/artifacts
     container_name: andy-policies-embedded
     environment:
       - ASPNETCORE_ENVIRONMENT=Development

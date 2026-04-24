@@ -4,6 +4,7 @@
 using Andy.Policies.Application.Interfaces;
 using Andy.Policies.Infrastructure.Data;
 using Andy.Policies.Infrastructure.Services;
+using Andy.Settings.Client;
 using Microsoft.EntityFrameworkCore;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
@@ -68,14 +69,29 @@ if (!string.IsNullOrEmpty(rbacBaseUrl) && builder.Environment.IsDevelopment())
 }
 
 // --- Andy Settings (centralized configuration) ---
+// SECURITY: Same fail-loud posture as #103 — no silent dev bypass. If
+// AndySettings:ApiBaseUrl isn't configured the service refuses to start.
+// andy-policies sources its policy gates (rationale required, override
+// enablement, bundle pinning, audit retention) from andy-settings; missing
+// config would silently default behaviors and is unsafe. See #108.
+//
+// AddAndySettingsClient registers IAndySettingsClient (HTTP), an
+// ISettingsSnapshot (cached settings), and a hosted SettingsRefreshService
+// that pulls updates on a configurable cadence. Reads are lazy through the
+// snapshot — the service starts even if andy-settings is briefly unreachable,
+// but consumer code that demands a setting before the first refresh will
+// surface as 5xx.
 var settingsBaseUrl = builder.Configuration["AndySettings:ApiBaseUrl"];
-if (!string.IsNullOrEmpty(settingsBaseUrl))
+if (string.IsNullOrWhiteSpace(settingsBaseUrl))
 {
-    builder.Services.AddHttpClient("AndySettings", client =>
-    {
-        client.BaseAddress = new Uri(settingsBaseUrl);
-    });
+    throw new InvalidOperationException(
+        "AndySettings:ApiBaseUrl is not configured. Set it via appsettings, " +
+        "environment (AndySettings__ApiBaseUrl=https://...), or Andy Settings " +
+        "bootstrap. For local dev, run andy-settings (e.g. `docker compose up " +
+        "andy-settings`) and point at https://localhost:5300 — or use the " +
+        "compose stack in docker-compose.e2e.yml.");
 }
+builder.Services.AddAndySettingsClient(builder.Configuration);
 
 // --- Services ---
 builder.Services.AddScoped<IItemService, ItemService>();

@@ -227,6 +227,9 @@ services:
       dockerfile: Dockerfile
       additional_contexts:
         certs: ./certs
+        # Same pattern as andy-rbac — Dockerfile pulls Andy.Settings.Client
+        # 0.1.0-dev from this local feed. Re-run pack-local.sh when changes.
+        andy-settings-artifacts: ../andy-settings/artifacts
     container_name: andy-policies-e2e-api
     environment:
       - ASPNETCORE_ENVIRONMENT=Development

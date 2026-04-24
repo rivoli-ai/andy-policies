@@ -160,11 +160,11 @@ dotnet ef database update --project src/Andy.Policies.Infrastructure --startup-p
 
 ## External Dependencies
 
-| Service | Port | Purpose |
-|---------|------|---------|
-| Andy Auth | 5001 | OAuth2/OIDC identity provider |
-| Andy RBAC | 5003 | Role-based access control |
-| Andy Settings | 5300 | Centralized configuration |
+| Service | Port | Purpose | Wiring |
+|---------|------|---------|--------|
+| Andy Auth | 5001 | OAuth2/OIDC identity provider | JWT Bearer in `Program.cs`; `AndyAuth:Authority` required (no bypass — see #103) |
+| Andy RBAC | 5003 | Role-based access control | Not wired yet — Epic P7 (#7) |
+| Andy Settings | 5300 | Centralized configuration | `Andy.Settings.Client` registered in `Program.cs` via `AddAndySettingsClient` (#108); `AndySettings:ApiBaseUrl` required (no bypass). Resolves `IAndySettingsClient`, `ISettingsSnapshot`, and a hosted refresh service. Local dev pulls the package from `../andy-settings/artifacts` — run `bash ../andy-settings/scripts/pack-local.sh` once before first build. |
 
 ## Database
 
