@@ -93,14 +93,14 @@ namespace Andy.Policies.Infrastructure.Migrations
                 table: "policy_versions",
                 column: "PolicyId",
                 unique: true,
-                filter: "state = 'Active'");
+                filter: "\"State\" = 'Active'");
 
             migrationBuilder.CreateIndex(
                 name: "ix_policy_versions_one_draft_per_policy",
                 table: "policy_versions",
                 column: "PolicyId",
                 unique: true,
-                filter: "state = 'Draft'");
+                filter: "\"State\" = 'Draft'");
 
             migrationBuilder.CreateIndex(
                 name: "IX_policy_versions_PolicyId_Version",

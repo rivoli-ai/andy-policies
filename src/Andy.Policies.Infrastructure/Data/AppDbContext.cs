@@ -56,7 +56,10 @@ public class AppDbContext : DbContext
             entity.Property(v => v.Version).IsRequired();
 
             // State stored as string so migrations + filtered-unique-index SQL is portable
-            // across Postgres and SQLite (both honour the `WHERE state = 'Draft'` filter literal).
+            // across Postgres and SQLite (both honour the `WHERE "State" = 'Draft'` filter literal).
+            // The PascalCase column name is double-quoted so Postgres preserves case — unquoted
+            // `state` resolves to a non-existent lowercase column on Postgres (case-folding rule).
+            // SQLite is case-insensitive for identifiers either way.
             entity.Property(v => v.State)
                 .HasConversion<string>()
                 .HasMaxLength(32)
@@ -138,11 +141,11 @@ public class AppDbContext : DbContext
             // via the overload registers them as separate logical indexes.
             entity.HasIndex(v => v.PolicyId, "ix_policy_versions_one_draft_per_policy")
                 .IsUnique()
-                .HasFilter("state = 'Draft'");
+                .HasFilter("\"State\" = 'Draft'");
 
             entity.HasIndex(v => v.PolicyId, "ix_policy_versions_one_active_per_policy")
                 .IsUnique()
-                .HasFilter("state = 'Active'");
+                .HasFilter("\"State\" = 'Active'");
         });
 
         // Optimistic-concurrency token: a uniform <c>uint Revision</c> column on both providers,
