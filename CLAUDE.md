@@ -169,11 +169,12 @@ dotnet ef database update --project src/Andy.Policies.Infrastructure --startup-p
 
 ## Authentication & Authorization
 
-- **Auth bypass**: When `AndyAuth:Authority` is empty, all endpoints are open (dev convenience)
-- **JWT Bearer**: When configured, API requires valid tokens from Andy Auth
+- **No auth bypass — ever**: There is no production code path that allows unauthenticated access. If `AndyAuth:Authority` is missing, the API refuses to start with a clear error. For local dev, run andy-auth (e.g. `docker compose up andy-auth`) and let `appsettings.json` point at `https://localhost:5001`. See #103 for the rationale.
+- **JWT Bearer**: API requires valid tokens from Andy Auth on every `[Authorize]`d endpoint.
 - **Test user**: `test@andy.local` / `Test123!` (seeded in Andy Auth for non-production)
 - **RBAC**: Application code `andy-policies` registered in Andy RBAC with admin/user/viewer roles
 - **Swagger**: Bearer security scheme configured — use "Authorize" button in Swagger UI
+- **Integration tests**: register their own `TestAuthHandler` inside `WebApplicationFactory` and override the default scheme — they never depend on a production bypass.
 
 ## Testing Requirements
 

@@ -4,7 +4,6 @@
 using Andy.Policies.Application.Interfaces;
 using Andy.Policies.Infrastructure.Data;
 using Andy.Policies.Infrastructure.Services;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
@@ -16,42 +15,42 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddAppDatabase(builder.Configuration);
 
 // --- Authentication (Andy Auth) ---
-var andyAuthAuthority = builder.Configuration["AndyAuth:Authority"] ?? "";
-if (!string.IsNullOrEmpty(andyAuthAuthority))
+// SECURITY: There is no auth-bypass branch by design. If AndyAuth:Authority is
+// not configured the service refuses to start — failing loud beats silently
+// shipping an open-to-anonymous deployment. Tests register their own
+// authentication scheme inside their WebApplicationFactory; they do not depend
+// on a production bypass. See rivoli-ai/andy-policies#103.
+var andyAuthAuthority = builder.Configuration["AndyAuth:Authority"];
+if (string.IsNullOrEmpty(andyAuthAuthority))
 {
-    var audience = builder.Configuration["AndyAuth:Audience"] ?? "urn:andy-policies-api";
-    builder.Services.AddAuthentication("Bearer")
-        .AddJwtBearer("Bearer", options =>
-        {
-            options.Authority = andyAuthAuthority;
-            options.Audience = audience;
-            options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
-            if (builder.Environment.IsDevelopment())
-            {
-                options.BackchannelHttpHandler = new HttpClientHandler
-                {
-                    ServerCertificateCustomValidationCallback =
-                        HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
-                };
-                options.TokenValidationParameters.ValidIssuers = new[]
-                {
-                    andyAuthAuthority, andyAuthAuthority.TrimEnd('/') + "/",
-                    "https://localhost:5001", "https://localhost:5001/"
-                };
-            }
-        });
-    builder.Services.AddAuthorization();
+    throw new InvalidOperationException(
+        "AndyAuth:Authority is not configured. Set it via appsettings, environment " +
+        "(AndyAuth__Authority=https://...), or Andy Settings. For local dev, run " +
+        "andy-auth (e.g. `docker compose up andy-auth`) and point at https://localhost:5001.");
 }
-else
-{
-    builder.Services.AddAuthentication();
-    builder.Services.AddAuthorization(options =>
+
+var audience = builder.Configuration["AndyAuth:Audience"] ?? "urn:andy-policies-api";
+builder.Services.AddAuthentication("Bearer")
+    .AddJwtBearer("Bearer", options =>
     {
-        options.DefaultPolicy = new AuthorizationPolicyBuilder()
-            .RequireAssertion(_ => true)
-            .Build();
+        options.Authority = andyAuthAuthority;
+        options.Audience = audience;
+        options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
+        if (builder.Environment.IsDevelopment())
+        {
+            options.BackchannelHttpHandler = new HttpClientHandler
+            {
+                ServerCertificateCustomValidationCallback =
+                    HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+            };
+            options.TokenValidationParameters.ValidIssuers = new[]
+            {
+                andyAuthAuthority, andyAuthAuthority.TrimEnd('/') + "/",
+                "https://localhost:5001", "https://localhost:5001/"
+            };
+        }
     });
-}
+builder.Services.AddAuthorization();
 
 // --- RBAC (Andy.Rbac.Client) ---
 var rbacBaseUrl = builder.Configuration["Rbac:ApiBaseUrl"];
