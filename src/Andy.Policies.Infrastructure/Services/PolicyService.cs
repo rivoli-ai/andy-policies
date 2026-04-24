@@ -200,9 +200,11 @@ public sealed partial class PolicyService : IPolicyService
 
         // Service-level guard mirrors the domain MutateDraftField + the AppDbContext guard;
         // rejecting here yields a clearer error message than waiting for SaveChangesAsync.
+        // Surfaced as ConflictException so the REST/MCP/gRPC layers map to 409 — wrong-state
+        // mutation is a concurrency-style conflict, not a malformed request.
         if (version.State != LifecycleState.Draft)
         {
-            throw new InvalidOperationException(
+            throw new ConflictException(
                 $"PolicyVersion {version.Id} is in state {version.State}; only Draft versions are mutable.");
         }
 

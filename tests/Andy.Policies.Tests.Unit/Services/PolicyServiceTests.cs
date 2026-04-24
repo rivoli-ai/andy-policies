@@ -147,7 +147,7 @@ public class PolicyServiceTests
     }
 
     [Fact]
-    public async Task UpdateDraftAsync_WhenVersionIsPublished_ThrowsInvalidOperationException()
+    public async Task UpdateDraftAsync_WhenVersionIsPublished_ThrowsConflictException()
     {
         using var db = CreateInMemoryDb();
         var service = new PolicyService(db);
@@ -159,8 +159,9 @@ public class PolicyServiceTests
         await db.SaveChangesAsync();
 
         var req = new UpdatePolicyVersionRequest("x", "must", "critical", Array.Empty<string>(), "{}");
-        await Assert.ThrowsAsync<InvalidOperationException>(
+        var ex = await Assert.ThrowsAsync<ConflictException>(
             () => service.UpdateDraftAsync(created.PolicyId, created.Id, req, "sam"));
+        Assert.Contains("Active", ex.Message);
     }
 
     [Fact]

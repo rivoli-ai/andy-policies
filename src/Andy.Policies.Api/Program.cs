@@ -83,6 +83,10 @@ builder.Services.AddScoped<IItemService, ItemService>();
 builder.Services.AddScoped<IPolicyService, PolicyService>();
 builder.Services.AddDataProtection();
 
+// --- Exception handlers ---
+builder.Services.AddExceptionHandler<Andy.Policies.Api.ExceptionHandlers.PolicyExceptionHandler>();
+builder.Services.AddProblemDetails();
+
 // --- OpenTelemetry ---
 var otelServiceName = builder.Configuration["OpenTelemetry:ServiceName"] ?? "andy-policies-api";
 var otlpEndpoint = builder.Configuration["OpenTelemetry:OtlpEndpoint"];
@@ -185,6 +189,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+app.UseExceptionHandler();
 
 app.UseDefaultFiles();
 app.UseStaticFiles();
