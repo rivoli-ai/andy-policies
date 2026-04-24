@@ -42,8 +42,11 @@ public sealed class PoliciesApiFactory : WebApplicationFactory<Program>
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Database:Provider"] = "Sqlite",
-                // Empty string disables andy-auth bearer setup → AllowAnonymous default.
-                ["AndyAuth:Authority"] = "",
+                // Production Program.cs throws if AndyAuth:Authority is empty (see #103
+                // — there is no auth-bypass branch). Provide a placeholder so the JWT
+                // Bearer registration runs without throwing; the scheme is never invoked
+                // because ConfigureServices below installs TestAuthHandler as the default.
+                ["AndyAuth:Authority"] = "https://test-auth.invalid",
             });
         });
 
