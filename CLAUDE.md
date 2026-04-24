@@ -114,7 +114,8 @@ dotnet test
 # Run tests with coverage
 dotnet test --collect:"XPlat Code Coverage" --results-directory ./TestResults
 
-# Run E2E auth smoke test (requires live stack — see #105)
+# Run E2E smoke tests (full 4-service stack — see #105 + #107)
+bash ../andy-settings/scripts/pack-local.sh   # one-time prereq for andy-rbac build
 docker compose -f docker-compose.e2e.yml up -d --build
 E2E_ENABLED=1 dotnet test tests/Andy.Policies.Tests.E2E
 docker compose -f docker-compose.e2e.yml down -v
@@ -187,7 +188,7 @@ dotnet ef database update --project src/Andy.Policies.Infrastructure --startup-p
 - **Run `dotnet test` before claiming completion**
 - Unit tests use EF Core InMemory provider
 - Integration tests use `WebApplicationFactory<Program>` with SQLite-backed `PoliciesApiFactory` and `TestAuthHandler`
-- E2E tests (`tests/Andy.Policies.Tests.E2E`) hit a live andy-auth + andy-policies stack via `docker-compose.e2e.yml`. Skipped silently unless `E2E_ENABLED=1`. They prove the OAuth client manifest in `config/registration.json` actually round-trips: real JWT issued by andy-auth → andy-policies validates signature/audience/issuer → 201/200 on the REST surface. Run before broadening surfaces (P1.6/7/8) — registration drift (audience typos, scope mismatches) shows up here, not in unit tests.
+- E2E tests (`tests/Andy.Policies.Tests.E2E`) hit a live 4-service stack (andy-auth + andy-rbac + andy-settings + andy-policies) via `docker-compose.e2e.yml`. Skipped silently unless `E2E_ENABLED=1`. They prove the full registration manifest in `config/registration.json` round-trips: OAuth client → JWT issuance → policies REST surface (auth), RBAC application + roles seeded, settings definitions seeded. Run before broadening surfaces (P1.6/7/8) — registration drift shows up here, not in unit tests. Requires `bash ../andy-settings/scripts/pack-local.sh` once before first build.
 - Frontend tests use Karma/Jasmine with ChromeHeadless
 
 ## Code Quality

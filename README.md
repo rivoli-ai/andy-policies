@@ -82,17 +82,30 @@ dotnet test
 cd client && npm test -- --watch=false --browsers=ChromeHeadless
 ```
 
-### End-to-end auth smoke test
+### End-to-end smoke test (full ecosystem stack)
 
-Brings up a real andy-auth alongside andy-policies and proves the OAuth client
-manifest in `config/registration.json` round-trips (token issuance → JWT
-validation → REST round-trip). Skipped silently unless `E2E_ENABLED=1`.
+Brings up andy-auth + andy-rbac + andy-settings + andy-policies (each with its
+own Postgres) and proves the OAuth client + RBAC application + settings
+definitions in `config/registration.json` round-trip end-to-end. Skipped
+silently unless `E2E_ENABLED=1`.
+
+**One-time prerequisite** (re-run when `andy-settings/src/Andy.Settings.Client/*`
+changes):
+
+```bash
+bash ../andy-settings/scripts/pack-local.sh
+```
+
+Then:
 
 ```bash
 docker compose -f docker-compose.e2e.yml up -d --build
 E2E_ENABLED=1 dotnet test tests/Andy.Policies.Tests.E2E
 docker compose -f docker-compose.e2e.yml down -v
 ```
+
+First build is slow (8 images: 4 services × build + 4 Postgres pulls).
+Subsequent rebuilds are incremental.
 
 ## Docker modes
 

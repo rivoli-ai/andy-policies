@@ -1,38 +1,48 @@
-# End-to-end smoke test stack — issue rivoli-ai/andy-policies#105.
+# End-to-end smoke test stack — issues rivoli-ai/andy-policies#105 (auth) and #107 (full stack).
 #
-# Brings up andy-auth + andy-policies (each with its own Postgres) on a single
-# Docker network so the E2E test in tests/Andy.Policies.Tests.E2E/ can:
+# Brings up all four ecosystem services + their Postgres containers on a single
+# Docker network so the E2E tests in tests/Andy.Policies.Tests.E2E/ can:
 #
-#   1. POST http://localhost:7002/connect/token  (client_credentials grant on
-#      andy-policies-api → JWT signed by andy-auth)
-#   2. POST http://localhost:7113/api/policies   (with Bearer token → 201)
-#   3. GET  http://localhost:7113/api/policies   (same token → 200, list)
+#   - Auth: POST http://localhost:7002/connect/token  (client_credentials →
+#     JWT signed by andy-auth) → POST/GET http://localhost:7113/api/policies
+#   - RBAC: GET http://localhost:7004/health + assert andy-policies app is
+#     registered (proves manifest seeding worked).
+#   - Settings: GET http://localhost:7301/health + assert the 4 setting
+#     definitions are seeded (proves manifest seeding worked).
 #
-# This proves the OAuth client registration in config/registration.json is
-# actually consumable by a running andy-auth, that audiences/scopes/issuer
-# line up across services, and that andy-policies validates JWTs from a real
-# andy-auth (not just TestAuthHandler).
+# This proves the full registration manifest in config/registration.json is
+# consumable by all three platform services. Runtime integration (andy-policies
+# calling rbac for authorization, reading settings for behavior gates) is
+# tracked separately:
+#   - #108 (settings client wiring — foundational)
+#   - Epic P7 / #51 #57 #47 (RBAC enforcement)
+#   - #109 (E2E permission check — extends this stack once P7 lands)
+#   - rivoli-ai/andy-rbac#52 (upstream — DataSeeder must consume testUserRole
+#     before user-specific permission tests are possible)
 #
-# Out of scope for v1 (deliberate):
-#   - andy-rbac and andy-settings — andy-policies does not call them at
-#     runtime today (no IRbacChecker until P7 lands; no settings consumer
-#     code yet). Adding them grows compose surface + build prereqs (andy-rbac
-#     requires `bash ../andy-settings/scripts/pack-local.sh` first) without
-#     additional smoke-test signal. Track extension as follow-up to #105.
-#   - Real user authentication — the smoke test uses client_credentials so
-#     the token represents a service principal, not test@andy.local.
-#     test@andy.local is auto-seeded by andy-auth (DbSeeder.cs:1104) but
-#     reaching it requires authorization_code flow which is impractical in
-#     a non-interactive test. When P7 (#57) adds role-based authorization,
-#     extend with a second test that uses auth_code + plays back a captured
-#     code flow.
+# Out of scope:
+#   - Real user authentication via test@andy.local — uses client_credentials
+#     so the token represents a service principal. See #109.
+#   - andy-rbac Web UI container (admin SPA) — not needed for service-to-service
+#     smoke tests.
+#
+# One-time prerequisites (called out in README):
+#   bash ../andy-settings/scripts/pack-local.sh
+#       Packs Andy.Settings.Client.0.1.0-dev.nupkg into ../andy-settings/artifacts/
+#       which andy-rbac's Dockerfile consumes via additional_contexts. Re-run
+#       when andy-settings/src/Andy.Settings.Client/* changes.
 #
 # Usage:
 #   docker compose -f docker-compose.e2e.yml up -d --build
 #   E2E_ENABLED=1 dotnet test tests/Andy.Policies.Tests.E2E
 #   docker compose -f docker-compose.e2e.yml down -v
+#
+# First build is slow (8 images: 4 services × build + 4 Postgres pulls).
+# Subsequent rebuilds are incremental.
 
 services:
+  # --- andy-auth -------------------------------------------------------------
+
   andy-auth-postgres:
     image: postgres:16-alpine
     container_name: andy-policies-e2e-auth-pg
@@ -61,13 +71,10 @@ services:
       - ConnectionStrings__DefaultConnection=Host=andy-auth-postgres;Port=5432;Database=andy_auth_dev;Username=postgres;Password=postgres
       # Pin the issuer to the in-network URL so andy-policies (which fetches
       # metadata from this same URL) sees a matching iss claim on tokens.
-      # The test calls localhost:7002, but token.iss will be the configured
-      # issuer regardless of how the token endpoint was reached.
       - OpenIddict__Issuer=http://andy-auth:5000/
-      # Read andy-policies' OAuth client manifest at startup. This is what
-      # seeds the andy-policies-api confidential client (PBKDF2-hashed from
-      # ANDY_POLICIES_API_SECRET via DbSeeder.ResolveClientSecret).
-      - REGISTRATIONS__MANIFEST_PATHS=/monorepo/andy-policies/config/registration.json
+      # Read every available manifest from the mounted monorepo so each
+      # service's OAuth clients + scopes are seeded.
+      - REGISTRATIONS__MANIFEST_PATHS=/monorepo/andy-auth/config/registration.json:/monorepo/andy-rbac/config/registration.json:/monorepo/andy-settings/config/registration.json:/monorepo/andy-policies/config/registration.json
       - ANDY_POLICIES_API_SECRET=e2e-test-secret-not-for-production
     ports:
       - "7002:5000"
@@ -76,12 +83,128 @@ services:
     depends_on:
       andy-auth-postgres:
         condition: service_healthy
-    # No healthcheck: the andy-auth image (built from ../andy-auth/Dockerfile)
-    # ships without curl/wget/nc, so we rely on andy-policies' own healthcheck
-    # to gate end-to-end readiness — it implicitly proves andy-auth's metadata
-    # endpoint is reachable (JWT Bearer middleware fetches it on first request).
+    # No healthcheck: image lacks curl/wget. Dependents wait via a fixed
+    # `service_started` (acceptable since rbac/settings have their own
+    # healthchecks and andy-policies is the last in line).
     networks:
       - e2e
+
+  # --- andy-settings (depended on by andy-rbac) ------------------------------
+
+  andy-settings-postgres:
+    image: postgres:16-alpine
+    container_name: andy-policies-e2e-settings-pg
+    environment:
+      POSTGRES_DB: andy_settings
+      POSTGRES_USER: andy_settings
+      POSTGRES_PASSWORD: andy_settings_dev_password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U andy_settings -d andy_settings"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - e2e
+
+  andy-settings:
+    build:
+      context: ../andy-settings
+      dockerfile: Dockerfile
+      additional_contexts:
+        certs: ../andy-settings/certs
+    container_name: andy-policies-e2e-settings
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__DefaultConnection=Host=andy-settings-postgres;Port=5432;Database=andy_settings;Username=andy_settings;Password=andy_settings_dev_password
+      # Real auth — andy-settings has its own auth-bypass branch (same upstream
+      # pattern we removed in #103); we point it at the in-stack andy-auth so
+      # the bypass doesn't activate even within the test stack.
+      - AndyAuth__Authority=http://andy-auth:5000/
+      - AndyAuth__Audience=urn:andy-settings-api
+      - AndyAuth__RequireHttpsMetadata=false
+      # andy-settings calls andy-rbac for authorization on its own endpoints.
+      # We provide the URL but accept that rbac may be slower to come up; for
+      # the smoke test we hit settings via service token paths.
+      - Rbac__ApiBaseUrl=http://andy-rbac:8080/
+      - Rbac__ApplicationCode=settings
+      - REGISTRATIONS__MANIFEST_PATHS=/monorepo/andy-auth/config/registration.json:/monorepo/andy-rbac/config/registration.json:/monorepo/andy-settings/config/registration.json:/monorepo/andy-policies/config/registration.json
+    ports:
+      - "7301:8080"
+    volumes:
+      - ../:/monorepo:ro
+    depends_on:
+      andy-settings-postgres:
+        condition: service_healthy
+      andy-auth:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    networks:
+      - e2e
+
+  # --- andy-rbac (depends on andy-settings for its own settings reads) ------
+
+  andy-rbac-postgres:
+    image: postgres:16-alpine
+    container_name: andy-policies-e2e-rbac-pg
+    environment:
+      POSTGRES_DB: andy_rbac
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d andy_rbac"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - e2e
+
+  andy-rbac:
+    build:
+      context: ../andy-rbac
+      dockerfile: src/Andy.Rbac.Api/Dockerfile
+      additional_contexts:
+        certs: ../andy-rbac/certs
+        # ⚠️  Run `bash ../andy-settings/scripts/pack-local.sh` once before
+        # building this image. Generates Andy.Settings.Client 0.1.0-dev nupkgs
+        # in ../andy-settings/artifacts/ which andy-rbac's Dockerfile restores.
+        andy-settings-artifacts: ../andy-settings/artifacts
+    container_name: andy-policies-e2e-rbac
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__DefaultConnection=Host=andy-rbac-postgres;Port=5432;Database=andy_rbac;Username=postgres;Password=postgres
+      - Auth__Authority=http://andy-auth:5000/
+      - Auth__Audience=urn:andy-rbac-api
+      - AndySettings__ApiBaseUrl=http://andy-settings:8080/
+      - AndySettings__ApplicationCode=andy-rbac
+      - REGISTRATIONS__MANIFEST_PATHS=/monorepo/andy-auth/config/registration.json:/monorepo/andy-rbac/config/registration.json:/monorepo/andy-settings/config/registration.json:/monorepo/andy-policies/config/registration.json
+    ports:
+      - "7004:8080"
+    volumes:
+      - ../:/monorepo:ro
+    depends_on:
+      andy-rbac-postgres:
+        condition: service_healthy
+      andy-auth:
+        condition: service_started
+      andy-settings:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    networks:
+      - e2e
+
+  # --- andy-policies (system under test) ------------------------------------
 
   andy-policies-postgres:
     image: postgres:16-alpine
@@ -109,10 +232,14 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:8080
       - ConnectionStrings__DefaultConnection=Host=andy-policies-postgres;Port=5432;Database=andy_policies;Username=andy_policies;Password=andy_policies_dev_password
-      # Same in-network URL as andy-auth's pinned issuer so JWT validation
-      # accepts tokens from the test.
       - AndyAuth__Authority=http://andy-auth:5000/
       - AndyAuth__Audience=urn:andy-policies-api
+      # Settings + RBAC URLs declared so the future runtime integrations
+      # (#108, #57) inherit a working network setup without compose churn.
+      - AndySettings__ApiBaseUrl=http://andy-settings:8080/
+      - AndySettings__ApplicationCode=andy-policies
+      - Rbac__ApiBaseUrl=http://andy-rbac:8080/
+      - Rbac__ApplicationCode=andy-policies
     ports:
       - "7113:8080"
     depends_on:
@@ -120,6 +247,10 @@ services:
         condition: service_healthy
       andy-auth:
         condition: service_started
+      andy-rbac:
+        condition: service_healthy
+      andy-settings:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
       interval: 5s

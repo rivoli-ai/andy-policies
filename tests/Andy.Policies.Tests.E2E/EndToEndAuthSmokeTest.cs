@@ -45,6 +45,8 @@ public sealed class EndToEndAuthSmokeTest : IAsyncLifetime
 {
     private const string AuthTokenUrl = "http://localhost:7002/connect/token";
     private const string PoliciesBaseUrl = "http://localhost:7113";
+    private const string RbacBaseUrl = "http://localhost:7004";
+    private const string SettingsBaseUrl = "http://localhost:7301";
     private const string ClientId = "andy-policies-api";
     private const string ClientSecret = "e2e-test-secret-not-for-production";
     private const string Audience = "urn:andy-policies-api";
@@ -125,6 +127,49 @@ public sealed class EndToEndAuthSmokeTest : IAsyncLifetime
         // really is gone; #103).
         var res = await _http.GetAsync($"{PoliciesBaseUrl}/api/policies");
         Assert.Equal(HttpStatusCode.Unauthorized, res.StatusCode);
+    }
+
+    [Fact]
+    [Trait("Category", "E2E")]
+    public async Task AndyRbac_HealthAndManifestSeeding_Verified()
+    {
+        if (!E2EEnabled) return;
+
+        // andy-rbac is up.
+        var health = await _http.GetAsync($"{RbacBaseUrl}/health");
+        Assert.Equal(HttpStatusCode.OK, health.StatusCode);
+
+        // andy-rbac consumed /monorepo/andy-policies/config/registration.json
+        // at startup and seeded the andy-policies application + roles +
+        // resource types. /api/applications is [AllowAnonymous] in andy-rbac,
+        // so we can introspect without a JWT.
+        var apps = await _http.GetAsync($"{RbacBaseUrl}/api/applications");
+        Assert.Equal(HttpStatusCode.OK, apps.StatusCode);
+
+        using var doc = JsonDocument.Parse(await apps.Content.ReadAsStringAsync());
+        var codes = new List<string>();
+        foreach (var app in doc.RootElement.EnumerateArray())
+        {
+            if (app.TryGetProperty("code", out var code) && code.ValueKind == JsonValueKind.String)
+            {
+                codes.Add(code.GetString()!);
+            }
+        }
+        Assert.Contains("andy-policies", codes);
+    }
+
+    [Fact]
+    [Trait("Category", "E2E")]
+    public async Task AndySettings_Health_Verified()
+    {
+        if (!E2EEnabled) return;
+
+        // andy-settings is up. Deep manifest verification (/api/definitions
+        // → 4 declared settings present) requires a JWT for
+        // urn:andy-settings-api and is deferred to #108 (foundational
+        // settings client wiring), where we'll exercise that path naturally.
+        var health = await _http.GetAsync($"{SettingsBaseUrl}/health");
+        Assert.Equal(HttpStatusCode.OK, health.StatusCode);
     }
 
     private async Task<string> AcquireAccessTokenAsync()
