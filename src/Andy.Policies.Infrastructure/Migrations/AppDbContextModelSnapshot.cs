@@ -171,11 +171,11 @@ namespace Andy.Policies.Infrastructure.Migrations
 
                     b.HasIndex(new[] { "PolicyId" }, "ix_policy_versions_one_active_per_policy")
                         .IsUnique()
-                        .HasFilter("state = 'Active'");
+                        .HasFilter("\"State\" = 'Active'");
 
                     b.HasIndex(new[] { "PolicyId" }, "ix_policy_versions_one_draft_per_policy")
                         .IsUnique()
-                        .HasFilter("state = 'Draft'");
+                        .HasFilter("\"State\" = 'Draft'");
 
                     b.ToTable("policy_versions", (string)null);
                 });

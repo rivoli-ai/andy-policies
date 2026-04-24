@@ -82,6 +82,18 @@ dotnet test
 cd client && npm test -- --watch=false --browsers=ChromeHeadless
 ```
 
+### End-to-end auth smoke test
+
+Brings up a real andy-auth alongside andy-policies and proves the OAuth client
+manifest in `config/registration.json` round-trips (token issuance → JWT
+validation → REST round-trip). Skipped silently unless `E2E_ENABLED=1`.
+
+```bash
+docker compose -f docker-compose.e2e.yml up -d --build
+E2E_ENABLED=1 dotnet test tests/Andy.Policies.Tests.E2E
+docker compose -f docker-compose.e2e.yml down -v
+```
+
 ## Docker modes
 
 ```bash

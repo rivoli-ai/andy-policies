@@ -1,0 +1,135 @@
+# End-to-end smoke test stack — issue rivoli-ai/andy-policies#105.
+#
+# Brings up andy-auth + andy-policies (each with its own Postgres) on a single
+# Docker network so the E2E test in tests/Andy.Policies.Tests.E2E/ can:
+#
+#   1. POST http://localhost:7002/connect/token  (client_credentials grant on
+#      andy-policies-api → JWT signed by andy-auth)
+#   2. POST http://localhost:7113/api/policies   (with Bearer token → 201)
+#   3. GET  http://localhost:7113/api/policies   (same token → 200, list)
+#
+# This proves the OAuth client registration in config/registration.json is
+# actually consumable by a running andy-auth, that audiences/scopes/issuer
+# line up across services, and that andy-policies validates JWTs from a real
+# andy-auth (not just TestAuthHandler).
+#
+# Out of scope for v1 (deliberate):
+#   - andy-rbac and andy-settings — andy-policies does not call them at
+#     runtime today (no IRbacChecker until P7 lands; no settings consumer
+#     code yet). Adding them grows compose surface + build prereqs (andy-rbac
+#     requires `bash ../andy-settings/scripts/pack-local.sh` first) without
+#     additional smoke-test signal. Track extension as follow-up to #105.
+#   - Real user authentication — the smoke test uses client_credentials so
+#     the token represents a service principal, not test@andy.local.
+#     test@andy.local is auto-seeded by andy-auth (DbSeeder.cs:1104) but
+#     reaching it requires authorization_code flow which is impractical in
+#     a non-interactive test. When P7 (#57) adds role-based authorization,
+#     extend with a second test that uses auth_code + plays back a captured
+#     code flow.
+#
+# Usage:
+#   docker compose -f docker-compose.e2e.yml up -d --build
+#   E2E_ENABLED=1 dotnet test tests/Andy.Policies.Tests.E2E
+#   docker compose -f docker-compose.e2e.yml down -v
+
+services:
+  andy-auth-postgres:
+    image: postgres:16-alpine
+    container_name: andy-policies-e2e-auth-pg
+    environment:
+      POSTGRES_DB: andy_auth_dev
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d andy_auth_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - e2e
+
+  andy-auth:
+    build:
+      context: ../andy-auth
+      dockerfile: Dockerfile
+      additional_contexts:
+        certs: ../andy-auth/certs
+    container_name: andy-policies-e2e-auth
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:5000
+      - ConnectionStrings__DefaultConnection=Host=andy-auth-postgres;Port=5432;Database=andy_auth_dev;Username=postgres;Password=postgres
+      # Pin the issuer to the in-network URL so andy-policies (which fetches
+      # metadata from this same URL) sees a matching iss claim on tokens.
+      # The test calls localhost:7002, but token.iss will be the configured
+      # issuer regardless of how the token endpoint was reached.
+      - OpenIddict__Issuer=http://andy-auth:5000/
+      # Read andy-policies' OAuth client manifest at startup. This is what
+      # seeds the andy-policies-api confidential client (PBKDF2-hashed from
+      # ANDY_POLICIES_API_SECRET via DbSeeder.ResolveClientSecret).
+      - REGISTRATIONS__MANIFEST_PATHS=/monorepo/andy-policies/config/registration.json
+      - ANDY_POLICIES_API_SECRET=e2e-test-secret-not-for-production
+    ports:
+      - "7002:5000"
+    volumes:
+      - ../:/monorepo:ro
+    depends_on:
+      andy-auth-postgres:
+        condition: service_healthy
+    # No healthcheck: the andy-auth image (built from ../andy-auth/Dockerfile)
+    # ships without curl/wget/nc, so we rely on andy-policies' own healthcheck
+    # to gate end-to-end readiness — it implicitly proves andy-auth's metadata
+    # endpoint is reachable (JWT Bearer middleware fetches it on first request).
+    networks:
+      - e2e
+
+  andy-policies-postgres:
+    image: postgres:16-alpine
+    container_name: andy-policies-e2e-pg
+    environment:
+      POSTGRES_DB: andy_policies
+      POSTGRES_USER: andy_policies
+      POSTGRES_PASSWORD: andy_policies_dev_password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U andy_policies -d andy_policies"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - e2e
+
+  andy-policies:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      additional_contexts:
+        certs: ./certs
+    container_name: andy-policies-e2e-api
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__DefaultConnection=Host=andy-policies-postgres;Port=5432;Database=andy_policies;Username=andy_policies;Password=andy_policies_dev_password
+      # Same in-network URL as andy-auth's pinned issuer so JWT validation
+      # accepts tokens from the test.
+      - AndyAuth__Authority=http://andy-auth:5000/
+      - AndyAuth__Audience=urn:andy-policies-api
+    ports:
+      - "7113:8080"
+    depends_on:
+      andy-policies-postgres:
+        condition: service_healthy
+      andy-auth:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - e2e
+
+networks:
+  e2e:
+    name: andy-policies-e2e
+    driver: bridge
