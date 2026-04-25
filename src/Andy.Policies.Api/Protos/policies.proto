@@ -1,0 +1,137 @@
+// Copyright (c) Rivoli AI 2026. All rights reserved.
+// Licensed under the Apache License, Version 2.0.
+//
+// Wire contract for the policy catalog gRPC surface (P1.7,
+// rivoli-ai/andy-policies#77). All operations delegate to IPolicyService —
+// the same service powering REST (P1.5), MCP (P1.6), and the future CLI
+// (P1.8). Wire-format casing follows ADR 0001 §6:
+//
+//   - enforcement: uppercase RFC 2119 — MAY / SHOULD / MUST
+//   - severity:    lowercase           — info / moderate / critical
+//   - state:       PascalCase          — Draft / Active / WindingDown / Retired
+//
+// Casing is enforced by the service layer; this proto stays neutral with
+// `string` typing rather than enums so we don't fork the contract.
+
+syntax = "proto3";
+
+option csharp_namespace = "Andy.Policies.Api.Protos";
+
+package andy_policies;
+
+service PolicyService {
+  // -- read --
+  rpc ListPolicies (ListPoliciesRequest) returns (ListPoliciesResponse);
+  rpc GetPolicy (GetPolicyRequest) returns (PolicyResponse);
+  rpc GetPolicyByName (GetPolicyByNameRequest) returns (PolicyResponse);
+  rpc ListVersions (ListVersionsRequest) returns (ListVersionsResponse);
+  rpc GetVersion (GetVersionRequest) returns (PolicyVersionResponse);
+  rpc GetActiveVersion (GetActiveVersionRequest) returns (PolicyVersionResponse);
+
+  // -- draft mutations --
+  rpc CreateDraft (CreateDraftRequest) returns (PolicyVersionResponse);
+  rpc UpdateDraft (UpdateDraftRequest) returns (PolicyVersionResponse);
+  rpc BumpDraft (BumpDraftRequest) returns (PolicyVersionResponse);
+}
+
+// -- shared messages -------------------------------------------------------
+
+message PolicyMessage {
+  string id = 1;
+  string name = 2;
+  optional string description = 3;
+  string created_at = 4;             // ISO 8601 (DateTimeOffset.ToString("o"))
+  string created_by_subject_id = 5;
+  int32 version_count = 6;
+  optional string active_version_id = 7;  // null while every version is Draft
+}
+
+message PolicyVersionMessage {
+  string id = 1;
+  string policy_id = 2;
+  int32 version = 3;
+  string state = 4;                  // PascalCase per ADR 0001 §6
+  string enforcement = 5;            // uppercase per ADR 0001 §6
+  string severity = 6;               // lowercase per ADR 0001 §6
+  repeated string scopes = 7;
+  string summary = 8;
+  string rules_json = 9;             // opaque DSL blob, capped at 64 KB (ADR 0001 §5)
+  string created_at = 10;
+  string created_by_subject_id = 11;
+  string proposer_subject_id = 12;
+}
+
+// -- read RPCs -------------------------------------------------------------
+
+message ListPoliciesRequest {
+  optional string name_prefix = 1;
+  optional string scope = 2;
+  optional string enforcement = 3;
+  optional string severity = 4;
+  int32 skip = 5;                    // default 0
+  int32 take = 6;                    // default 100, capped at 500
+}
+
+message ListPoliciesResponse {
+  repeated PolicyMessage policies = 1;
+}
+
+message GetPolicyRequest {
+  string id = 1;
+}
+
+message GetPolicyByNameRequest {
+  string name = 1;
+}
+
+message PolicyResponse {
+  PolicyMessage policy = 1;
+}
+
+message ListVersionsRequest {
+  string policy_id = 1;
+}
+
+message ListVersionsResponse {
+  repeated PolicyVersionMessage versions = 1;
+}
+
+message GetVersionRequest {
+  string policy_id = 1;
+  string version_id = 2;
+}
+
+message GetActiveVersionRequest {
+  string policy_id = 1;
+}
+
+message PolicyVersionResponse {
+  PolicyVersionMessage version = 1;
+}
+
+// -- draft mutation RPCs ---------------------------------------------------
+
+message CreateDraftRequest {
+  string name = 1;
+  optional string description = 2;
+  string summary = 3;
+  string enforcement = 4;            // case-insensitive on input
+  string severity = 5;
+  repeated string scopes = 6;
+  string rules_json = 7;
+}
+
+message UpdateDraftRequest {
+  string policy_id = 1;
+  string version_id = 2;
+  string summary = 3;
+  string enforcement = 4;
+  string severity = 5;
+  repeated string scopes = 6;
+  string rules_json = 7;
+}
+
+message BumpDraftRequest {
+  string policy_id = 1;
+  string source_version_id = 2;
+}

@@ -34,6 +34,9 @@
 
   <ItemGroup>
     <Protobuf Include="Protos\items.proto" GrpcServices="Server" />
+    <!-- Both: integration tests reference the API project to drive the gRPC
+         surface end-to-end; they need the generated client classes too. -->
+    <Protobuf Include="Protos\policies.proto" GrpcServices="Both" />
   </ItemGroup>
 
 </Project>
