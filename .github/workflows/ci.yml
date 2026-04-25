@@ -57,6 +57,37 @@ jobs:
           name: coverage-backend
           path: '**/coverage.cobertura.xml'
 
+  openapi-drift:
+    # P1.9 (#79): the committed docs/openapi/andy-policies-v1.yaml is the
+    # source of truth REST clients consume. Regenerating it from the live
+    # Swashbuckle pipeline must produce a byte-identical file; otherwise the
+    # PR forgot to run scripts/export-openapi.sh and the documented contract
+    # has drifted from controller code.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Regenerate OpenAPI schema
+        run: ./scripts/export-openapi.sh
+
+      - name: Fail on drift
+        run: |
+          if ! git diff --exit-code docs/openapi/andy-policies-v1.yaml; then
+            echo "::error::OpenAPI schema drift detected. Run ./scripts/export-openapi.sh and commit docs/openapi/andy-policies-v1.yaml."
+            exit 1
+          fi
+
+      - name: Spectral lint
+        uses: stoplightio/spectral-action@v0.8.2
+        with:
+          file_glob: docs/openapi/andy-policies-v1.yaml
+          spectral_ruleset: .spectral.yaml
+
   build-frontend:
     runs-on: ubuntu-latest
     defaults:

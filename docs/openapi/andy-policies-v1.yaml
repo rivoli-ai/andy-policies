@@ -1,0 +1,753 @@
+openapi: 3.0.1
+info:
+  title: Andy Policies API
+  description: 'Governance policy catalog — structured, versioned policy documents with lifecycle and audit trail, consumed by Conductor for story admission, verification, and compliance reporting (content only; enforcement lives in consumers).'
+  contact:
+    name: Rivoli AI
+    url: https://github.com/rivoli-ai/andy-policies
+  license:
+    name: Apache-2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0
+  version: v1
+paths:
+  /health:
+    get:
+      tags:
+        - 'Andy.Policies.Api, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null'
+      operationId: health
+      responses:
+        '200':
+          description: OK
+  /api/Help/topics:
+    get:
+      tags:
+        - Help
+      summary: 'List all help topics (slug, title, order, tags).'
+      operationId: Help_ListTopics
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HelpTopicSummary'
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HelpTopicSummary'
+            text/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HelpTopicSummary'
+  '/api/Help/topics/{slug}':
+    get:
+      tags:
+        - Help
+      summary: "Get a single help topic by slug (filename without extension).\r\nReturns title, markdown body, and metadata."
+      operationId: Help_GetTopic
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/HelpTopic'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HelpTopic'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/HelpTopic'
+  /api/Help/search:
+    get:
+      tags:
+        - Help
+      summary: 'Search help topics by keyword (searches title, tags, and body).'
+      operationId: Help_Search
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HelpTopicSummary'
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HelpTopicSummary'
+            text/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HelpTopicSummary'
+  /api/Items:
+    get:
+      tags:
+        - Items
+      operationId: Items_GetAll
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ItemDto'
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ItemDto'
+            text/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ItemDto'
+    post:
+      tags:
+        - Items
+      operationId: Items_Create
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateItemRequest'
+          text/json:
+            schema:
+              $ref: '#/components/schemas/CreateItemRequest'
+          application/*+json:
+            schema:
+              $ref: '#/components/schemas/CreateItemRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ItemDto'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItemDto'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ItemDto'
+  '/api/Items/{id}':
+    get:
+      tags:
+        - Items
+      operationId: Items_GetById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ItemDto'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItemDto'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ItemDto'
+    put:
+      tags:
+        - Items
+      operationId: Items_Update
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateItemRequest'
+          text/json:
+            schema:
+              $ref: '#/components/schemas/CreateItemRequest'
+          application/*+json:
+            schema:
+              $ref: '#/components/schemas/CreateItemRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ItemDto'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItemDto'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ItemDto'
+    delete:
+      tags:
+        - Items
+      operationId: Items_Delete
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+  /api/Policies:
+    get:
+      tags:
+        - Policies
+      operationId: Policies_List
+      parameters:
+        - name: namePrefix
+          in: query
+          schema:
+            type: string
+        - name: scope
+          in: query
+          schema:
+            type: string
+        - name: enforcement
+          in: query
+          schema:
+            type: string
+        - name: severity
+          in: query
+          schema:
+            type: string
+        - name: skip
+          in: query
+          schema:
+            type: integer
+            format: int32
+        - name: take
+          in: query
+          schema:
+            type: integer
+            format: int32
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PolicyDto'
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PolicyDto'
+            text/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PolicyDto'
+    post:
+      tags:
+        - Policies
+      operationId: Policies_Create
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePolicyRequest'
+          text/json:
+            schema:
+              $ref: '#/components/schemas/CreatePolicyRequest'
+          application/*+json:
+            schema:
+              $ref: '#/components/schemas/CreatePolicyRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/PolicyVersionDto'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyVersionDto'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/PolicyVersionDto'
+  '/api/Policies/{id}':
+    get:
+      tags:
+        - Policies
+      operationId: Policies_Get
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/PolicyDto'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyDto'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/PolicyDto'
+  '/api/Policies/by-name/{name}':
+    get:
+      tags:
+        - Policies
+      operationId: Policies_GetByName
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/PolicyDto'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyDto'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/PolicyDto'
+  '/api/Policies/{id}/versions':
+    get:
+      tags:
+        - Policies
+      operationId: Policies_ListVersions
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PolicyVersionDto'
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PolicyVersionDto'
+            text/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PolicyVersionDto'
+  '/api/Policies/{id}/versions/active':
+    get:
+      tags:
+        - Policies
+      summary: "Resolves the active version per ADR 0001 (highest `Version` with\r\n`State != Draft` in P1; `State == Active` after P2 lands).\r\nRoute literal \"active\" sits before `{versionId:guid}` in match precedence,\r\nand the GUID constraint makes the two routes unambiguous regardless."
+      operationId: Policies_GetActiveVersion
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/PolicyVersionDto'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyVersionDto'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/PolicyVersionDto'
+  '/api/Policies/{id}/versions/{versionId}':
+    get:
+      tags:
+        - Policies
+      operationId: Policies_GetVersion
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: versionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/PolicyVersionDto'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyVersionDto'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/PolicyVersionDto'
+    put:
+      tags:
+        - Policies
+      operationId: Policies_UpdateDraft
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: versionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePolicyVersionRequest'
+          text/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePolicyVersionRequest'
+          application/*+json:
+            schema:
+              $ref: '#/components/schemas/UpdatePolicyVersionRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/PolicyVersionDto'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyVersionDto'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/PolicyVersionDto'
+  '/api/Policies/{id}/versions/{sourceVersionId}/bump':
+    post:
+      tags:
+        - Policies
+      operationId: Policies_Bump
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: sourceVersionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/PolicyVersionDto'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyVersionDto'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/PolicyVersionDto'
+components:
+  schemas:
+    CreateItemRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+      additionalProperties: false
+    CreatePolicyRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        summary:
+          type: string
+          nullable: true
+        enforcement:
+          enum:
+            - MUST
+            - SHOULD
+            - MAY
+          type: string
+          nullable: true
+        severity:
+          enum:
+            - info
+            - moderate
+            - critical
+          type: string
+          nullable: true
+        scopes:
+          type: array
+          items:
+            type: string
+          nullable: true
+        rulesJson:
+          type: string
+          nullable: true
+      additionalProperties: false
+      description: "Request payload for `IPolicyService.CreateDraftAsync`. Creates both the\r\nstable `Policy` row and its first `PolicyVersion` (version 1, Draft).\r\nEnum fields accept any casing on input (parsed case-insensitively by the service)."
+    HelpTopic:
+      type: object
+      properties:
+        slug:
+          type: string
+          nullable: true
+        title:
+          type: string
+          nullable: true
+        order:
+          type: integer
+          format: int32
+        tags:
+          type: array
+          items:
+            type: string
+          nullable: true
+        markdown:
+          type: string
+          nullable: true
+      additionalProperties: false
+    HelpTopicSummary:
+      type: object
+      properties:
+        slug:
+          type: string
+          nullable: true
+        title:
+          type: string
+          nullable: true
+        order:
+          type: integer
+          format: int32
+        tags:
+          type: array
+          items:
+            type: string
+          nullable: true
+      additionalProperties: false
+    ItemDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        status:
+          type: string
+          nullable: true
+        createdBy:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+      additionalProperties: false
+    PolicyDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        createdBySubjectId:
+          type: string
+          nullable: true
+        versionCount:
+          type: integer
+          format: int32
+        activeVersionId:
+          type: string
+          format: uuid
+          nullable: true
+      additionalProperties: false
+      description: "Stable identity of a policy plus summary metadata about its version history.\r\nAndy.Policies.Application.Dtos.PolicyDto.ActiveVersionId resolves per P1 rule \"highest `Version` with\r\n`State != Draft`\"; P2 tightens to `State == Active`. Null while every\r\nversion is still a Draft."
+    PolicyVersionDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        policyId:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          format: int32
+        state:
+          enum:
+            - Draft
+            - Active
+            - WindingDown
+            - Retired
+          type: string
+          nullable: true
+        enforcement:
+          enum:
+            - MUST
+            - SHOULD
+            - MAY
+          type: string
+          nullable: true
+        severity:
+          enum:
+            - info
+            - moderate
+            - critical
+          type: string
+          nullable: true
+        scopes:
+          type: array
+          items:
+            type: string
+          nullable: true
+        summary:
+          type: string
+          nullable: true
+        rulesJson:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        createdBySubjectId:
+          type: string
+          nullable: true
+        proposerSubjectId:
+          type: string
+          nullable: true
+      additionalProperties: false
+      description: "Wire-format projection of a `PolicyVersion`. Enum-shaped fields are\r\nserialised in the casing required by ADR 0001 §6:\r\n<list type=\"bullet\"><item><term>Enforcement</term><description>uppercase RFC 2119 tokens (`MUST` / `SHOULD` / `MAY`).</description></item><item><term>Severity</term><description>lowercase (`info` / `moderate` / `critical`).</description></item><item><term>State</term><description>PascalCase (`Draft` / `Active` / `WindingDown` / `Retired`) — matches DB storage and consumer-visible lifecycle labels.</description></item></list>\r\nService layer performs the casing conversion; controllers pass the DTO through unchanged."
+    UpdatePolicyVersionRequest:
+      type: object
+      properties:
+        summary:
+          type: string
+          nullable: true
+        enforcement:
+          enum:
+            - MUST
+            - SHOULD
+            - MAY
+          type: string
+          nullable: true
+        severity:
+          enum:
+            - info
+            - moderate
+            - critical
+          type: string
+          nullable: true
+        scopes:
+          type: array
+          items:
+            type: string
+          nullable: true
+        rulesJson:
+          type: string
+          nullable: true
+      additionalProperties: false
+      description: "Request payload for `IPolicyService.UpdateDraftAsync`. Mutates the content\r\nof an existing Draft version. The `Policy.Name` slug is never updated via\r\nthis path — that would require a separate endpoint (deliberately deferred)."
+  securitySchemes:
+    Bearer:
+      type: http
+      description: JWT Authorization header using the Bearer scheme.
+      scheme: bearer
+      bearerFormat: JWT
+security:
+  - Bearer: [ ]
+tags:
+  - name: Help
+    description: "Serves help content from markdown files in content/help/.\r\nConsumable by any client: Angular, Swift (Conductor), CLI, MCP."
+  - name: Policies
+    description: "REST surface for the policy catalog (P1.5, story rivoli-ai/andy-policies#75).\r\nAll endpoints delegate to Andy.Policies.Application.Interfaces.IPolicyService; service exceptions are\r\nmapped to status codes by `PolicyExceptionHandler` (registered globally)."
