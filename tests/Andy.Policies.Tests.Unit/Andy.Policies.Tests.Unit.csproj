@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Andy.Policies.Infrastructure\Andy.Policies.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\tools\Andy.Policies.Cli\Andy.Policies.Cli.csproj" />
   </ItemGroup>
 
   <ItemGroup>
