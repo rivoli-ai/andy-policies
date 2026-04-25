@@ -1,0 +1,19 @@
+# Spectral ruleset for andy-policies OpenAPI (P1.9, #79).
+# Extends the OpenAPI baseline with a few opinionated overrides:
+# - operation-tag-defined / operation-success-response stay as warnings
+#   (Swashbuckle synthesises responses in a way Spectral occasionally
+#   misclassifies; we don't want CI to fail on that).
+# - Anything operationId-related is escalated to error so a missing
+#   operationId — which would also break our drift-friendly diffing —
+#   blocks merge.
+extends:
+  - spectral:oas
+
+rules:
+  operation-operationId: error
+  operation-operationId-unique: error
+  operation-operationId-valid-in-url: error
+  info-contact: warn
+  info-license: warn
+  operation-tag-defined: warn
+  operation-success-response: warn
