@@ -17,9 +17,32 @@ var tokenOption = new Option<string?>(
     description: "Bearer token for authentication");
 rootCommand.AddGlobalOption(tokenOption);
 
-// Item commands
+var outputOption = new Option<string>(
+    "--output",
+    getDefaultValue: () => "table",
+    description: "Output format: table | json | yaml");
+outputOption.FromAmong("table", "json", "yaml");
+rootCommand.AddGlobalOption(outputOption);
+
+var noColorOption = new Option<bool>(
+    "--no-color",
+    getDefaultValue: () =>
+        !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("NO_COLOR"))
+        || Environment.GetEnvironmentVariable("TERM") == "dumb",
+    description: "Disable ANSI color in output");
+rootCommand.AddGlobalOption(noColorOption);
+
+// Item commands (template scaffolding — kept for backward compat)
 var itemsCommand = new Command("items", "Manage items");
 ItemCommands.Register(itemsCommand, apiUrlOption, tokenOption);
 rootCommand.AddCommand(itemsCommand);
+
+var policiesCommand = new Command("policies", "Manage the policy catalogue");
+PolicyCommands.Register(policiesCommand, apiUrlOption, tokenOption, outputOption);
+rootCommand.AddCommand(policiesCommand);
+
+var versionsCommand = new Command("versions", "Manage policy versions");
+VersionCommands.Register(versionsCommand, apiUrlOption, tokenOption, outputOption);
+rootCommand.AddCommand(versionsCommand);
 
 return await rootCommand.InvokeAsync(args);
