@@ -75,8 +75,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Test
-        run: npm run test -- --watch=false --browsers=ChromeHeadless
+      # No frontend tests yet — client/src/ has no *.spec.ts files and the
+      # default Karma entrypoint client/src/test.ts is missing. Reinstate this
+      # step when we ship the first Angular component test.
 
       - name: Build
         run: npm run build -- --configuration production

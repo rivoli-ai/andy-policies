@@ -4,16 +4,19 @@
 using System.Net;
 using System.Net.Http.Json;
 using Andy.Policies.Application.Dtos;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Xunit;
 
 namespace Andy.Policies.Tests.Integration.Controllers;
 
-public class ItemsControllerTests : IClassFixture<WebApplicationFactory<Program>>
+// Items endpoints are template scaffolding — keeping the smoke tests around
+// for now, but they share PoliciesApiFactory's TestAuthHandler + SQLite-backed
+// AppDbContext rather than spinning up a separate factory. Bare
+// WebApplicationFactory<Program> would hit production JWT auth and 401.
+public class ItemsControllerTests : IClassFixture<PoliciesApiFactory>
 {
     private readonly HttpClient _client;
 
-    public ItemsControllerTests(WebApplicationFactory<Program> factory)
+    public ItemsControllerTests(PoliciesApiFactory factory)
     {
         _client = factory.CreateClient();
     }
@@ -29,7 +32,6 @@ public class ItemsControllerTests : IClassFixture<WebApplicationFactory<Program>
     public async Task GetAll_ShouldReturnOk()
     {
         var response = await _client.GetAsync("/api/items");
-        // Without auth configured, default policy allows access
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
