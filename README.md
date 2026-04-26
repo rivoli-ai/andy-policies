@@ -104,15 +104,6 @@ own Postgres) and proves the OAuth client + RBAC application + settings
 definitions in `config/registration.json` round-trip end-to-end. Skipped
 silently unless `E2E_ENABLED=1`.
 
-**One-time prerequisite** (re-run when `andy-settings/src/Andy.Settings.Client/*`
-changes):
-
-```bash
-bash ../andy-settings/scripts/pack-local.sh
-```
-
-Then:
-
 ```bash
 docker compose -f docker-compose.e2e.yml up -d --build
 E2E_ENABLED=1 dotnet test tests/Andy.Policies.Tests.E2E
