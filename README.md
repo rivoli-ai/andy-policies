@@ -66,16 +66,26 @@ Per the ecosystem registry at [`../andy-service-template/docs/ports.md`](../andy
 
 The docker-compose in this repo binds Mode 2 ports so it can coexist with a native `dotnet run` on Mode 1.
 
-## Architecture
+## Project Structure
 
-| Layer | Project | Purpose |
-|-------|---------|---------|
-| Domain | `Andy.Policies.Domain` | Policy, PolicyVersion, AuditEvent, Binding, Override — entities and enums |
-| Application | `Andy.Policies.Application` | Interfaces, DTOs |
-| Infrastructure | `Andy.Policies.Infrastructure` | EF Core, services |
-| API | `Andy.Policies.Api` | REST, MCP, gRPC, auth |
-| Shared | `Andy.Policies.Shared` | Shared types |
-| CLI | `Andy.Policies.Cli` | Command-line tool |
+| Layer | Project | Entities / responsibilities |
+|-------|---------|-----------------------------|
+| Domain | `src/Andy.Policies.Domain` | `Policy`, `PolicyVersion`, dimension enums (`EnforcementLevel`, `Severity`, `LifecycleState`); `Binding` (P3), `ScopeNode` (P4), `Override` (P5), `AuditEvent` (P6), `Bundle` (P8) land with their respective epics |
+| Application | `src/Andy.Policies.Application` | `IPolicyService`; per-epic interfaces (`IBindingService`, `IScopeService`, `IOverrideService`, `IAuditChain`, `IBundleService`) added by later stories |
+| Infrastructure | `src/Andy.Policies.Infrastructure` | EF Core (`AppDbContext` + migrations), `PolicyService` implementation, `PolicySeeder` for the six stock policies, andy-rbac / andy-settings adapters |
+| API | `src/Andy.Policies.Api` | REST controllers, MCP tools, gRPC services, OIDC/JWT auth, OpenAPI generation, OpenTelemetry wiring |
+| Shared | `src/Andy.Policies.Shared` | Cross-project DTOs, common enums |
+| CLI | `tools/Andy.Policies.Cli` | `policies` and `versions` subcommands; thin REST client over the API |
+
+## Core concepts
+
+- **Policy + PolicyVersion split** — stable identity on `Policy`; immutable, version-monotonic content on `PolicyVersion`.
+- **Three orthogonal dimensions** per version — Enforcement (RFC 2119), Severity (triage tier), Scope (applicability tags).
+- **Lifecycle** — every version starts as `Draft`; promotion to `Active` lives in Epic P2.
+- **Six stock policies** seeded at boot (`read-only`, `write-branch`, `sandboxed`, `draft-only`, `no-prod`, `high-risk`).
+- **Four parity surfaces** — REST, MCP, gRPC, CLI — all backed by a single `IPolicyService` instance, asserted by `CrossSurfaceParityTests`.
+
+For the full design, including aggregate diagrams, dimension wire formats, the rules DSL, versioning invariants, and the four-surface access table, see [`docs/design/policy-document-core.md`](docs/design/policy-document-core.md). For the *why* behind the aggregate split, see [ADR 0001 — Policy versioning](docs/adr/0001-policy-versioning.md).
 
 ## Development
 
