@@ -31,4 +31,20 @@ public static class DatabaseExtensions
 
         return services;
     }
+
+    /// <summary>
+    /// Resolves <see cref="AppDbContext"/> from the root provider in a fresh scope
+    /// and runs <see cref="PolicySeeder.SeedStockPoliciesAsync"/> against it
+    /// (P1.3, #73). Idempotent — safe to call on every boot. Must run after
+    /// migrations have applied; if the schema is missing the underlying
+    /// <c>AnyAsync</c> probe throws and boot fails loudly.
+    /// </summary>
+    public static async Task EnsureSeedDataAsync(this IServiceProvider services, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        using var scope = services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await PolicySeeder.SeedStockPoliciesAsync(db, ct).ConfigureAwait(false);
+    }
 }
