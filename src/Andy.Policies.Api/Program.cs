@@ -137,8 +137,47 @@ builder.Services.AddSwaggerGen(options =>
     {
         Title = "Andy Policies API",
         Version = "v1",
-        Description = "Governance policy catalog — structured, versioned policy documents with lifecycle and audit trail, consumed by Conductor for story admission, verification, and compliance reporting (content only; enforcement lives in consumers)"
+        Description = "Governance policy catalog — structured, versioned policy documents with lifecycle and audit trail, consumed by Conductor for story admission, verification, and compliance reporting (content only; enforcement lives in consumers).",
+        Contact = new Microsoft.OpenApi.Models.OpenApiContact
+        {
+            Name = "Rivoli AI",
+            Url = new Uri("https://github.com/rivoli-ai/andy-policies"),
+        },
+        License = new Microsoft.OpenApi.Models.OpenApiLicense
+        {
+            Name = "Apache-2.0",
+            Url = new Uri("https://www.apache.org/licenses/LICENSE-2.0"),
+        },
     });
+
+    // Stable, code-derived operationIds keep the schema diff-friendly. Without
+    // this Swashbuckle synthesises names that depend on overload order, which
+    // makes the drift check noisy. Spectral's `operation-operationId` rule
+    // requires every operation to have a non-null operationId. The fallbacks
+    // cover minimal-API endpoints (e.g. `/health`) that have no controller /
+    // action route values.
+    options.CustomOperationIds(api =>
+    {
+        var routeValues = api.ActionDescriptor.RouteValues;
+        if (routeValues.TryGetValue("controller", out var ctrl)
+            && routeValues.TryGetValue("action", out var act)
+            && !string.IsNullOrEmpty(ctrl) && !string.IsNullOrEmpty(act))
+        {
+            return $"{ctrl}_{act}";
+        }
+        return api.RelativePath?.Replace('/', '_').Trim('_') ?? api.HttpMethod ?? "operation";
+    });
+
+    foreach (var xml in new[] { "Andy.Policies.Api.xml", "Andy.Policies.Application.xml" })
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, xml);
+        if (File.Exists(path))
+        {
+            options.IncludeXmlComments(path, includeControllerXmlComments: true);
+        }
+    }
+
+    options.SchemaFilter<Andy.Policies.Api.Swagger.PolicyDimensionSchemaFilter>();
 
     options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
     {
@@ -199,7 +238,10 @@ builder.Services
 var app = builder.Build();
 
 // --- Middleware ---
-if (app.Environment.IsDevelopment())
+// Swagger document + UI are exposed in Development and the integration-test
+// "Testing" environment. The OpenAPI document drives the committed
+// `docs/openapi/andy-policies-v1.yaml` and the CI drift check (P1.9, #79).
+if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testing"))
 {
     app.UseSwagger();
     app.UseSwaggerUI();
