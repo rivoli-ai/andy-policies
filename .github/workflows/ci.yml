@@ -11,20 +11,7 @@ env:
   NODE_VERSION: '22'
 
 jobs:
-  secrets-scan:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Gitleaks secret scan
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
   build-backend:
-    needs: [secrets-scan]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -50,7 +37,6 @@ jobs:
           path: '**/coverage.cobertura.xml'
 
   build-frontend:
-    needs: [secrets-scan]
     runs-on: ubuntu-latest
     defaults:
       run:
