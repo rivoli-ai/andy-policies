@@ -1,5 +1,20 @@
 # Andy Policies
 
+> **ALPHA RELEASE WARNING**
+>
+> This software is in ALPHA stage. **NO GUARANTEES** are made about its functionality, stability, or safety.
+>
+> **CRITICAL WARNINGS:**
+> - APIs, schemas, and storage formats may change without notice between releases.
+> - Audit chain, RBAC enforcement, and lifecycle transitions are **NOT FULLY TESTED** for production-grade compliance use.
+> - **DO NOT USE** in production environments.
+> - **DO NOT USE** as the sole source of truth for regulated or safety-critical decisions.
+>
+> Track stabilisation progress in the [Epic P-series issues](https://github.com/rivoli-ai/andy-policies/issues?q=is%3Aissue+label%3Aroadmap%3Asimulator-parity).
+
+**Status:** Alpha (pre-release; under active development)
+**Last Updated:** 2026-04-25
+
 Governance policy catalog for the Andy ecosystem. A versioned registry of structured policy documents with lifecycle state, ownership, and audit trail. Consumed by [Conductor](https://github.com/rivoli-ai/conductor) for story admission, work verification, and compliance reporting.
 
 **Scope: content only.** This service defines *what* policies are; enforcement (evaluating runs against policies, gating actions, writing decision logs) lives in consumers.
