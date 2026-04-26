@@ -115,7 +115,6 @@ dotnet test
 dotnet test --collect:"XPlat Code Coverage" --results-directory ./TestResults
 
 # Run E2E smoke tests (full 4-service stack — see #105 + #107)
-bash ../andy-settings/scripts/pack-local.sh   # one-time prereq for andy-rbac build
 docker compose -f docker-compose.e2e.yml up -d --build
 E2E_ENABLED=1 dotnet test tests/Andy.Policies.Tests.E2E
 docker compose -f docker-compose.e2e.yml down -v
@@ -164,7 +163,7 @@ dotnet ef database update --project src/Andy.Policies.Infrastructure --startup-p
 |---------|------|---------|--------|
 | Andy Auth | 5001 | OAuth2/OIDC identity provider | JWT Bearer in `Program.cs`; `AndyAuth:Authority` required (no bypass — see #103) |
 | Andy RBAC | 5003 | Role-based access control | Not wired yet — Epic P7 (#7) |
-| Andy Settings | 5300 | Centralized configuration | `Andy.Settings.Client` registered in `Program.cs` via `AddAndySettingsClient` (#108); `AndySettings:ApiBaseUrl` required (no bypass). Resolves `IAndySettingsClient`, `ISettingsSnapshot`, and a hosted refresh service. Local dev pulls the package from `../andy-settings/artifacts` — run `bash ../andy-settings/scripts/pack-local.sh` once before first build. |
+| Andy Settings | 5300 | Centralized configuration | `Andy.Settings.Client` registered in `Program.cs` via `AddAndySettingsClient` (#108); `AndySettings:ApiBaseUrl` required (no bypass). Resolves `IAndySettingsClient`, `ISettingsSnapshot`, and a hosted refresh service. The package is pulled from nuget.org (pre-release `2026.4.25-rc.1`); bump the version in `Andy.Policies.Infrastructure.csproj` when andy-settings cuts a new release. |
 
 ## Database
 
@@ -188,7 +187,7 @@ dotnet ef database update --project src/Andy.Policies.Infrastructure --startup-p
 - **Run `dotnet test` before claiming completion**
 - Unit tests use EF Core InMemory provider
 - Integration tests use `WebApplicationFactory<Program>` with SQLite-backed `PoliciesApiFactory` and `TestAuthHandler`
-- E2E tests (`tests/Andy.Policies.Tests.E2E`) hit a live 4-service stack (andy-auth + andy-rbac + andy-settings + andy-policies) via `docker-compose.e2e.yml`. Skipped silently unless `E2E_ENABLED=1`. They prove the full registration manifest in `config/registration.json` round-trips: OAuth client → JWT issuance → policies REST surface (auth), RBAC application + roles seeded, settings definitions seeded. Run before broadening surfaces (P1.6/7/8) — registration drift shows up here, not in unit tests. Requires `bash ../andy-settings/scripts/pack-local.sh` once before first build.
+- E2E tests (`tests/Andy.Policies.Tests.E2E`) hit a live 4-service stack (andy-auth + andy-rbac + andy-settings + andy-policies) via `docker-compose.e2e.yml`. Skipped silently unless `E2E_ENABLED=1`. They prove the full registration manifest in `config/registration.json` round-trips: OAuth client → JWT issuance → policies REST surface (auth), RBAC application + roles seeded, settings definitions seeded. Run before broadening surfaces (P1.6/7/8) — registration drift shows up here, not in unit tests.
 - Frontend tests use Karma/Jasmine with ChromeHeadless
 
 ## Code Quality
@@ -200,17 +199,17 @@ dotnet ef database update --project src/Andy.Policies.Infrastructure --startup-p
 
 ## Secret Scanning
 
-Three layers of protection against committing secrets:
+Two layers of protection against committing secrets:
 
 1. **Pre-commit hook** (local): Scans staged files for passwords, API keys, tokens, private keys
    - Install: `./scripts/setup-git-hooks.sh`
    - Bypass for known dev defaults: `git commit --no-verify`
-2. **Gitleaks** (CI): Runs on every push/PR as the first CI job — blocks build if secrets found
-   - Config: `.gitleaks.toml` (allowlists for dev defaults)
-3. **GitHub secret scanning** (if enabled on the repo)
+2. **GitHub secret scanning** (if enabled on the repo)
+
+The Gitleaks CI job has been removed — the action requires a paid licence for organisation repos and was permanently failing every PR. The local pre-commit hook plus GitHub's native scanning cover the same ground.
 
 **Never commit**: real API keys, production passwords, private keys, personal tokens.
-**Allowed**: dev-only defaults like `_dev_password`, `Test123!`, `devcert` (allowlisted in `.gitleaks.toml`).
+**Allowed**: dev-only defaults like `_dev_password`, `Test123!`, `devcert`.
 
 ## CI/CD
 
