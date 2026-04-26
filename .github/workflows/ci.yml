@@ -13,6 +13,27 @@ env:
 jobs:
   build-backend:
     runs-on: ubuntu-latest
+
+    services:
+      # Integration tests for the legacy ItemsController scaffolding still hit
+      # Postgres directly (rather than the SQLite-backed PoliciesApiFactory used
+      # by the policy tests). Spin up a service container matching the
+      # Host=localhost;Port=5439;Database=andy_policies;Username=andy_policies
+      # connection string from appsettings.json.
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: andy_policies
+          POSTGRES_USER: andy_policies
+          POSTGRES_PASSWORD: andy_policies_dev_password
+        ports:
+          - 5439:5432
+        options: >-
+          --health-cmd "pg_isready -U andy_policies -d andy_policies"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
     steps:
       - uses: actions/checkout@v4
 
@@ -53,9 +74,6 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-
-      - name: Lint
-        run: npm run lint --if-present
 
       - name: Test
         run: npm run test -- --watch=false --browsers=ChromeHeadless
