@@ -26,11 +26,18 @@ dotnet build "$API_PROJECT" -c Release --nologo --verbosity minimal
 # AndyAuth__Authority and AndySettings__ApiBaseUrl are required at startup
 # (#103, #108 — no silent dev bypass). Provide placeholders for the document
 # generator; nothing reaches over the network because Swashbuckle only walks
-# the controller graph in-process.
+# the controller graph in-process. Database:Provider=Sqlite + an in-memory
+# data source keeps the boot-time stock-policy seeder (#73) happy without
+# needing a live Postgres. The temp file path is wiped on each run so the
+# seed never carries over.
+TMP_DB="$(mktemp -t andy-policies-export-openapi-XXXXXX.db)"
+trap 'rm -f "$TMP_DB"' EXIT
 ASPNETCORE_ENVIRONMENT="Testing" \
 AndyAuth__Authority="https://export.invalid" \
 AndyAuth__Audience="urn:andy-policies-api" \
 AndySettings__ApiBaseUrl="https://export.invalid" \
+Database__Provider="Sqlite" \
+ConnectionStrings__DefaultConnection="Data Source=$TMP_DB" \
     dotnet tool run swagger tofile --yaml --output "$OUTPUT_FILE" "$API_DLL" v1
 
 echo "Wrote $OUTPUT_FILE"

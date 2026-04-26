@@ -274,16 +274,30 @@ app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = Dat
 app.MapFallbackToFile("index.html");
 
 // --- Auto-migrate in development ---
+// Postgres migrations are operator-driven outside Development; SQLite EnsureCreated
+// is also allowed in the integration-test "Testing" environment (and in turn the
+// OpenAPI export pipeline that boots Program.cs in Testing) so the boot-time
+// stock-policy seeder below has a schema to land into.
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-if (app.Environment.IsDevelopment() && !string.IsNullOrEmpty(connectionString))
+if (!string.IsNullOrEmpty(connectionString))
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    if (db.Database.IsNpgsql())
+    if (db.Database.IsNpgsql() && app.Environment.IsDevelopment())
+    {
         await db.Database.MigrateAsync();
-    else if (db.Database.IsSqlite())
+    }
+    else if (db.Database.IsSqlite()
+             && (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testing")))
+    {
         await db.Database.EnsureCreatedAsync();
+    }
 }
+
+// --- Seed stock policies (P1.3, #73) ---
+// Idempotent. Runs in every environment after migrations have applied; if the
+// schema is missing the underlying AnyAsync probe throws and boot fails loudly.
+await app.Services.EnsureSeedDataAsync();
 
 app.Run();
 
