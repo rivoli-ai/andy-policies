@@ -110,7 +110,11 @@ public class PolicyVersionsLifecycleControllerTests : IClassFixture<PoliciesApiF
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
-        problem!.Title.Should().Be("Validation failed");
+        // P2.4 (#14) emits a typed `RationaleRequired` ProblemDetails — see
+        // RationaleEnforcementTests for the full shape (errors.rationale, type
+        // = /problems/rationale-required). This assertion just confirms the
+        // 400 path is reached for empty rationale.
+        problem!.Title.Should().Be("Rationale required");
     }
 
     [Fact]

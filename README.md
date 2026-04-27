@@ -75,6 +75,16 @@ transaction (it transitions to `WindingDown` with `SupersededByVersionId` set
 to the new version). Disallowed transitions return `409 Conflict`; an empty
 rationale returns `400 Bad Request`; missing or unknown ids return `404`.
 
+The `rationale` field is enforced when the andy-settings toggle
+`andy.policies.rationaleRequired` is on (default; P2.4,
+[#14](https://github.com/rivoli-ai/andy-policies/issues/14)). Operators flip
+the toggle in the andy-settings admin UI; the live process picks it up on the
+next snapshot refresh (default 60s) without a restart. When the toggle is on
+and rationale is empty, the API returns
+`400` with `type=/problems/rationale-required` and `errors.rationale`
+populated; the current toggle value is exported as the OpenTelemetry gauge
+`andy_policies_rationale_required_toggle_value` (1 = on, 0 = off).
+
 ## Ports
 
 Per the ecosystem registry at [`../andy-service-template/docs/ports.md`](../andy-service-template/docs/ports.md). Three deployment modes; the same host can run any combination because each mode uses a distinct port range.

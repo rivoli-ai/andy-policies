@@ -97,7 +97,11 @@ builder.Services.AddAndySettingsClient(builder.Configuration);
 builder.Services.AddScoped<IItemService, ItemService>();
 builder.Services.AddScoped<IPolicyService, PolicyService>();
 builder.Services.AddScoped<Andy.Policies.Application.Interfaces.ILifecycleTransitionService, Andy.Policies.Infrastructure.Services.LifecycleTransitionService>();
-builder.Services.AddScoped<Andy.Policies.Application.Interfaces.IRationalePolicy, Andy.Policies.Infrastructure.Services.RequireNonEmptyRationalePolicy>();
+// P2.4 (#14): the rationale policy reads andy.policies.rationaleRequired from
+// the andy-settings snapshot on every check (fail-safe to required=true if the
+// snapshot has not yet observed the key). Registered as a singleton because it
+// owns the metric Meter; the underlying ISettingsSnapshot is also a singleton.
+builder.Services.AddSingleton<Andy.Policies.Application.Interfaces.IRationalePolicy, Andy.Policies.Infrastructure.Services.AndySettingsRationalePolicy>();
 builder.Services.AddSingleton<Andy.Policies.Application.Interfaces.IDomainEventDispatcher, Andy.Policies.Infrastructure.Services.InProcessDomainEventDispatcher>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddDataProtection();
@@ -123,7 +127,8 @@ builder.Services.AddOpenTelemetry()
     {
         metrics.AddAspNetCoreInstrumentation()
                .AddHttpClientInstrumentation()
-               .AddRuntimeInstrumentation();
+               .AddRuntimeInstrumentation()
+               .AddMeter(Andy.Policies.Infrastructure.Services.AndySettingsRationalePolicy.MeterName);
         if (!string.IsNullOrEmpty(otlpEndpoint))
             metrics.AddOtlpExporter(o => o.Endpoint = new Uri(otlpEndpoint));
     });
