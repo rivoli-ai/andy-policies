@@ -145,6 +145,40 @@ public class AppDbContextImmutabilityGuardTests
     }
 
     [Fact]
+    public async Task SaveChangesAsync_AllowsWritingRetiredAt_OnNonDraftVersion()
+    {
+        // P2.1 (#11) added RetiredAt as a transition field. P2's lifecycle service
+        // stamps it inside the Retired transition; the immutability guard must
+        // allow it on a non-Draft row alongside the State/PublishedAt allow-list.
+        using var db = CreateInMemoryDb();
+        var policy = new Policy { Id = Guid.NewGuid(), Name = "no-prod", CreatedBySubjectId = "u1" };
+        var version = new PolicyVersion
+        {
+            Id = Guid.NewGuid(),
+            Policy = policy,
+            Version = 1,
+            State = LifecycleState.WindingDown,
+            Summary = "v1",
+            CreatedBySubjectId = "u1",
+            ProposerSubjectId = "u1",
+            PublishedAt = DateTimeOffset.UtcNow.AddDays(-7),
+            PublishedBySubjectId = "u2",
+        };
+        db.Policies.Add(policy);
+        db.PolicyVersions.Add(version);
+        await db.SaveChangesAsync();
+
+        version.State = LifecycleState.Retired;
+        version.RetiredAt = DateTimeOffset.UtcNow;
+
+        await db.SaveChangesAsync();
+
+        var loaded = await db.PolicyVersions.AsNoTracking().FirstAsync(v => v.Id == version.Id);
+        Assert.Equal(LifecycleState.Retired, loaded.State);
+        Assert.NotNull(loaded.RetiredAt);
+    }
+
+    [Fact]
     public async Task SaveChangesAsync_RevisionBumps_OnModification()
     {
         using var db = CreateInMemoryDb();

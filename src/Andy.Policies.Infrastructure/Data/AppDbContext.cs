@@ -192,6 +192,7 @@ public class AppDbContext : DbContext
             nameof(PolicyVersion.State),
             nameof(PolicyVersion.PublishedAt),
             nameof(PolicyVersion.PublishedBySubjectId),
+            nameof(PolicyVersion.RetiredAt),
             nameof(PolicyVersion.SupersededByVersionId),
             nameof(PolicyVersion.Revision),
             // Shadow properties (e.g. Npgsql's `xmin` concurrency token if ever re-enabled)
