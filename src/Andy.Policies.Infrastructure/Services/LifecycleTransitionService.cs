@@ -82,7 +82,7 @@ public sealed class LifecycleTransitionService : ILifecycleTransitionService
         var rationaleError = _rationale.ValidateRationale(rationale);
         if (rationaleError is not null)
         {
-            throw new ValidationException(rationaleError);
+            throw new RationaleRequiredException(rationaleError);
         }
 
         // Serializable on Postgres; SQLite EF maps Serializable to BEGIN IMMEDIATE

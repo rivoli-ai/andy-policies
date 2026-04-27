@@ -4,18 +4,30 @@
 namespace Andy.Policies.Application.Interfaces;
 
 /// <summary>
-/// Decides whether a rationale string is valid for a lifecycle transition
-/// (P2.2). The default implementation rejects null/whitespace; P2.4 will
-/// replace it with a settings-driven implementation that reads
-/// <c>andy.policies.rationaleRequired</c> from andy-settings and relaxes
-/// the check accordingly.
+/// Decides whether a rationale string is valid for a lifecycle transition.
+/// P2.4 (#14) wires this to the andy-settings toggle
+/// <c>andy.policies.rationaleRequired</c>: when true (default),
+/// null/empty/whitespace rationale is rejected; when false, all rationale
+/// values pass through. The setting is read from <c>ISettingsSnapshot</c>
+/// on every check so a runtime flip from the andy-settings admin UI takes
+/// effect on the next transition without restarting the service. If the
+/// snapshot has not yet observed the key (cold start, andy-settings briefly
+/// unreachable), implementations MUST fail safe to <c>true</c>.
 /// </summary>
 public interface IRationalePolicy
 {
     /// <summary>
-    /// Validate <paramref name="rationale"/> for the given target transition.
+    /// True when the live setting <c>andy.policies.rationaleRequired</c> is
+    /// on (or unknown — fail-safe). Reads are snapshot-cheap; callers may
+    /// poll this for telemetry without rate-limiting.
+    /// </summary>
+    bool IsRequired { get; }
+
+    /// <summary>
+    /// Validate <paramref name="rationale"/> against the live toggle.
     /// Returns null on success; returns a human-readable error message on
-    /// failure (the calling service translates this to a 400-mapped exception).
+    /// failure. The calling service translates a non-null return into
+    /// <c>RationaleRequiredException</c>.
     /// </summary>
     string? ValidateRationale(string? rationale);
 }

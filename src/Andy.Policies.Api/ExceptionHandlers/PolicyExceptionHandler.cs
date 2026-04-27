@@ -27,6 +27,30 @@ public sealed class PolicyExceptionHandler : IExceptionHandler
         Exception exception,
         CancellationToken cancellationToken)
     {
+        // Special-case RationaleRequiredException so the response carries the
+        // typed ProblemDetails contract from P2.4 (#14): `type` points at the
+        // rationale-required problem class, and `errors.rationale` is populated
+        // for clients (Cockpit, CLI) that surface field-level validation
+        // errors. Falls through to the generic 400 branch below if anything
+        // changes — the base class is ValidationException.
+        if (exception is RationaleRequiredException rrex)
+        {
+            var problem400 = new ValidationProblemDetails(new Dictionary<string, string[]>
+            {
+                ["rationale"] = new[] { rrex.Message },
+            })
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Rationale required",
+                Detail = rrex.Message,
+                Type = "/problems/rationale-required",
+                Instance = httpContext.Request.Path,
+            };
+            httpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
+            await httpContext.Response.WriteAsJsonAsync(problem400, cancellationToken);
+            return true;
+        }
+
         var (status, title) = exception switch
         {
             ValidationException => (StatusCodes.Status400BadRequest, "Validation failed"),

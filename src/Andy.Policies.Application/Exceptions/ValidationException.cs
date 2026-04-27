@@ -8,7 +8,7 @@ namespace Andy.Policies.Application.Exceptions;
 /// value, scope wildcard, malformed JSON, oversized rules, etc.). API layer maps
 /// to HTTP 400 Bad Request.
 /// </summary>
-public sealed class ValidationException : Exception
+public class ValidationException : Exception
 {
     public ValidationException(string message) : base(message) { }
 
