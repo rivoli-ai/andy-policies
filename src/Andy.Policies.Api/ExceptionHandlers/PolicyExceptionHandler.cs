@@ -32,6 +32,8 @@ public sealed class PolicyExceptionHandler : IExceptionHandler
             ValidationException => (StatusCodes.Status400BadRequest, "Validation failed"),
             NotFoundException => (StatusCodes.Status404NotFound, "Not found"),
             ConflictException => (StatusCodes.Status409Conflict, "Conflict"),
+            InvalidLifecycleTransitionException => (StatusCodes.Status409Conflict, "Invalid lifecycle transition"),
+            ConcurrentPublishException => (StatusCodes.Status409Conflict, "Concurrent publish"),
             DbUpdateConcurrencyException => (StatusCodes.Status412PreconditionFailed, "Stale revision"),
             _ => (0, string.Empty),
         };

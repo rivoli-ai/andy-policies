@@ -96,6 +96,10 @@ builder.Services.AddAndySettingsClient(builder.Configuration);
 // --- Services ---
 builder.Services.AddScoped<IItemService, ItemService>();
 builder.Services.AddScoped<IPolicyService, PolicyService>();
+builder.Services.AddScoped<Andy.Policies.Application.Interfaces.ILifecycleTransitionService, Andy.Policies.Infrastructure.Services.LifecycleTransitionService>();
+builder.Services.AddScoped<Andy.Policies.Application.Interfaces.IRationalePolicy, Andy.Policies.Infrastructure.Services.RequireNonEmptyRationalePolicy>();
+builder.Services.AddSingleton<Andy.Policies.Application.Interfaces.IDomainEventDispatcher, Andy.Policies.Infrastructure.Services.InProcessDomainEventDispatcher>();
+builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddDataProtection();
 
 // --- Exception handlers ---
