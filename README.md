@@ -85,6 +85,16 @@ and rationale is empty, the API returns
 populated; the current toggle value is exported as the OpenTelemetry gauge
 `andy_policies_rationale_required_toggle_value` (1 = on, 0 = off).
 
+The same lifecycle operations are exposed to LLM agents through the MCP
+endpoint at `/mcp` (P2.5,
+[#15](https://github.com/rivoli-ai/andy-policies/issues/15)):
+`policy.version.publish` (Draft → Active shortcut),
+`policy.version.transition` with a case-insensitive `targetState`, and the
+read-only `policy.lifecycle.matrix`. All three delegate to the same
+`ILifecycleTransitionService` as REST, so wire behavior — auto-supersede,
+rationale enforcement, the four-edge state matrix — is identical across
+surfaces.
+
 ## Ports
 
 Per the ecosystem registry at [`../andy-service-template/docs/ports.md`](../andy-service-template/docs/ports.md). Three deployment modes; the same host can run any combination because each mode uses a distinct port range.
