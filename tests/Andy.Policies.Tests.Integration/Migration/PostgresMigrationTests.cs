@@ -76,6 +76,7 @@ public class PostgresMigrationTests : IAsyncLifetime
         {
             "20260422024314_InitialPolicyCatalog",
             "20260422031628_AddPolicyDimensions",
+            "20260427000816_AddRetiredAtToPolicyVersion",
         });
     }
 

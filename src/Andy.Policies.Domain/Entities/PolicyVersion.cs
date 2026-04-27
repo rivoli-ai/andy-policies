@@ -85,6 +85,13 @@ public class PolicyVersion
 
     public string? PublishedBySubjectId { get; set; }
 
+    /// <summary>
+    /// Timestamp set when this version transitions to <see cref="LifecycleState.Retired"/>.
+    /// P2's lifecycle service stamps it inside the transition transaction; never modified
+    /// after retirement. Null for versions that never reached Retired.
+    /// </summary>
+    public DateTimeOffset? RetiredAt { get; set; }
+
     /// <summary>Set when a newer version transitions this one to WindingDown (P2 auto-supersede).</summary>
     public Guid? SupersededByVersionId { get; set; }
 
