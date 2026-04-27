@@ -512,6 +512,189 @@ paths:
             text/json:
               schema:
                 $ref: '#/components/schemas/PolicyVersionDto'
+  '/api/policies/{id}/versions/{versionId}/publish':
+    post:
+      tags:
+        - PolicyVersionsLifecycle
+      summary: "Promote a Draft to Active. Auto-supersedes the existing Active version\r\n(if any) within the same DB transaction."
+      operationId: PolicyVersionsLifecycle_Publish
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: versionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LifecycleTransitionRequest'
+          text/json:
+            schema:
+              $ref: '#/components/schemas/LifecycleTransitionRequest'
+          application/*+json:
+            schema:
+              $ref: '#/components/schemas/LifecycleTransitionRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyVersionDto'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  '/api/policies/{id}/versions/{versionId}/winding-down':
+    post:
+      tags:
+        - PolicyVersionsLifecycle
+      summary: "Mark an Active version as winding down. Reads against the previous\r\nActive continue to resolve until the version is retired."
+      operationId: PolicyVersionsLifecycle_WindDown
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: versionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LifecycleTransitionRequest'
+          text/json:
+            schema:
+              $ref: '#/components/schemas/LifecycleTransitionRequest'
+          application/*+json:
+            schema:
+              $ref: '#/components/schemas/LifecycleTransitionRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyVersionDto'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  '/api/policies/{id}/versions/{versionId}/retire':
+    post:
+      tags:
+        - PolicyVersionsLifecycle
+      summary: "Tombstone a version. Stamps `RetiredAt`; subsequent transitions are\r\nrejected by the matrix."
+      operationId: PolicyVersionsLifecycle_Retire
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: versionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LifecycleTransitionRequest'
+          text/json:
+            schema:
+              $ref: '#/components/schemas/LifecycleTransitionRequest'
+          application/*+json:
+            schema:
+              $ref: '#/components/schemas/LifecycleTransitionRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyVersionDto'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
 components:
   schemas:
     CreateItemRequest:
@@ -625,6 +808,14 @@ components:
           format: date-time
           nullable: true
       additionalProperties: false
+    LifecycleTransitionRequest:
+      type: object
+      properties:
+        rationale:
+          type: string
+          nullable: true
+      additionalProperties: false
+      description: "Request payload for the lifecycle transition endpoints (P2.3, story\r\nrivoli-ai/andy-policies#13): publish, winding-down, retire. The single\r\n`rationale` field is forwarded to `ILifecycleTransitionService`\r\nwhere `IRationalePolicy` validates it against the\r\n`andy.policies.rationaleRequired` setting (P2.4 wires the dynamic\r\ngate; P2.3 ships with the require-non-empty default)."
     PolicyDto:
       type: object
       properties:
@@ -708,6 +899,26 @@ components:
           nullable: true
       additionalProperties: false
       description: "Wire-format projection of a `PolicyVersion`. Enum-shaped fields are\r\nserialised in the casing required by ADR 0001 §6:\r\n<list type=\"bullet\"><item><term>Enforcement</term><description>uppercase RFC 2119 tokens (`MUST` / `SHOULD` / `MAY`).</description></item><item><term>Severity</term><description>lowercase (`info` / `moderate` / `critical`).</description></item><item><term>State</term><description>PascalCase (`Draft` / `Active` / `WindingDown` / `Retired`) — matches DB storage and consumer-visible lifecycle labels.</description></item></list>\r\nService layer performs the casing conversion; controllers pass the DTO through unchanged."
+    ProblemDetails:
+      type: object
+      properties:
+        type:
+          type: string
+          nullable: true
+        title:
+          type: string
+          nullable: true
+        status:
+          type: integer
+          format: int32
+          nullable: true
+        detail:
+          type: string
+          nullable: true
+        instance:
+          type: string
+          nullable: true
+      additionalProperties: { }
     UpdatePolicyVersionRequest:
       type: object
       properties:
@@ -751,3 +962,5 @@ tags:
     description: "Serves help content from markdown files in content/help/.\r\nConsumable by any client: Angular, Swift (Conductor), CLI, MCP."
   - name: Policies
     description: "REST surface for the policy catalog (P1.5, story rivoli-ai/andy-policies#75).\r\nAll endpoints delegate to Andy.Policies.Application.Interfaces.IPolicyService; service exceptions are\r\nmapped to status codes by `PolicyExceptionHandler` (registered globally)."
+  - name: PolicyVersionsLifecycle
+    description: "REST surface for lifecycle transitions on a `PolicyVersion` (P2.3, story\r\nrivoli-ai/andy-policies#13). Three action-shaped endpoints — `publish`,\r\n`winding-down`, `retire` — sit on top of\r\nAndy.Policies.Application.Interfaces.ILifecycleTransitionService. Auto-supersede of the previous\r\nActive happens inside the service's serializable transaction; the controller\r\nis a thin wire-format adapter and never re-implements state-machine logic.\r\nService exceptions map to status codes via `PolicyExceptionHandler`:\r\nAndy.Policies.Application.Exceptions.ValidationException → 400 (rationale\r\nmissing), Andy.Policies.Application.Exceptions.NotFoundException → 404\r\n(unknown id), Andy.Policies.Application.Exceptions.InvalidLifecycleTransitionException\r\nand Andy.Policies.Application.Exceptions.ConcurrentPublishException → 409."

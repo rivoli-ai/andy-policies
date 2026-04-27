@@ -125,10 +125,21 @@ public sealed class LifecycleTransitionService : ILifecycleTransitionService
 
                 if (previousActive is not null)
                 {
+                    // Issue the WindingDown UPDATE in its own SaveChanges so the
+                    // partial unique index on (PolicyId) WHERE State = 'Active'
+                    // sees the row leave the Active set before the new version's
+                    // UPDATE adds the successor. EF batches updates by tracking
+                    // order, which on the loader path above puts `version`
+                    // (loaded first) ahead of `previousActive` (loaded second);
+                    // SQLite then trips the unique index on the still-Active v1
+                    // when v2's UPDATE lands first. Splitting the writes inside
+                    // the open serializable transaction preserves atomicity
+                    // without depending on EF's update-ordering heuristics.
                     previousActive.State = LifecycleState.WindingDown;
                     previousActive.SupersededByVersionId = version.Id;
                     pendingSuperseded = new PolicyVersionSuperseded(
                         policyId, previousActive.Id, version.Id, now);
+                    await _db.SaveChangesAsync(ct).ConfigureAwait(false);
                 }
 
                 version.State = LifecycleState.Active;

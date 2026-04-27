@@ -53,6 +53,28 @@ docker compose up -d
 open http://localhost:6206
 ```
 
+### Lifecycle endpoints
+
+Three action-shaped endpoints drive `PolicyVersion` lifecycle transitions
+(P2.3, [#13](https://github.com/rivoli-ai/andy-policies/issues/13)). All three
+require a `rationale` body and a Bearer token; they share
+`ILifecycleTransitionService` with the MCP / gRPC / CLI surfaces.
+
+```http
+POST /api/policies/{id}/versions/{versionId}/publish
+POST /api/policies/{id}/versions/{versionId}/winding-down
+POST /api/policies/{id}/versions/{versionId}/retire
+Content-Type: application/json
+Authorization: Bearer <jwt>
+
+{ "rationale": "promote v3 — passed canary" }
+```
+
+Publishing auto-supersedes the prior `Active` version inside the same DB
+transaction (it transitions to `WindingDown` with `SupersededByVersionId` set
+to the new version). Disallowed transitions return `409 Conflict`; an empty
+rationale returns `400 Bad Request`; missing or unknown ids return `404`.
+
 ## Ports
 
 Per the ecosystem registry at [`../andy-service-template/docs/ports.md`](../andy-service-template/docs/ports.md). Three deployment modes; the same host can run any combination because each mode uses a distinct port range.
