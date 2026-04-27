@@ -238,6 +238,12 @@ builder.Services.AddCors(options =>
 // --- gRPC ---
 builder.Services.AddGrpc();
 
+// P2.5 (#15) — MCP lifecycle tools read the caller subject id from the
+// HttpContext claims (same source as REST, gRPC, CLI). Without this
+// registration `IHttpContextAccessor.HttpContext` is always null and the
+// tools can't authenticate the actor.
+builder.Services.AddHttpContextAccessor();
+
 // --- MCP Server ---
 builder.Services
     .AddMcpServer()
