@@ -12,6 +12,10 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Andy.Policies.Tests.Unit" />
+    <!-- P2.7 (#17): integration tests drive the CLI command tree against a
+         WebApplicationFactory<Program>, swapping the production HttpClient
+         handler via ClientFactory.UseHandlerForTesting (an internal seam). -->
+    <InternalsVisibleTo Include="Andy.Policies.Tests.Integration" />
   </ItemGroup>
 
 </Project>

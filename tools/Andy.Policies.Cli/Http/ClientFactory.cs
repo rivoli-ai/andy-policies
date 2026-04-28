@@ -13,17 +13,55 @@ namespace Andy.Policies.Cli.Http;
 /// </summary>
 internal static class ClientFactory
 {
+    /// <summary>
+    /// Test-only seam: when set, <see cref="Create"/> wraps this handler
+    /// instead of the production <see cref="HttpClientHandler"/>. Stored as
+    /// <see cref="AsyncLocal{T}"/> so parallel xUnit runs don't bleed handlers
+    /// across each other. Production callers never set this; production
+    /// callers also never disable the test value (it's null by default).
+    /// </summary>
+    private static readonly AsyncLocal<HttpMessageHandler?> _handlerOverride = new();
+
+    internal static IDisposable UseHandlerForTesting(HttpMessageHandler handler)
+    {
+        var previous = _handlerOverride.Value;
+        _handlerOverride.Value = handler;
+        return new HandlerScope(previous);
+    }
+
     public static HttpClient Create(string apiUrl, string? token)
     {
-        var handler = new HttpClientHandler
+        // ownsHandler: when an override is supplied (tests), the test owns the
+        // lifetime of the handler — disposing the HttpClient must not dispose
+        // it because the same handler is typically reused across calls.
+        HttpMessageHandler handler;
+        bool ownsHandler;
+        if (_handlerOverride.Value is { } injected)
         {
-            ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator,
-        };
-        var client = new HttpClient(handler) { BaseAddress = new Uri(apiUrl) };
+            handler = injected;
+            ownsHandler = false;
+        }
+        else
+        {
+            handler = new HttpClientHandler
+            {
+                ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator,
+            };
+            ownsHandler = true;
+        }
+
+        var client = new HttpClient(handler, disposeHandler: ownsHandler) { BaseAddress = new Uri(apiUrl) };
         if (!string.IsNullOrEmpty(token))
         {
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
         }
         return client;
+    }
+
+    private sealed class HandlerScope : IDisposable
+    {
+        private readonly HttpMessageHandler? _previous;
+        public HandlerScope(HttpMessageHandler? previous) => _previous = previous;
+        public void Dispose() => _handlerOverride.Value = _previous;
     }
 }
