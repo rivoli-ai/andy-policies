@@ -7,7 +7,7 @@ namespace Andy.Policies.Application.Exceptions;
 /// Thrown when a request would violate a uniqueness invariant (duplicate slug,
 /// concurrent open draft, etc.). API layer maps to HTTP 409 Conflict.
 /// </summary>
-public sealed class ConflictException : Exception
+public class ConflictException : Exception
 {
     public ConflictException(string message) : base(message) { }
 
