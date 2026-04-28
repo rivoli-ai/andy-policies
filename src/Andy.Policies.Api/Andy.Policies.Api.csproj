@@ -43,6 +43,9 @@
          AdditionalImportDirs entry tells protoc where to resolve sibling
          proto files (default search path is just the file's own directory). -->
     <Protobuf Include="Protos\lifecycle.proto" GrpcServices="Both" AdditionalImportDirs="Protos" />
+    <!-- bindings.proto: P3.6 (#24). Both: integration tests reference the
+         API project to drive the gRPC surface end-to-end. -->
+    <Protobuf Include="Protos\bindings.proto" GrpcServices="Both" />
   </ItemGroup>
 
 </Project>
