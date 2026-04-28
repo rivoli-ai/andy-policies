@@ -214,6 +214,15 @@ Exit codes follow the federated-CLI contract from Conductor Epic AN: `0`
 success, `2` bad arguments (missing filter on `list`), `3` auth (401/403),
 `4` not found, `5` conflict (covers `BindingRetiredVersionException`).
 
+For the full design — canonical `TargetRef` shapes, retired-version
+refusal, soft-delete tombstone, dedup rules on resolve, surface parity
+table, and concurrency model — see [`docs/design/bindings.md`](docs/design/bindings.md).
+The `BindingCrossSurfaceParityTests` integration suite (P3.8,
+[#26](https://github.com/rivoli-ai/andy-policies/issues/26)) asserts
+that REST, MCP, and gRPC `resolve` return identical results for a shared
+fixture; `BindingConcurrencyStressTests` exercises 50-way parallel
+create/delete workloads against Postgres without deadlocks.
+
 ## Ports
 
 Per the ecosystem registry at [`../andy-service-template/docs/ports.md`](../andy-service-template/docs/ports.md). Three deployment modes; the same host can run any combination because each mode uses a distinct port range.
