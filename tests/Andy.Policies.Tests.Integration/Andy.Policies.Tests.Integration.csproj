@@ -8,6 +8,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Andy.Policies.Api\Andy.Policies.Api.csproj" />
+    <!-- P2.7 (#17): CliLifecycleEndToEndTests drives the CLI in-process. -->
+    <ProjectReference Include="..\..\tools\Andy.Policies.Cli\Andy.Policies.Cli.csproj" />
   </ItemGroup>
 
   <ItemGroup>

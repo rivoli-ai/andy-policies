@@ -105,6 +105,20 @@ delegation. Service exceptions map to gRPC status codes:
 `NotFoundException` → `NotFound`, `InvalidLifecycleTransitionException` →
 `FailedPrecondition`, `ConcurrentPublishException` → `Aborted`.
 
+The CLI (`andy-policies-cli versions {publish,wind-down,retire}`, P2.7,
+[#17](https://github.com/rivoli-ai/andy-policies/issues/17)) drives the same
+REST endpoints with a `--rationale` / `-r` flag:
+
+```bash
+andy-policies-cli versions publish   <policyIdOrName> <versionId> -r "promote v3"
+andy-policies-cli versions wind-down <policyIdOrName> <versionId> -r "sunset"
+andy-policies-cli versions retire    <policyIdOrName> <versionId> -r "tomb"
+```
+
+Exit codes follow the federated-CLI contract from Conductor Epic AN: `0`
+success, `1` transport / generic, `3` auth (401/403), `4` not found, `5`
+conflict (409/412 — covers invalid-transition).
+
 ## Ports
 
 Per the ecosystem registry at [`../andy-service-template/docs/ports.md`](../andy-service-template/docs/ports.md). Three deployment modes; the same host can run any combination because each mode uses a distinct port range.

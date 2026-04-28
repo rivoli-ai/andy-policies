@@ -29,6 +29,68 @@ internal static class VersionCommands
         parent.AddCommand(BuildDraftNew(apiUrlOption, tokenOption, outputOption));
         parent.AddCommand(BuildDraftEdit(apiUrlOption, tokenOption, outputOption));
         parent.AddCommand(BuildDraftBump(apiUrlOption, tokenOption, outputOption));
+        // P2.7 (#17): lifecycle transition verbs. Each posts to the matching
+        // REST endpoint introduced by P2.3 with a JSON body { rationale }.
+        parent.AddCommand(BuildTransition("publish",
+            "Publish a Draft (Draft -> Active). Auto-supersedes the previous Active.",
+            "publish", apiUrlOption, tokenOption, outputOption));
+        parent.AddCommand(BuildTransition("wind-down",
+            "Wind down an Active version (Active -> WindingDown).",
+            "winding-down", apiUrlOption, tokenOption, outputOption));
+        parent.AddCommand(BuildTransition("retire",
+            "Retire a version (Active or WindingDown -> Retired).",
+            "retire", apiUrlOption, tokenOption, outputOption));
+    }
+
+    private static Command BuildTransition(
+        string verb,
+        string description,
+        string urlSegment,
+        Option<string> apiUrl,
+        Option<string?> token,
+        Option<string> output)
+    {
+        var command = new Command(verb, description);
+        var policyArg = new Argument<string>("policyIdOrName", "Policy id (GUID) or name slug");
+        var versionArg = new Argument<Guid>("versionId", "PolicyVersion id (GUID)");
+        var rationaleOpt = new Option<string?>(
+            aliases: new[] { "--rationale", "-r" },
+            description: "Rationale recorded against the transition. " +
+                         "Required when andy.policies.rationaleRequired is true (default).");
+        command.AddArgument(policyArg);
+        command.AddArgument(versionArg);
+        command.AddOption(rationaleOpt);
+
+        command.SetHandler(async ctx =>
+        {
+            var api = ctx.ParseResult.GetValueForOption(apiUrl)!;
+            var tok = ctx.ParseResult.GetValueForOption(token);
+            var fmt = ctx.ParseResult.GetValueForOption(output) ?? "table";
+            var policyIdOrName = ctx.ParseResult.GetValueForArgument(policyArg);
+            var versionId = ctx.ParseResult.GetValueForArgument(versionArg);
+            var rationale = ctx.ParseResult.GetValueForOption(rationaleOpt) ?? string.Empty;
+            var ct = ctx.GetCancellationToken();
+
+            using var http = ClientFactory.Create(api, tok);
+            var policyId = await ResolvePolicyIdAsync(http, policyIdOrName, ctx, ct).ConfigureAwait(false);
+            if (policyId is null)
+            {
+                return;
+            }
+
+            var resp = await http.PostAsJsonAsync(
+                $"/api/policies/{policyId}/versions/{versionId}/{urlSegment}",
+                new { rationale },
+                ct).ConfigureAwait(false);
+            if (!resp.IsSuccessStatusCode)
+            {
+                ctx.ExitCode = await ExitCodes.HandleAsync(resp, ct).ConfigureAwait(false);
+                return;
+            }
+            var body = await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+            OutputRenderer.Write(body, fmt);
+        });
+        return command;
     }
 
     private static Command BuildList(Option<string> apiUrl, Option<string?> token, Option<string> output)
