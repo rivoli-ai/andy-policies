@@ -119,6 +119,35 @@ public sealed class BindingsController : ControllerBase
         return Ok(results);
     }
 
+    /// <summary>
+    /// Resolve bindings for a target (P3.4, story
+    /// rivoli-ai/andy-policies#22). Distinct from <see cref="Query"/>:
+    /// joins each row to its <c>Policy</c> and <c>PolicyVersion</c> so
+    /// callers get policy name, version state, enforcement, severity, and
+    /// scopes without a second round-trip; filters out bindings whose
+    /// target version is Retired; dedups same-target/same-version pairs
+    /// preferring <c>Mandatory</c> over <c>Recommended</c>; orders the
+    /// result deterministically (policy name ASC, then version number
+    /// DESC). Exact-match only — no hierarchy walk; that's P4. An
+    /// unknown target returns 200 with <c>count = 0</c>, never 404.
+    /// </summary>
+    [HttpGet("resolve")]
+    [ProducesResponseType(typeof(ResolveBindingsResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ResolveBindingsResponse>> Resolve(
+        [FromQuery] BindingTargetType targetType,
+        [FromQuery] string targetRef,
+        [FromServices] IBindingResolver resolver,
+        CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(targetRef))
+        {
+            return ValidationProblem("targetRef query parameter is required.");
+        }
+        var response = await resolver.ResolveExactAsync(targetType, targetRef, ct);
+        return Ok(response);
+    }
+
     private string? ResolveActor()
     {
         // Mirrors the lifecycle controller's actor-fallback firewall (#13):

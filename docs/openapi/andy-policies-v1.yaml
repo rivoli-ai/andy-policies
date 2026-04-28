@@ -152,6 +152,34 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+  /api/bindings/resolve:
+    get:
+      tags:
+        - Bindings
+      summary: "Resolve bindings for a target (P3.4, story\r\nrivoli-ai/andy-policies#22). Distinct from M:Andy.Policies.Api.Controllers.BindingsController.Query(Andy.Policies.Domain.Enums.BindingTargetType,System.String,System.Threading.CancellationToken):\r\njoins each row to its `Policy` and `PolicyVersion` so\r\ncallers get policy name, version state, enforcement, severity, and\r\nscopes without a second round-trip; filters out bindings whose\r\ntarget version is Retired; dedups same-target/same-version pairs\r\npreferring `Mandatory` over `Recommended`; orders the\r\nresult deterministically (policy name ASC, then version number\r\nDESC). Exact-match only — no hierarchy walk; that's P4. An\r\nunknown target returns 200 with `count = 0`, never 404."
+      operationId: Bindings_Resolve
+      parameters:
+        - name: targetType
+          in: query
+          schema:
+            $ref: '#/components/schemas/BindingTargetType'
+        - name: targetRef
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResolveBindingsResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /api/Help/topics:
     get:
       tags:
@@ -1144,6 +1172,68 @@ components:
           type: string
           nullable: true
       additionalProperties: { }
+    ResolveBindingsResponse:
+      type: object
+      properties:
+        targetType:
+          $ref: '#/components/schemas/BindingTargetType'
+        targetRef:
+          type: string
+          nullable: true
+        bindings:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResolvedBindingDto'
+          nullable: true
+        count:
+          type: integer
+          format: int32
+      additionalProperties: false
+      description: "Response envelope for `GET /api/bindings/resolve` (P3.4, story\r\nrivoli-ai/andy-policies#22). Carries the requested target so callers\r\ncaching the response can key on `(TargetType, TargetRef)`\r\nwithout re-parsing their own input. Andy.Policies.Application.Dtos.ResolveBindingsResponse.Count mirrors\r\n`Bindings.Count` for paginating callers that read the count\r\nheader field before the array."
+    ResolvedBindingDto:
+      type: object
+      properties:
+        bindingId:
+          type: string
+          format: uuid
+        policyId:
+          type: string
+          format: uuid
+        policyName:
+          type: string
+          nullable: true
+        policyVersionId:
+          type: string
+          format: uuid
+        versionNumber:
+          type: integer
+          format: int32
+        versionState:
+          type: string
+          nullable: true
+        enforcement:
+          enum:
+            - MUST
+            - SHOULD
+            - MAY
+          type: string
+          nullable: true
+        severity:
+          enum:
+            - info
+            - moderate
+            - critical
+          type: string
+          nullable: true
+        scopes:
+          type: array
+          items:
+            type: string
+          nullable: true
+        bindStrength:
+          $ref: '#/components/schemas/BindStrength'
+      additionalProperties: false
+      description: "A consumer-ready binding projection (P3.4, story\r\nrivoli-ai/andy-policies#22). Joins the live `Binding` row to its\r\ntarget `PolicyVersion` and stable `Policy` identity so a\r\ncaller (Conductor's ActionBus, andy-tasks per-task gates) gets enough\r\ncontext to decide what to do without a second round-trip. Wire-format\r\ncasing follows ADR 0001 §6: `Enforcement` uppercase RFC 2119\r\ntokens, `Severity` lowercase, `VersionState` PascalCase."
     UpdatePolicyVersionRequest:
       type: object
       properties:
