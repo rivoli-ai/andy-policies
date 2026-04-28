@@ -60,6 +60,10 @@ internal static class Program
         VersionCommands.Register(versionsCommand, apiUrlOption, tokenOption, outputOption);
         rootCommand.AddCommand(versionsCommand);
 
+        var bindingsCommand = new Command("bindings", "Manage policy bindings");
+        BindingCommands.Register(bindingsCommand, apiUrlOption, tokenOption, outputOption);
+        rootCommand.AddCommand(bindingsCommand);
+
         return await rootCommand.InvokeAsync(args);
     }
 }

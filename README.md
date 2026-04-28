@@ -188,6 +188,32 @@ enum renames. Service exceptions map:
 `ConflictException` → `AlreadyExists`, `ValidationException` →
 `InvalidArgument`, `NotFoundException` → `NotFound`.
 
+The CLI exposes the same operations via
+`andy-policies-cli bindings {list,create,delete,resolve}` (P3.7,
+[#25](https://github.com/rivoli-ai/andy-policies/issues/25)):
+
+```bash
+# List by version (with optional --include-deleted) or by target
+andy-policies-cli bindings list --policy-version-id <vid>
+andy-policies-cli bindings list --target-type Repo --target-ref repo:org/name
+
+# Create
+andy-policies-cli bindings create \
+  --policy-version-id <vid> \
+  --target-type Template --target-ref template:abc \
+  --bind-strength Mandatory
+
+# Soft-delete with optional rationale
+andy-policies-cli bindings delete <bindingId> -r "replaced by v3"
+
+# Joined resolve (filters Retired, dedups Mandatory>Recommended)
+andy-policies-cli bindings resolve --target-type Template --target-ref template:abc --output json
+```
+
+Exit codes follow the federated-CLI contract from Conductor Epic AN: `0`
+success, `2` bad arguments (missing filter on `list`), `3` auth (401/403),
+`4` not found, `5` conflict (covers `BindingRetiredVersionException`).
+
 ## Ports
 
 Per the ecosystem registry at [`../andy-service-template/docs/ports.md`](../andy-service-template/docs/ports.md). Three deployment modes; the same host can run any combination because each mode uses a distinct port range.
