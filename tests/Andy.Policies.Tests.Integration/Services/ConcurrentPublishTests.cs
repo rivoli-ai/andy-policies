@@ -67,6 +67,73 @@ public class ConcurrentPublishTests : IAsyncLifetime
             .Options);
 
     [SkippableFact]
+    public async Task FiftyConcurrentPublishes_OfSameDraft_LeaveExactlyOneActive()
+    {
+        // P2.8 (#18) headline invariant: under 50-way concurrent contention,
+        // exactly one transition commits and the other 49 surface a 409-mappable
+        // exception. The N=2 scaffold above proves the invariant; this
+        // larger N catches any bias in the lock-acquisition ordering and
+        // exercises the 23505 / 40001 detection paths in
+        // IsConcurrentPublishSignal under real load. We can't stage 50
+        // distinct drafts of the same policy because of the
+        // ix_policy_versions_one_draft_per_policy partial unique index, so
+        // the realistic shape is N tasks racing for the same draft id —
+        // identical to a thundering-herd retry storm in production.
+        Skip.IfNot(_dockerAvailable);
+
+        const int N = 50;
+
+        Guid policyId, draftId;
+        await using (var seed = NewContext())
+        {
+            var policy = new Policy
+            {
+                Id = Guid.NewGuid(),
+                Name = $"concurrent-50-{Guid.NewGuid():N}",
+                CreatedBySubjectId = "seed",
+            };
+            var draft = MakeDraft(policy.Id, 1);
+            seed.Policies.Add(policy);
+            seed.PolicyVersions.Add(draft);
+            await seed.SaveChangesAsync();
+            policyId = policy.Id;
+            draftId = draft.Id;
+        }
+
+        Task<Outcome> RunAsync(int i) => Task.Run(async () =>
+        {
+            await using var db = NewContext();
+            var service = new LifecycleTransitionService(
+                db,
+                new RequireNonEmptyRationalePolicy(),
+                new NoopDispatcher(),
+                TimeProvider.System);
+            try
+            {
+                await service.TransitionAsync(
+                    policyId, draftId, LifecycleState.Active, $"burst-{i}", $"actor-{i}");
+                return Outcome.Success;
+            }
+            catch (ConcurrentPublishException) { return Outcome.LostRace; }
+            catch (InvalidLifecycleTransitionException) { return Outcome.LostRace; }
+        });
+
+        var tasks = Enumerable.Range(0, N).Select(RunAsync);
+        var results = await Task.WhenAll(tasks);
+
+        results.Count(r => r == Outcome.Success).Should().Be(1,
+            "exactly one of the N concurrent publishers must commit");
+        results.Count(r => r == Outcome.LostRace).Should().Be(N - 1);
+
+        await using var verify = NewContext();
+        var actives = await verify.PolicyVersions
+            .AsNoTracking()
+            .Where(v => v.PolicyId == policyId && v.State == LifecycleState.Active)
+            .ToListAsync();
+        actives.Should().ContainSingle().Which.Id.Should().Be(draftId);
+    }
+
+    [SkippableFact]
     public async Task TwoConcurrentPublishes_OfSameDraft_LeaveExactlyOneActive()
     {
         Skip.IfNot(_dockerAvailable);
