@@ -1,0 +1,65 @@
+// Copyright (c) Rivoli AI 2026. All rights reserved.
+// Licensed under the Apache License, Version 2.0.
+//
+// gRPC contract for lifecycle transitions on a PolicyVersion (P2.6,
+// rivoli-ai/andy-policies#16). Sits alongside policies.proto in the same
+// `andy_policies` package + `Andy.Policies.Api.Protos` C# namespace so
+// existing consumers that already imported the package for the policy
+// catalog get lifecycle calls without a second stub generation.
+//
+// Wire format follows the same conventions as policies.proto:
+//   - state and target_state are strings (PascalCase per ADR 0001 §6 —
+//     Draft / Active / WindingDown / Retired). target_state on input is
+//     parsed case-insensitively to match REST/MCP/CLI behaviour.
+//   - Ids are UUID strings. Timestamps land in PolicyVersionMessage as
+//     ISO 8601 strings (delegated to policies.proto's PolicyVersionMessage).
+
+syntax = "proto3";
+
+option csharp_namespace = "Andy.Policies.Api.Protos";
+
+package andy_policies;
+
+import "policies.proto";   // reuse PolicyVersionMessage from P1.7
+
+service LifecycleService {
+  // Promote a Draft to Active. Auto-supersedes the existing Active version
+  // (if any) within the same DB transaction. Equivalent to REST
+  // POST /api/policies/{id}/versions/{vId}/publish.
+  rpc PublishVersion (PublishVersionRequest) returns (PolicyVersionResponse);
+
+  // Generalised transition. target_state is one of Active / WindingDown /
+  // Retired, case-insensitive. Disallowed transitions return FailedPrecondition.
+  rpc TransitionVersion (TransitionVersionRequest) returns (PolicyVersionResponse);
+
+  // Read-only: returns the canonical (from, to, name) tuples so a client can
+  // reason about valid transitions before issuing a TransitionVersion call.
+  rpc GetMatrix (GetMatrixRequest) returns (MatrixResponse);
+}
+
+// -- request / response messages ------------------------------------------
+
+message PublishVersionRequest {
+  string policy_id  = 1;   // UUID string
+  string version_id = 2;   // UUID string
+  string rationale  = 3;   // required when andy.policies.rationaleRequired = true
+}
+
+message TransitionVersionRequest {
+  string policy_id    = 1;
+  string version_id   = 2;
+  string target_state = 3;  // case-insensitive: Active | WindingDown | Retired
+  string rationale    = 4;
+}
+
+message GetMatrixRequest {}
+
+message MatrixRule {
+  string from = 1;   // PascalCase per ADR 0001 §6
+  string to   = 2;
+  string name = 3;   // human-readable transition label (Publish / WindDown / Retire)
+}
+
+message MatrixResponse {
+  repeated MatrixRule rules = 1;
+}

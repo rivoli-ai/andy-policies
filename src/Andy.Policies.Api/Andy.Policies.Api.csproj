@@ -39,6 +39,10 @@
     <!-- Both: integration tests reference the API project to drive the gRPC
          surface end-to-end; they need the generated client classes too. -->
     <Protobuf Include="Protos\policies.proto" GrpcServices="Both" />
+    <!-- lifecycle.proto imports policies.proto for PolicyVersionMessage; the
+         AdditionalImportDirs entry tells protoc where to resolve sibling
+         proto files (default search path is just the file's own directory). -->
+    <Protobuf Include="Protos\lifecycle.proto" GrpcServices="Both" AdditionalImportDirs="Protos" />
   </ItemGroup>
 
 </Project>
