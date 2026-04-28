@@ -19,6 +19,7 @@ nav:
   - Design:
     - Policy document core: design/policy-document-core.md
     - Lifecycle states: design/lifecycle.md
+    - Bindings: design/bindings.md
   - ADRs:
     - 0001 Policy versioning: adr/0001-policy-versioning.md
     - 0002 Lifecycle states: adr/0002-lifecycle-states.md
