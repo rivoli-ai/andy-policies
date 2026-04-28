@@ -221,7 +221,12 @@ The `BindingCrossSurfaceParityTests` integration suite (P3.8,
 [#26](https://github.com/rivoli-ai/andy-policies/issues/26)) asserts
 that REST, MCP, and gRPC `resolve` return identical results for a shared
 fixture; `BindingConcurrencyStressTests` exercises 50-way parallel
-create/delete workloads against Postgres without deadlocks.
+create/delete workloads against Postgres without deadlocks. For the
+*why* behind the design (metadata-only firewall, soft-delete to
+preserve audit, two-valued bind-strength, exact-match before P4
+hierarchy walk), see [ADR 0003 — Bindings are content-only metadata](docs/adr/0003-bindings.md).
+A step-by-step guide for services that consume the binding surface
+lives at [`docs/guides/consumer-integration-bindings.md`](docs/guides/consumer-integration-bindings.md).
 
 ## Ports
 

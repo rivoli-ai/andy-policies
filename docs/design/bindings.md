@@ -10,8 +10,7 @@ This document targets two readers: a contributor about to touch
 `BindingService`, and a consumer engineer (Conductor's ActionBus,
 andy-tasks per-task gates) who's wiring up policy resolution. For the
 *why* — the metadata-only firewall, soft-delete preservation, dedup
-rules — see ADR 0003 — Bindings (lands with
-[P3.9](https://github.com/rivoli-ai/andy-policies/issues/27)). For the
+rules — see [ADR 0003 — Bindings](../adr/0003-bindings.md). For the
 underlying aggregate, see [Policy Document Core](policy-document-core.md);
 for lifecycle states, [Lifecycle States](lifecycle.md).
 
@@ -188,4 +187,5 @@ of two outcomes:
   retired-version refusal cited above.
 - [Lifecycle States design](lifecycle.md) — surface parity table for
   the lifecycle state machine these bindings observe.
-- ADR 0003 — Bindings (deferred to [P3.9](https://github.com/rivoli-ai/andy-policies/issues/27); will capture the metadata-only firewall and dedup rules).
+- [ADR 0003 — Bindings are content-only metadata](../adr/0003-bindings.md) — the decisions captured authoritatively (metadata-only firewall, soft-delete preservation, dedup rules, surface parity).
+- [Consumer integration: bindings](../guides/consumer-integration-bindings.md) — step-by-step guide for services that consume the binding surface.
