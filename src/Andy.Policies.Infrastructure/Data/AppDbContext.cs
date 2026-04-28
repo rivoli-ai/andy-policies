@@ -19,6 +19,8 @@ public class AppDbContext : DbContext
 
     public DbSet<PolicyVersion> PolicyVersions => Set<PolicyVersion>();
 
+    public DbSet<Binding> Bindings => Set<Binding>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -158,6 +160,47 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<PolicyVersion>()
             .Property(v => v.Revision)
             .IsConcurrencyToken();
+
+        // P3.1 (rivoli-ai/andy-policies#19) — Binding metadata table.
+        // - HasConversion<int> on the two enums so persisted ordinals match the
+        //   enum definitions (load-bearing on disk).
+        // - FK Restrict on PolicyVersionId: deleting a version with active
+        //   bindings is rejected at the DB layer; consumers must soft-delete
+        //   the bindings first.
+        // - Three indexes:
+        //     ix_bindings_target — every target-side lookup (P3.3, P3.4, P4
+        //       hierarchy walk) is `WHERE TargetType = ? AND TargetRef = ?`,
+        //       so a covering composite index keeps the hot path off table
+        //       scans.
+        //     ix_bindings_policy_version — version-side reads (list-by-version,
+        //       cascade refusal in P3.2 when a version transitions to Retired).
+        //     ix_bindings_deleted_at — partial-style filter for active-only
+        //       queries; we keep it as a plain index on both providers since
+        //       SQLite's partial-index syntax differs and the column has low
+        //       cardinality.
+        modelBuilder.Entity<Binding>(entity =>
+        {
+            entity.ToTable("bindings");
+            entity.HasKey(b => b.Id);
+
+            entity.Property(b => b.TargetType).HasConversion<int>().IsRequired();
+            entity.Property(b => b.BindStrength).HasConversion<int>().IsRequired();
+            entity.Property(b => b.TargetRef).IsRequired().HasMaxLength(512);
+            entity.Property(b => b.CreatedBySubjectId).IsRequired().HasMaxLength(256);
+            entity.Property(b => b.DeletedBySubjectId).HasMaxLength(256);
+
+            entity.HasOne(b => b.PolicyVersion)
+                .WithMany()
+                .HasForeignKey(b => b.PolicyVersionId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(b => new { b.TargetType, b.TargetRef })
+                .HasDatabaseName("ix_bindings_target");
+            entity.HasIndex(b => b.PolicyVersionId)
+                .HasDatabaseName("ix_bindings_policy_version");
+            entity.HasIndex(b => b.DeletedAt)
+                .HasDatabaseName("ix_bindings_deleted_at");
+        });
     }
 
     // Override only the `bool`-flavoured routing entry points. EF routes `SaveChanges()` →

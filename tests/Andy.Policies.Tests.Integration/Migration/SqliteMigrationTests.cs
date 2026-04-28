@@ -56,6 +56,7 @@ public class SqliteMigrationTests : IDisposable
             "20260422031628_AddPolicyDimensions",
             "20260427000816_AddRetiredAtToPolicyVersion",
         });
+        applied.Should().Contain(name => name.EndsWith("_AddBindings"));
     }
 
     [Fact]
@@ -87,7 +88,7 @@ public class SqliteMigrationTests : IDisposable
                 "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name <> '__EFMigrationsHistory'")
             .ToListAsync();
 
-        tables.Should().Contain(new[] { "policies", "policy_versions" });
+        tables.Should().Contain(new[] { "policies", "policy_versions", "bindings" });
     }
 
     [Fact]
