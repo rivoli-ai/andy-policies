@@ -96,6 +96,12 @@ builder.Services.AddAndySettingsClient(builder.Configuration);
 // --- Services ---
 builder.Services.AddScoped<IItemService, ItemService>();
 builder.Services.AddScoped<IPolicyService, PolicyService>();
+builder.Services.AddScoped<Andy.Policies.Application.Interfaces.IBindingService, Andy.Policies.Infrastructure.Services.BindingService>();
+// P3.2 (#20): Binding mutations call IAuditWriter — Epic P6
+// (rivoli-ai/andy-policies#6) replaces the no-op with the real
+// hash-chained writer. Singleton because the P6 implementation will own a
+// content-addressed sequence pointer.
+builder.Services.AddSingleton<Andy.Policies.Application.Interfaces.IAuditWriter, Andy.Policies.Infrastructure.Services.NoopAuditWriter>();
 builder.Services.AddScoped<Andy.Policies.Application.Interfaces.ILifecycleTransitionService, Andy.Policies.Infrastructure.Services.LifecycleTransitionService>();
 // P2.4 (#14): the rationale policy reads andy.policies.rationaleRequired from
 // the andy-settings snapshot on every check (fail-safe to required=true if the
