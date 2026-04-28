@@ -276,6 +276,7 @@ app.MapControllers();
 // --- gRPC endpoint ---
 app.MapGrpcService<Andy.Policies.Api.GrpcServices.ItemsGrpcService>();
 app.MapGrpcService<Andy.Policies.Api.GrpcServices.PolicyGrpcService>();
+app.MapGrpcService<Andy.Policies.Api.GrpcServices.LifecycleGrpcService>();
 
 // --- MCP endpoint ---
 app.MapMcp("/mcp")

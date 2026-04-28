@@ -95,6 +95,16 @@ read-only `policy.lifecycle.matrix`. All three delegate to the same
 rationale enforcement, the four-edge state matrix — is identical across
 surfaces.
 
+The gRPC `LifecycleService` (P2.6,
+[#16](https://github.com/rivoli-ai/andy-policies/issues/16)) lives in
+`lifecycle.proto` alongside the existing `policies.proto` (same
+`andy_policies` package + `Andy.Policies.Api.Protos` namespace) and exposes
+`PublishVersion`, `TransitionVersion`, and `GetMatrix` with the same
+delegation. Service exceptions map to gRPC status codes:
+`RationaleRequiredException`/`ValidationException` → `InvalidArgument`,
+`NotFoundException` → `NotFound`, `InvalidLifecycleTransitionException` →
+`FailedPrecondition`, `ConcurrentPublishException` → `Aborted`.
+
 ## Ports
 
 Per the ecosystem registry at [`../andy-service-template/docs/ports.md`](../andy-service-template/docs/ports.md). Three deployment modes; the same host can run any combination because each mode uses a distinct port range.
