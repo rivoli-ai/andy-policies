@@ -173,6 +173,21 @@ identically across surfaces. Errors come back as prefixed codes the
 gateway can route on (`policy.binding.not_found`,
 `policy.binding.retired_target`, `policy.binding.invalid_target`).
 
+The gRPC `BindingService` (P3.6,
+[#24](https://github.com/rivoli-ai/andy-policies/issues/24)) lives in
+`bindings.proto` alongside the existing `policies.proto`,
+`lifecycle.proto` (same `andy_policies` package +
+`Andy.Policies.Api.Protos` namespace) and exposes six RPCs:
+`CreateBinding`, `DeleteBinding`, `GetBinding`,
+`ListBindingsByPolicyVersion`, `ListBindingsByTarget`, `ResolveBindings`.
+`TargetType` and `BindStrength` are proto3 enums (UNSPECIFIED rejected as
+`InvalidArgument`); state/enforcement/severity stay strings on
+`ResolvedBindingMessage` so proto evolution doesn't couple to internal
+enum renames. Service exceptions map:
+`BindingRetiredVersionException` → `FailedPrecondition`,
+`ConflictException` → `AlreadyExists`, `ValidationException` →
+`InvalidArgument`, `NotFoundException` → `NotFound`.
+
 ## Ports
 
 Per the ecosystem registry at [`../andy-service-template/docs/ports.md`](../andy-service-template/docs/ports.md). Three deployment modes; the same host can run any combination because each mode uses a distinct port range.
