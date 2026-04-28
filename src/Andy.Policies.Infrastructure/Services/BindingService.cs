@@ -134,11 +134,18 @@ public sealed class BindingService : IBindingService
         {
             query = query.Where(b => b.DeletedAt == null);
         }
+        // SQLite does not support ORDER BY on DateTimeOffset (the binary
+        // form is opaque to the provider's collation), so we materialise
+        // and sort client-side. Result sets are bounded by the binding
+        // count for a single version (small in practice — a handful per
+        // version), so the cost is negligible compared to the round-trip.
         var rows = await query
-            .OrderByDescending(b => b.CreatedAt)
             .ToListAsync(ct)
             .ConfigureAwait(false);
-        return rows.Select(ToDto).ToList();
+        return rows
+            .OrderByDescending(b => b.CreatedAt)
+            .Select(ToDto)
+            .ToList();
     }
 
     public async Task<IReadOnlyList<BindingDto>> ListByTargetAsync(
@@ -150,16 +157,19 @@ public sealed class BindingService : IBindingService
 
         // Exact-equality match — consumer resolution semantics in P3.4
         // (resolve) and P4 (hierarchy walk) require byte-exact (TargetType,
-        // TargetRef) lookups. No prefix / case-folding here.
+        // TargetRef) lookups. No prefix / case-folding here. Client-side
+        // sort for SQLite parity (see ListByPolicyVersionAsync above).
         var rows = await _db.Bindings
             .AsNoTracking()
             .Where(b => b.TargetType == targetType
                         && b.TargetRef == targetRef
                         && b.DeletedAt == null)
-            .OrderByDescending(b => b.CreatedAt)
             .ToListAsync(ct)
             .ConfigureAwait(false);
-        return rows.Select(ToDto).ToList();
+        return rows
+            .OrderByDescending(b => b.CreatedAt)
+            .Select(ToDto)
+            .ToList();
     }
 
     private static BindingDto ToDto(Binding b) => new(
