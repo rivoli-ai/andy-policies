@@ -18,6 +18,140 @@ paths:
       responses:
         '200':
           description: OK
+  /api/bindings:
+    post:
+      tags:
+        - Bindings
+      summary: "Create a new binding. Body: Andy.Policies.Application.Dtos.CreateBindingRequest.\r\nReturns 201 with a `Location` header pointing at the new\r\nresource. Refuses bindings to Retired versions with 409 Conflict;\r\nmissing target version returns 404; oversized/empty\r\n`targetRef` returns 400."
+      operationId: Bindings_Create
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBindingRequest'
+          text/json:
+            schema:
+              $ref: '#/components/schemas/CreateBindingRequest'
+          application/*+json:
+            schema:
+              $ref: '#/components/schemas/CreateBindingRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BindingDto'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+    get:
+      tags:
+        - Bindings
+      summary: "List active bindings for a target — exact-equality match on\r\n`(targetType, targetRef)`, no prefix or case-folding (P3.2\r\nservice contract). Tombstoned bindings are excluded; a separate\r\nversion-rooted endpoint is available for inspection of deleted\r\nrows."
+      operationId: Bindings_Query
+      parameters:
+        - name: targetType
+          in: query
+          schema:
+            $ref: '#/components/schemas/BindingTargetType'
+        - name: targetRef
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BindingDto'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  '/api/bindings/{id}':
+    get:
+      tags:
+        - Bindings
+      summary: "Get a single binding by id. Returns 404 if the binding does not\r\nexist; tombstoned bindings are still visible here so audit\r\ninvestigators can inspect their `DeletedAt` stamp."
+      operationId: Bindings_Get
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BindingDto'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+    delete:
+      tags:
+        - Bindings
+      summary: "Soft-delete a binding. Returns 204 on success; calling delete on an\r\nalready-tombstoned binding returns 404 (the row is treated as\r\nnot-found). Accepts optional `?rationale=...` propagated to\r\nthe audit record."
+      operationId: Bindings_Delete
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: rationale
+          in: query
+          schema:
+            type: string
+      responses:
+        '204':
+          description: No Content
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /api/Help/topics:
     get:
       tags:
@@ -512,6 +646,38 @@ paths:
             text/json:
               schema:
                 $ref: '#/components/schemas/PolicyVersionDto'
+  '/api/policies/{policyId}/versions/{versionId}/bindings':
+    get:
+      tags:
+        - PolicyVersionBindings
+      summary: "List bindings against the given `PolicyVersion`, ordered by\r\nmost-recently-created first. `?includeDeleted=true` includes\r\ntombstoned rows; default `false` hides them."
+      operationId: PolicyVersionBindings_List
+      parameters:
+        - name: policyId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: versionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: includeDeleted
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BindingDto'
   '/api/policies/{id}/versions/{versionId}/publish':
     post:
       tags:
@@ -697,6 +863,65 @@ paths:
                 $ref: '#/components/schemas/ProblemDetails'
 components:
   schemas:
+    BindStrength:
+      enum:
+        - Mandatory
+        - Recommended
+      type: string
+    BindingDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        policyVersionId:
+          type: string
+          format: uuid
+        targetType:
+          $ref: '#/components/schemas/BindingTargetType'
+        targetRef:
+          type: string
+          nullable: true
+        bindStrength:
+          $ref: '#/components/schemas/BindStrength'
+        createdAt:
+          type: string
+          format: date-time
+        createdBySubjectId:
+          type: string
+          nullable: true
+        deletedAt:
+          type: string
+          format: date-time
+          nullable: true
+        deletedBySubjectId:
+          type: string
+          nullable: true
+      additionalProperties: false
+      description: "Wire-format projection of a `Binding` (P3.2, story\r\nrivoli-ai/andy-policies#20). Surface controllers (REST, MCP, gRPC, CLI)\r\nemit this shape directly so wire behavior stays uniform.\r\nAndy.Policies.Application.Dtos.BindingDto.DeletedAt is non-null when the binding has been\r\nsoft-deleted; service-layer reads filter tombstoned rows by default."
+    BindingTargetType:
+      enum:
+        - Template
+        - Repo
+        - ScopeNode
+        - Tenant
+        - Org
+      type: string
+    CreateBindingRequest:
+      type: object
+      properties:
+        policyVersionId:
+          type: string
+          format: uuid
+        targetType:
+          $ref: '#/components/schemas/BindingTargetType'
+        targetRef:
+          type: string
+          nullable: true
+        bindStrength:
+          $ref: '#/components/schemas/BindStrength'
+      additionalProperties: false
+      description: "Request payload for `IBindingService.CreateAsync` (P3.2, story\r\nrivoli-ai/andy-policies#20). The target version must exist and not be in\r\n`LifecycleState.Retired`; the service throws\r\n`BindingRetiredVersionException` on a retired target."
     CreateItemRequest:
       type: object
       properties:
@@ -958,9 +1183,13 @@ components:
 security:
   - Bearer: [ ]
 tags:
+  - name: Bindings
+    description: "REST surface for `Binding` mutation, single-id read, and target-side\r\nquery (P3.3, story rivoli-ai/andy-policies#21). Delegates to\r\nAndy.Policies.Application.Interfaces.IBindingService from P3.2 — same service powering MCP\r\n(P3.5), gRPC (P3.6), and CLI (P3.7). Service exceptions are mapped by\r\nthe global `PolicyExceptionHandler` (already covers\r\nAndy.Policies.Application.Exceptions.NotFoundException,\r\nAndy.Policies.Application.Exceptions.ConflictException, and\r\nAndy.Policies.Application.Exceptions.ValidationException; the\r\nAndy.Policies.Application.Exceptions.BindingRetiredVersionException\r\ninherits from Andy.Policies.Application.Exceptions.ConflictException so\r\nthe existing 409 mapping catches it)."
   - name: Help
     description: "Serves help content from markdown files in content/help/.\r\nConsumable by any client: Angular, Swift (Conductor), CLI, MCP."
   - name: Policies
     description: "REST surface for the policy catalog (P1.5, story rivoli-ai/andy-policies#75).\r\nAll endpoints delegate to Andy.Policies.Application.Interfaces.IPolicyService; service exceptions are\r\nmapped to status codes by `PolicyExceptionHandler` (registered globally)."
+  - name: PolicyVersionBindings
+    description: "Version-rooted enumeration of `Binding`s (P3.3, story\r\nrivoli-ai/andy-policies#21). Sits next to the version resource so\r\nHATEOAS-style clients can discover bindings without a separate\r\nquery. Delegates to Andy.Policies.Application.Interfaces.IBindingService; the controller is\r\npurely a wire-format adapter."
   - name: PolicyVersionsLifecycle
     description: "REST surface for lifecycle transitions on a `PolicyVersion` (P2.3, story\r\nrivoli-ai/andy-policies#13). Three action-shaped endpoints — `publish`,\r\n`winding-down`, `retire` — sit on top of\r\nAndy.Policies.Application.Interfaces.ILifecycleTransitionService. Auto-supersede of the previous\r\nActive happens inside the service's serializable transaction; the controller\r\nis a thin wire-format adapter and never re-implements state-machine logic.\r\nService exceptions map to status codes via `PolicyExceptionHandler`:\r\nAndy.Policies.Application.Exceptions.ValidationException → 400 (rationale\r\nmissing), Andy.Policies.Application.Exceptions.NotFoundException → 404\r\n(unknown id), Andy.Policies.Application.Exceptions.InvalidLifecycleTransitionException\r\nand Andy.Policies.Application.Exceptions.ConcurrentPublishException → 409."

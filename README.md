@@ -126,6 +126,28 @@ invariant, the auto-supersede atomicity argument, and surface parity table
 serializable transactions, in-process events), see [ADR 0002 — Lifecycle
 states](docs/adr/0002-lifecycle-states.md).
 
+### Binding endpoints
+
+REST surface for `Binding` mutation, single-id read, and target-side query
+(P3.3, [#21](https://github.com/rivoli-ai/andy-policies/issues/21)).
+Bindings are metadata-only links between an immutable `PolicyVersion` and
+a foreign target (template, repo, scope node, tenant, org); andy-policies
+never resolves the target against the foreign system.
+
+```http
+POST   /api/bindings                                              # create
+GET    /api/bindings/{id}                                          # read
+DELETE /api/bindings/{id}?rationale=...                            # soft-delete
+GET    /api/bindings?targetType=Repo&targetRef=repo:org/name       # exact-match query
+GET    /api/policies/{id}/versions/{vId}/bindings?includeDeleted=  # version-rooted list
+```
+
+Create returns 201 with `Location: /api/bindings/{id}`. Bindings to a
+`Retired` version are refused with 409 (P3.2 service contract). Delete is
+soft — the row stays for the audit chain (P6); a second delete returns
+404. Target-side query is exact-equality on `(targetType, targetRef)`,
+no case-folding.
+
 ## Ports
 
 Per the ecosystem registry at [`../andy-service-template/docs/ports.md`](../andy-service-template/docs/ports.md). Three deployment modes; the same host can run any combination because each mode uses a distinct port range.
