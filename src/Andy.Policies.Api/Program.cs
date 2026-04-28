@@ -97,6 +97,7 @@ builder.Services.AddAndySettingsClient(builder.Configuration);
 builder.Services.AddScoped<IItemService, ItemService>();
 builder.Services.AddScoped<IPolicyService, PolicyService>();
 builder.Services.AddScoped<Andy.Policies.Application.Interfaces.IBindingService, Andy.Policies.Infrastructure.Services.BindingService>();
+builder.Services.AddScoped<Andy.Policies.Application.Interfaces.IBindingResolver, Andy.Policies.Infrastructure.Services.BindingResolver>();
 // P3.2 (#20): Binding mutations call IAuditWriter — Epic P6
 // (rivoli-ai/andy-policies#6) replaces the no-op with the real
 // hash-chained writer. Singleton because the P6 implementation will own a

@@ -148,6 +148,21 @@ soft — the row stays for the audit chain (P6); a second delete returns
 404. Target-side query is exact-equality on `(targetType, targetRef)`,
 no case-folding.
 
+#### Resolving bindings (exact match)
+
+```http
+GET /api/bindings/resolve?targetType=Template&targetRef=template:abc
+```
+
+`resolve` is the consumer-facing read for "what policies apply to this
+target?" (P3.4, [#22](https://github.com/rivoli-ai/andy-policies/issues/22)).
+It joins each binding to its `Policy` and `PolicyVersion` so callers get
+policy name, version state, enforcement, severity, and scopes in one
+round-trip. Retired versions are filtered out; same-target/same-version
+duplicates dedup with `Mandatory > Recommended` (tiebreak earliest
+`CreatedAt`); the result is ordered by policy name ASC, then version
+number DESC. **Exact-match only — no hierarchy walk.** That lands in P4.
+
 ## Ports
 
 Per the ecosystem registry at [`../andy-service-template/docs/ports.md`](../andy-service-template/docs/ports.md). Three deployment modes; the same host can run any combination because each mode uses a distinct port range.
