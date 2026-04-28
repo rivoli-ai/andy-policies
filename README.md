@@ -119,6 +119,13 @@ Exit codes follow the federated-CLI contract from Conductor Epic AN: `0`
 success, `1` transport / generic, `3` auth (401/403), `4` not found, `5`
 conflict (409/412 — covers invalid-transition).
 
+For the full design — state diagram, transition matrix, only-one-Active
+invariant, the auto-supersede atomicity argument, and surface parity table
+— see [`docs/design/lifecycle.md`](docs/design/lifecycle.md). For the
+*why* behind each design decision (four states, DB-level uniqueness,
+serializable transactions, in-process events), see [ADR 0002 — Lifecycle
+states](docs/adr/0002-lifecycle-states.md).
+
 ## Ports
 
 Per the ecosystem registry at [`../andy-service-template/docs/ports.md`](../andy-service-template/docs/ports.md). Three deployment modes; the same host can run any combination because each mode uses a distinct port range.
