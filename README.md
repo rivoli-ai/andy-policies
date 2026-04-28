@@ -163,6 +163,16 @@ duplicates dedup with `Mandatory > Recommended` (tiebreak earliest
 `CreatedAt`); the result is ordered by policy name ASC, then version
 number DESC. **Exact-match only — no hierarchy walk.** That lands in P4.
 
+The same operations are exposed to LLM agents through the MCP endpoint at
+`/mcp` (P3.5, [#23](https://github.com/rivoli-ai/andy-policies/issues/23)):
+`policy.binding.list`, `policy.binding.create`, `policy.binding.delete`,
+and `policy.binding.resolve`. All four delegate to the same
+`IBindingService` / `IBindingResolver` as REST, so retired-version
+refusal, soft-delete semantics, and the dedup/order rules behave
+identically across surfaces. Errors come back as prefixed codes the
+gateway can route on (`policy.binding.not_found`,
+`policy.binding.retired_target`, `policy.binding.invalid_target`).
+
 ## Ports
 
 Per the ecosystem registry at [`../andy-service-template/docs/ports.md`](../andy-service-template/docs/ports.md). Three deployment modes; the same host can run any combination because each mode uses a distinct port range.
