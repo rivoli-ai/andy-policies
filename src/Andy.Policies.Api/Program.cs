@@ -98,6 +98,13 @@ builder.Services.AddScoped<IItemService, ItemService>();
 builder.Services.AddScoped<IPolicyService, PolicyService>();
 builder.Services.AddScoped<Andy.Policies.Application.Interfaces.IBindingService, Andy.Policies.Infrastructure.Services.BindingService>();
 builder.Services.AddScoped<Andy.Policies.Application.Interfaces.IBindingResolver, Andy.Policies.Infrastructure.Services.BindingResolver>();
+// P4.2 (#29): hierarchy CRUD + walk-up. Consumed by P4.3 binding
+// resolution and P4.4 tighten-only validation.
+builder.Services.AddScoped<Andy.Policies.Application.Interfaces.IScopeService, Andy.Policies.Infrastructure.Services.ScopeService>();
+// P4.3 (#30): stricter-tightens-only resolver — walks the scope chain
+// from root to leaf and merges ScopeNode-targeted bindings with the
+// bridge bindings that target each chain node's external Ref.
+builder.Services.AddScoped<Andy.Policies.Application.Interfaces.IBindingResolutionService, Andy.Policies.Infrastructure.Services.BindingResolutionService>();
 // P3.2 (#20): Binding mutations call IAuditWriter — Epic P6
 // (rivoli-ai/andy-policies#6) replaces the no-op with the real
 // hash-chained writer. Singleton because the P6 implementation will own a
