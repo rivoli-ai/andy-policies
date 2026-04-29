@@ -46,5 +46,9 @@ public static class DatabaseExtensions
         using var scope = services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         await PolicySeeder.SeedStockPoliciesAsync(db, ct).ConfigureAwait(false);
+        // P4.1 (rivoli-ai/andy-policies#28): seed a single root Org node so
+        // P4.2's CRUD endpoints have a parent to attach children under.
+        // Idempotent — short-circuits when any root (ParentId IS NULL) exists.
+        await ScopeSeeder.SeedRootScopeAsync(db, ct).ConfigureAwait(false);
     }
 }
