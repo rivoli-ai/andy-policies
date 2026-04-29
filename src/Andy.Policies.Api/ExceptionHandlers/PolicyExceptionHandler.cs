@@ -51,6 +51,33 @@ public sealed class PolicyExceptionHandler : IExceptionHandler
             return true;
         }
 
+        // P4.4: tighten-only violation carries the offending ancestor
+        // binding id + scope node id so admins can triage from the
+        // error response without a follow-up query. We inject the
+        // structured payload as ProblemDetails extension members.
+        if (exception is TightenOnlyViolationException tvex)
+        {
+            var problem409 = new ProblemDetails
+            {
+                Status = StatusCodes.Status409Conflict,
+                Title = "Tighten-only violation",
+                Detail = tvex.Message,
+                Type = "/problems/binding-tighten-only-violation",
+                Instance = httpContext.Request.Path,
+                Extensions =
+                {
+                    ["errorCode"] = "binding.tighten-only-violation",
+                    ["offendingAncestorBindingId"] = tvex.Violation.OffendingAncestorBindingId,
+                    ["offendingScopeNodeId"] = tvex.Violation.OffendingScopeNodeId,
+                    ["offendingScopeDisplayName"] = tvex.Violation.OffendingScopeDisplayName,
+                    ["policyKey"] = tvex.Violation.PolicyKey,
+                },
+            };
+            httpContext.Response.StatusCode = StatusCodes.Status409Conflict;
+            await httpContext.Response.WriteAsJsonAsync(problem409, cancellationToken);
+            return true;
+        }
+
         var (status, title) = exception switch
         {
             ValidationException => (StatusCodes.Status400BadRequest, "Validation failed"),

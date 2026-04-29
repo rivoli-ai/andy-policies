@@ -105,6 +105,10 @@ builder.Services.AddScoped<Andy.Policies.Application.Interfaces.IScopeService, A
 // from root to leaf and merges ScopeNode-targeted bindings with the
 // bridge bindings that target each chain node's external Ref.
 builder.Services.AddScoped<Andy.Policies.Application.Interfaces.IBindingResolutionService, Andy.Policies.Infrastructure.Services.BindingResolutionService>();
+// P4.4 (#32): write-time enforcement of stricter-tightens-only.
+// Injected into BindingService so CreateAsync refuses Recommended
+// proposals that would shadow a Mandatory ancestor binding.
+builder.Services.AddScoped<Andy.Policies.Application.Interfaces.ITightenOnlyValidator, Andy.Policies.Infrastructure.Services.TightenOnlyValidator>();
 // P3.2 (#20): Binding mutations call IAuditWriter — Epic P6
 // (rivoli-ai/andy-policies#6) replaces the no-op with the real
 // hash-chained writer. Singleton because the P6 implementation will own a
