@@ -21,6 +21,8 @@ public class AppDbContext : DbContext
 
     public DbSet<Binding> Bindings => Set<Binding>();
 
+    public DbSet<ScopeNode> ScopeNodes => Set<ScopeNode>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -200,6 +202,46 @@ public class AppDbContext : DbContext
                 .HasDatabaseName("ix_bindings_policy_version");
             entity.HasIndex(b => b.DeletedAt)
                 .HasDatabaseName("ix_bindings_deleted_at");
+        });
+
+        // P4.1 (rivoli-ai/andy-policies#28) — ScopeNode hierarchy table.
+        // - HasConversion<int> on Type so the persisted ordinal matches the
+        //   enum definition (load-bearing on disk).
+        // - FK Restrict on ParentId: deleting a parent that still has
+        //   children is rejected at the DB layer; consumers must walk the
+        //   subtree first.
+        // - Three indexes:
+        //     ix_scope_nodes_type_ref (unique) — uniqueness invariant from
+        //       the issue spec; two nodes cannot both claim the same
+        //       (Type, Ref) pair. Repeated Ref across types is permitted.
+        //     ix_scope_nodes_parent_id — child lookups during walk-down /
+        //       cycle prevention probes (P4.2).
+        //     ix_scope_nodes_materialized_path — descendant lookup via
+        //       LIKE '/root-id/%'; the materialized-path strategy lets
+        //       both providers index the prefix scan.
+        modelBuilder.Entity<ScopeNode>(entity =>
+        {
+            entity.ToTable("scope_nodes");
+            entity.HasKey(s => s.Id);
+
+            entity.Property(s => s.Type).HasConversion<int>().IsRequired();
+            entity.Property(s => s.Ref).IsRequired().HasMaxLength(512);
+            entity.Property(s => s.DisplayName).IsRequired().HasMaxLength(256);
+            entity.Property(s => s.MaterializedPath).IsRequired().HasMaxLength(4096);
+            entity.Property(s => s.Depth).IsRequired();
+
+            entity.HasOne(s => s.Parent)
+                .WithMany(s => s.Children)
+                .HasForeignKey(s => s.ParentId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(s => new { s.Type, s.Ref })
+                .IsUnique()
+                .HasDatabaseName("ix_scope_nodes_type_ref");
+            entity.HasIndex(s => s.ParentId)
+                .HasDatabaseName("ix_scope_nodes_parent_id");
+            entity.HasIndex(s => s.MaterializedPath)
+                .HasDatabaseName("ix_scope_nodes_materialized_path");
         });
     }
 

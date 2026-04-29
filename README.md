@@ -245,7 +245,7 @@ The docker-compose in this repo binds Mode 2 ports so it can coexist with a nati
 
 | Layer | Project | Entities / responsibilities |
 |-------|---------|-----------------------------|
-| Domain | `src/Andy.Policies.Domain` | `Policy`, `PolicyVersion`, `Binding` (P3.1, [#19](https://github.com/rivoli-ai/andy-policies/issues/19)), dimension enums (`EnforcementLevel`, `Severity`, `LifecycleState`, `BindingTargetType`, `BindStrength`); `ScopeNode` (P4), `Override` (P5), `AuditEvent` (P6), `Bundle` (P8) land with their respective epics |
+| Domain | `src/Andy.Policies.Domain` | `Policy`, `PolicyVersion`, `Binding` (P3.1, [#19](https://github.com/rivoli-ai/andy-policies/issues/19)), `ScopeNode` (P4.1, [#28](https://github.com/rivoli-ai/andy-policies/issues/28)), dimension enums (`EnforcementLevel`, `Severity`, `LifecycleState`, `BindingTargetType`, `BindStrength`, `ScopeType`); `Override` (P5), `AuditEvent` (P6), `Bundle` (P8) land with their respective epics |
 | Application | `src/Andy.Policies.Application` | `IPolicyService`; per-epic interfaces (`IBindingService`, `IScopeService`, `IOverrideService`, `IAuditChain`, `IBundleService`) added by later stories |
 | Infrastructure | `src/Andy.Policies.Infrastructure` | EF Core (`AppDbContext` + migrations), `PolicyService` implementation, `PolicySeeder` for the six stock policies, andy-rbac / andy-settings adapters |
 | API | `src/Andy.Policies.Api` | REST controllers, MCP tools, gRPC services, OIDC/JWT auth, OpenAPI generation, OpenTelemetry wiring |
