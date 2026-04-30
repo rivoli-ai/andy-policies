@@ -58,6 +58,7 @@ public class SqliteMigrationTests : IDisposable
         });
         applied.Should().Contain(name => name.EndsWith("_AddBindings"));
         applied.Should().Contain(name => name.EndsWith("_AddScopeNodes"));
+        applied.Should().Contain(name => name.EndsWith("_AddOverrides"));
     }
 
     [Fact]
@@ -89,7 +90,7 @@ public class SqliteMigrationTests : IDisposable
                 "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name <> '__EFMigrationsHistory'")
             .ToListAsync();
 
-        tables.Should().Contain(new[] { "policies", "policy_versions", "bindings", "scope_nodes" });
+        tables.Should().Contain(new[] { "policies", "policy_versions", "bindings", "scope_nodes", "overrides" });
     }
 
     [Fact]
