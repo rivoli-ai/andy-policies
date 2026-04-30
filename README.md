@@ -288,6 +288,20 @@ hierarchy walk), see [ADR 0003 — Bindings are content-only metadata](docs/adr/
 A step-by-step guide for services that consume the binding surface
 lives at [`docs/guides/consumer-integration-bindings.md`](docs/guides/consumer-integration-bindings.md).
 
+### Scope hierarchy
+
+The 6-level `Org → Tenant → Team → Repo → Template → Run` graph that
+hierarchy-aware reads walk over (Epic P4,
+[#4](https://github.com/rivoli-ai/andy-policies/issues/4)). For the
+storage shape, walk paths, and surface parity table, see
+[`docs/design/scope-hierarchy.md`](docs/design/scope-hierarchy.md).
+For the stricter-tightens-only resolution algorithm with three worked
+examples (simple cascade, upgrade at leaf, forbidden downgrade), see
+[`docs/design/resolution-algorithm.md`](docs/design/resolution-algorithm.md).
+For the *why* behind each design decision (typed 6-level, materialized
+path, dual write+read enforcement, structural cycle-impossibility),
+see [ADR 0004 — Scope hierarchy + tighten-only resolution](docs/adr/0004-scope-hierarchy.md).
+
 ## Ports
 
 Per the ecosystem registry at [`../andy-service-template/docs/ports.md`](../andy-service-template/docs/ports.md). Three deployment modes; the same host can run any combination because each mode uses a distinct port range.
