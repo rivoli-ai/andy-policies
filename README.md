@@ -246,6 +246,22 @@ commit a `Recommended` binding that would shadow an upstream
 `Mandatory`; the `409` response carries `offendingAncestorBindingId`
 and `offendingScopeNodeId` so admins can triage from the error.
 
+The same scope operations are exposed across MCP, gRPC, and CLI
+(P4.6, [#34](https://github.com/rivoli-ai/andy-policies/issues/34)),
+all delegating to the same `IScopeService` + `IBindingResolutionService`
+as REST. **MCP**: `policy.scope.{list,get,tree,create,delete,effective}`
+return formatted strings or JSON envelopes with prefixed error codes
+(`policy.scope.{not_found,parent_type_mismatch,ref_conflict,has_descendants,invalid_input}`).
+**gRPC**: `andy_policies.ScopesService` exposes six RPCs in
+`scopes.proto`; service exceptions map to `FailedPrecondition`
+(ladder violation / has-descendants), `AlreadyExists` (ref conflict),
+`NotFound` (missing parent or scope), and `InvalidArgument` (bad
+GUID / `SCOPE_TYPE_UNSPECIFIED`). **CLI**:
+`andy-policies-cli scopes {list,get,tree,create,delete,effective}`
+follows the same federated-CLI exit-code contract as `bindings` and
+`versions` (0 success / 1 transport / 3 auth / 4 not-found /
+5 conflict).
+
 For the full design — canonical `TargetRef` shapes, retired-version
 refusal, soft-delete tombstone, dedup rules on resolve, surface parity
 table, and concurrency model — see [`docs/design/bindings.md`](docs/design/bindings.md).

@@ -64,6 +64,10 @@ internal static class Program
         BindingCommands.Register(bindingsCommand, apiUrlOption, tokenOption, outputOption);
         rootCommand.AddCommand(bindingsCommand);
 
+        var scopesCommand = new Command("scopes", "Manage the scope hierarchy");
+        ScopeCommands.Register(scopesCommand, apiUrlOption, tokenOption, outputOption);
+        rootCommand.AddCommand(scopesCommand);
+
         return await rootCommand.InvokeAsync(args);
     }
 }
