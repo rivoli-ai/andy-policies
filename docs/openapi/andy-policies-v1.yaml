@@ -889,6 +889,173 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+  /api/scopes:
+    get:
+      tags:
+        - Scopes
+      summary: "List scope nodes. Optional `?type=` filter narrows to a\r\nsingle ScopeType (Org/Tenant/Team/Repo/Template/Run); without\r\nthe filter the entire catalogue is returned ordered by\r\n(Depth, Ref)."
+      operationId: Scopes_List
+      parameters:
+        - name: type
+          in: query
+          schema:
+            $ref: '#/components/schemas/ScopeType'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ScopeNodeDto'
+    post:
+      tags:
+        - Scopes
+      summary: "Create a new scope node. Andy.Policies.Application.Dtos.CreateScopeNodeRequest.ParentId\r\nis null for a root Andy.Policies.Domain.Enums.ScopeType.Org node and\r\nrequired otherwise. The service enforces the canonical\r\nOrg→Tenant→Team→Repo→Template→Run ladder; mismatched type\r\nreturns 400."
+      operationId: Scopes_Create
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateScopeNodeRequest'
+          text/json:
+            schema:
+              $ref: '#/components/schemas/CreateScopeNodeRequest'
+          application/*+json:
+            schema:
+              $ref: '#/components/schemas/CreateScopeNodeRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScopeNodeDto'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /api/scopes/tree:
+    get:
+      tags:
+        - Scopes
+      summary: "Return the full forest as nested Andy.Policies.Application.Dtos.ScopeTreeDtos.\r\nOne entry per root node; an empty catalogue returns an empty\r\nlist. Order is (Ref ASC) at every level for deterministic\r\nsnapshotting."
+      operationId: Scopes_Tree
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ScopeTreeDto'
+  '/api/scopes/{id}':
+    get:
+      tags:
+        - Scopes
+      summary: Get a single scope node by id. Returns 404 if not found.
+      operationId: Scopes_Get
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScopeNodeDto'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+    delete:
+      tags:
+        - Scopes
+      summary: "Delete a leaf scope node. Refuses with 409 if the node still\r\nhas children; consumers must walk the subtree and delete\r\nleaves first."
+      operationId: Scopes_Delete
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: No Content
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  '/api/scopes/{id}/effective-policies':
+    get:
+      tags:
+        - Scopes
+      summary: "Resolve the effective policy set for a scope node using the\r\nstricter-tightens-only fold (P4.3). Returns 404 if the node\r\ndoesn't exist."
+      operationId: Scopes_Effective
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EffectivePolicySetDto'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
 components:
   schemas:
     BindStrength:
@@ -996,6 +1163,68 @@ components:
           nullable: true
       additionalProperties: false
       description: "Request payload for `IPolicyService.CreateDraftAsync`. Creates both the\r\nstable `Policy` row and its first `PolicyVersion` (version 1, Draft).\r\nEnum fields accept any casing on input (parsed case-insensitively by the service)."
+    CreateScopeNodeRequest:
+      type: object
+      properties:
+        parentId:
+          type: string
+          format: uuid
+          nullable: true
+        type:
+          $ref: '#/components/schemas/ScopeType'
+        ref:
+          type: string
+          nullable: true
+        displayName:
+          type: string
+          nullable: true
+      additionalProperties: false
+      description: "Request payload for `IScopeService.CreateAsync` (P4.2, story\r\nrivoli-ai/andy-policies#29). Andy.Policies.Application.Dtos.CreateScopeNodeRequest.ParentId is null for a\r\nroot Andy.Policies.Domain.Enums.ScopeType.Org node; non-null for any other type.\r\nThe service enforces the canonical Org→Tenant→Team→Repo→Template→Run\r\nladder."
+    EffectivePolicyDto:
+      type: object
+      properties:
+        policyId:
+          type: string
+          format: uuid
+        policyVersionId:
+          type: string
+          format: uuid
+        policyKey:
+          type: string
+          nullable: true
+        version:
+          type: integer
+          format: int32
+        bindStrength:
+          $ref: '#/components/schemas/BindStrength'
+        sourceBindingId:
+          type: string
+          format: uuid
+        sourceScopeNodeId:
+          type: string
+          format: uuid
+          nullable: true
+        sourceScopeType:
+          $ref: '#/components/schemas/ScopeType'
+        sourceDepth:
+          type: integer
+          format: int32
+      additionalProperties: false
+      description: "One entry in an effective-policy set (P4.3, story\r\nrivoli-ai/andy-policies#30). The result of stricter-tightens-only\r\nresolution: each Andy.Policies.Application.Dtos.EffectivePolicyDto.PolicyId appears at most once,\r\ncarrying the strictest Andy.Policies.Application.Dtos.EffectivePolicyDto.BindStrength seen anywhere in\r\nthe scope chain plus a pointer back to the binding (and the scope\r\nnode that bound it) that won the resolution."
+    EffectivePolicySetDto:
+      type: object
+      properties:
+        scopeNodeId:
+          type: string
+          format: uuid
+          nullable: true
+        policies:
+          type: array
+          items:
+            $ref: '#/components/schemas/EffectivePolicyDto'
+          nullable: true
+      additionalProperties: false
+      description: "Envelope for `IBindingResolutionService` results (P4.3, story\r\nrivoli-ai/andy-policies#30). Andy.Policies.Application.Dtos.EffectivePolicySetDto.ScopeNodeId is null when\r\nthe resolver was called with a target that does not map to a known\r\n`ScopeNode` — the service then degrades to P3 exact-match\r\nsemantics rather than returning 404."
     HelpTopic:
       type: object
       properties:
@@ -1234,6 +1463,59 @@ components:
           $ref: '#/components/schemas/BindStrength'
       additionalProperties: false
       description: "A consumer-ready binding projection (P3.4, story\r\nrivoli-ai/andy-policies#22). Joins the live `Binding` row to its\r\ntarget `PolicyVersion` and stable `Policy` identity so a\r\ncaller (Conductor's ActionBus, andy-tasks per-task gates) gets enough\r\ncontext to decide what to do without a second round-trip. Wire-format\r\ncasing follows ADR 0001 §6: `Enforcement` uppercase RFC 2119\r\ntokens, `Severity` lowercase, `VersionState` PascalCase."
+    ScopeNodeDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        parentId:
+          type: string
+          format: uuid
+          nullable: true
+        type:
+          $ref: '#/components/schemas/ScopeType'
+        ref:
+          type: string
+          nullable: true
+        displayName:
+          type: string
+          nullable: true
+        materializedPath:
+          type: string
+          nullable: true
+        depth:
+          type: integer
+          format: int32
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      additionalProperties: false
+      description: "Wire-format projection of a `ScopeNode` (P4.2, story\r\nrivoli-ai/andy-policies#29). Surface controllers (REST P4.5, MCP /\r\ngRPC / CLI in P4.6) emit this shape directly so wire behaviour stays\r\nuniform across surfaces."
+    ScopeTreeDto:
+      type: object
+      properties:
+        node:
+          $ref: '#/components/schemas/ScopeNodeDto'
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScopeTreeDto'
+          nullable: true
+      additionalProperties: false
+      description: "Recursive tree projection: a `ScopeNode` plus its full subtree\r\n(P4.2, story rivoli-ai/andy-policies#29). Returned by\r\n`IScopeService.GetTreeAsync` and surfaced unchanged by the\r\nREST/MCP/gRPC tree endpoints in P4.5 / P4.6."
+    ScopeType:
+      enum:
+        - Org
+        - Tenant
+        - Team
+        - Repo
+        - Template
+        - Run
+      type: string
     UpdatePolicyVersionRequest:
       type: object
       properties:
@@ -1283,3 +1565,5 @@ tags:
     description: "Version-rooted enumeration of `Binding`s (P3.3, story\r\nrivoli-ai/andy-policies#21). Sits next to the version resource so\r\nHATEOAS-style clients can discover bindings without a separate\r\nquery. Delegates to Andy.Policies.Application.Interfaces.IBindingService; the controller is\r\npurely a wire-format adapter."
   - name: PolicyVersionsLifecycle
     description: "REST surface for lifecycle transitions on a `PolicyVersion` (P2.3, story\r\nrivoli-ai/andy-policies#13). Three action-shaped endpoints — `publish`,\r\n`winding-down`, `retire` — sit on top of\r\nAndy.Policies.Application.Interfaces.ILifecycleTransitionService. Auto-supersede of the previous\r\nActive happens inside the service's serializable transaction; the controller\r\nis a thin wire-format adapter and never re-implements state-machine logic.\r\nService exceptions map to status codes via `PolicyExceptionHandler`:\r\nAndy.Policies.Application.Exceptions.ValidationException → 400 (rationale\r\nmissing), Andy.Policies.Application.Exceptions.NotFoundException → 404\r\n(unknown id), Andy.Policies.Application.Exceptions.InvalidLifecycleTransitionException\r\nand Andy.Policies.Application.Exceptions.ConcurrentPublishException → 409."
+  - name: Scopes
+    description: "REST surface for the scope hierarchy (P4.5, story\r\nrivoli-ai/andy-policies#33). Six endpoints sit on top of\r\nAndy.Policies.Application.Interfaces.IScopeService (P4.2) and\r\nAndy.Policies.Application.Interfaces.IBindingResolutionService (P4.3): list, get-by-id,\r\ntree, effective-policies, create, delete. Service exceptions are\r\nmapped to status codes by `PolicyExceptionHandler`:\r\n<list type=\"bullet\"><item>Andy.Policies.Application.Exceptions.NotFoundException → 404</item><item>Andy.Policies.Application.Exceptions.InvalidScopeTypeException → 400 (`scope.parent-type-mismatch`)</item><item>Andy.Policies.Application.Exceptions.ScopeRefConflictException → 409 (`scope.ref-conflict`)</item><item>Andy.Policies.Application.Exceptions.ScopeHasDescendantsException → 409 (`scope.has-descendants`)</item></list>"

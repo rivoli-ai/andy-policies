@@ -214,6 +214,38 @@ Exit codes follow the federated-CLI contract from Conductor Epic AN: `0`
 success, `2` bad arguments (missing filter on `list`), `3` auth (401/403),
 `4` not found, `5` conflict (covers `BindingRetiredVersionException`).
 
+### Scope endpoints
+
+REST surface for the hierarchical scope tree (P4.5,
+[#33](https://github.com/rivoli-ai/andy-policies/issues/33)). Six
+endpoints sit on top of the `IScopeService` (P4.2,
+[#29](https://github.com/rivoli-ai/andy-policies/issues/29)) +
+`IBindingResolutionService` (P4.3,
+[#30](https://github.com/rivoli-ai/andy-policies/issues/30)):
+
+```http
+GET    /api/scopes?type=Tenant                       # list (optional type filter)
+GET    /api/scopes/tree                              # full forest, nested
+GET    /api/scopes/{id}                              # single node
+GET    /api/scopes/{id}/effective-policies            # tighten-only resolved set
+POST   /api/scopes                                    # create (canonical ladder enforced)
+DELETE /api/scopes/{id}                               # leaf-only delete
+```
+
+Create enforces the `Org → Tenant → Team → Repo → Template → Run`
+ladder; mismatched parent type returns `400` with
+`errorCode=scope.parent-type-mismatch`. Duplicate `(Type, Ref)` returns
+`409` with `errorCode=scope.ref-conflict`. Deleting a non-leaf returns
+`409` with `errorCode=scope.has-descendants` and `childCount` in the
+ProblemDetails extensions. Effective-policies resolution filters
+Retired versions, dedups same-target/same-version pairs preferring
+`Mandatory`, and orders mandatories first. Write-time tighten-only
+validation (P4.4,
+[#32](https://github.com/rivoli-ai/andy-policies/issues/32)) refuses to
+commit a `Recommended` binding that would shadow an upstream
+`Mandatory`; the `409` response carries `offendingAncestorBindingId`
+and `offendingScopeNodeId` so admins can triage from the error.
+
 For the full design — canonical `TargetRef` shapes, retired-version
 refusal, soft-delete tombstone, dedup rules on resolve, surface parity
 table, and concurrency model — see [`docs/design/bindings.md`](docs/design/bindings.md).
