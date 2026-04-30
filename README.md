@@ -262,6 +262,18 @@ follows the same federated-CLI exit-code contract as `bindings` and
 `versions` (0 success / 1 transport / 3 auth / 4 not-found /
 5 conflict).
 
+#### Performance budget
+
+The hierarchy-aware resolver targets **p99 < 50 ms** for the full
+chain walk (P4.7,
+[#36](https://github.com/rivoli-ai/andy-policies/issues/36)). The
+`ScopeWalkPerfTests` Postgres-testcontainer suite seeds a 6-level
+tree with 200+ bindings sprinkled along the chain and runs each hot
+path 100 times: `GetAncestorsAsync` p99 ≤ 50 ms, `ResolveForScopeAsync`
+p99 ≤ 150 ms (50 ms target plus headroom for noisy CI runners). The
+suite is tagged `Category=Perf` so PR CI can skip via filter; nightly
+sweeps run the budget check.
+
 For the full design — canonical `TargetRef` shapes, retired-version
 refusal, soft-delete tombstone, dedup rules on resolve, surface parity
 table, and concurrency model — see [`docs/design/bindings.md`](docs/design/bindings.md).
