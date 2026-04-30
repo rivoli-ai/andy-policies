@@ -51,6 +51,67 @@ public sealed class PolicyExceptionHandler : IExceptionHandler
             return true;
         }
 
+        // P4.5 (#33): scope-specific 4xx mappings carry typed errorCodes
+        // so the Cockpit + Angular client can branch on stable strings
+        // without parsing English messages.
+        if (exception is InvalidScopeTypeException itex)
+        {
+            var problem400 = new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Scope parent type mismatch",
+                Detail = itex.Message,
+                Type = "/problems/scope-parent-type-mismatch",
+                Instance = httpContext.Request.Path,
+                Extensions = { ["errorCode"] = "scope.parent-type-mismatch" },
+            };
+            httpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
+            await httpContext.Response.WriteAsJsonAsync(problem400, cancellationToken);
+            return true;
+        }
+
+        if (exception is ScopeRefConflictException src)
+        {
+            var problem409 = new ProblemDetails
+            {
+                Status = StatusCodes.Status409Conflict,
+                Title = "Scope ref conflict",
+                Detail = src.Message,
+                Type = "/problems/scope-ref-conflict",
+                Instance = httpContext.Request.Path,
+                Extensions =
+                {
+                    ["errorCode"] = "scope.ref-conflict",
+                    ["scopeType"] = src.Type.ToString(),
+                    ["ref"] = src.Ref,
+                },
+            };
+            httpContext.Response.StatusCode = StatusCodes.Status409Conflict;
+            await httpContext.Response.WriteAsJsonAsync(problem409, cancellationToken);
+            return true;
+        }
+
+        if (exception is ScopeHasDescendantsException shdex)
+        {
+            var problem409 = new ProblemDetails
+            {
+                Status = StatusCodes.Status409Conflict,
+                Title = "Scope has descendants",
+                Detail = shdex.Message,
+                Type = "/problems/scope-has-descendants",
+                Instance = httpContext.Request.Path,
+                Extensions =
+                {
+                    ["errorCode"] = "scope.has-descendants",
+                    ["scopeNodeId"] = shdex.ScopeNodeId,
+                    ["childCount"] = shdex.ChildCount,
+                },
+            };
+            httpContext.Response.StatusCode = StatusCodes.Status409Conflict;
+            await httpContext.Response.WriteAsJsonAsync(problem409, cancellationToken);
+            return true;
+        }
+
         // P4.4: tighten-only violation carries the offending ancestor
         // binding id + scope node id so admins can triage from the
         // error response without a follow-up query. We inject the
