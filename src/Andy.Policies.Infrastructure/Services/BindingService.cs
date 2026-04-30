@@ -25,12 +25,31 @@ public sealed class BindingService : IBindingService
     private readonly AppDbContext _db;
     private readonly IAuditWriter _audit;
     private readonly TimeProvider _clock;
+    private readonly ITightenOnlyValidator? _tightenValidator;
 
     public BindingService(AppDbContext db, IAuditWriter audit, TimeProvider clock)
+        : this(db, audit, clock, tightenValidator: null) { }
+
+    /// <summary>
+    /// Optional <see cref="ITightenOnlyValidator"/> overload (P4.4,
+    /// rivoli-ai/andy-policies#32). Production DI passes the live
+    /// validator so <see cref="CreateAsync"/> rejects mutations that
+    /// would loosen a Mandatory binding declared upstream. Existing
+    /// unit tests that construct <c>BindingService</c> directly fall
+    /// through the parameterless overload above and see the legacy
+    /// behaviour (no tighten check), preserving the P3 test
+    /// inventory unchanged.
+    /// </summary>
+    public BindingService(
+        AppDbContext db,
+        IAuditWriter audit,
+        TimeProvider clock,
+        ITightenOnlyValidator? tightenValidator)
     {
         _db = db;
         _audit = audit;
         _clock = clock;
+        _tightenValidator = tightenValidator;
     }
 
     public async Task<BindingDto> CreateAsync(
@@ -63,6 +82,22 @@ public sealed class BindingService : IBindingService
         if (version.State == LifecycleState.Retired)
         {
             throw new BindingRetiredVersionException(version.Id);
+        }
+
+        // P4.4: stricter-tightens-only — reject Recommended creates that
+        // would shadow a Mandatory binding declared upstream. The
+        // validator returns null when no scope chain is involved (soft
+        // refs) or when the proposal is itself Mandatory; we throw on
+        // every non-null violation.
+        if (_tightenValidator is not null)
+        {
+            var violation = await _tightenValidator.ValidateCreateAsync(
+                version.Id, request.TargetType, targetRef, request.BindStrength, ct)
+                .ConfigureAwait(false);
+            if (violation is not null)
+            {
+                throw new TightenOnlyViolationException(violation);
+            }
         }
 
         var binding = new Binding
