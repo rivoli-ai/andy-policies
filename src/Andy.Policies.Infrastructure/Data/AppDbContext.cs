@@ -23,6 +23,8 @@ public class AppDbContext : DbContext
 
     public DbSet<ScopeNode> ScopeNodes => Set<ScopeNode>();
 
+    public DbSet<Override> Overrides => Set<Override>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -243,6 +245,72 @@ public class AppDbContext : DbContext
             entity.HasIndex(s => s.MaterializedPath)
                 .HasDatabaseName("ix_scope_nodes_materialized_path");
         });
+
+        // P5.1 (rivoli-ai/andy-policies#49) — Override entity. Per-
+        // principal or per-cohort escape hatch from stricter-tightens-
+        // only resolution.
+        // - HasConversion<string>() on the three enums so the partial
+        //   index can filter on "State" = 'Approved' directly without an
+        //   int-to-string cast (and so the persisted shape is human-
+        //   readable for forensic queries).
+        // - FK Restrict on PolicyVersionId AND ReplacementPolicyVersionId:
+        //   deleting a version with active overrides is rejected at the
+        //   DB layer; the override contract is reproducibility, not
+        //   cascade.
+        // - Two indexes:
+        //     ix_overrides_scope_state — every (P4-resolution / P5
+        //       service) read filters on (ScopeKind, ScopeRef, State);
+        //       the composite covering index keeps the hot path off
+        //       table scans.
+        //     ix_overrides_expiry_approved — partial index used by the
+        //       reaper (P5.3) to sweep `WHERE "State" = 'Approved'
+        //       AND "ExpiresAt" < now()` without scanning the whole
+        //       table. Postgres + SQLite both honour the same partial
+        //       index syntax (string column + literal compare).
+        // - CHECK constraint ck_overrides_effect_replacement: the
+        //   Replace/Exempt invariant — Replace iff
+        //   ReplacementPolicyVersionId is non-null. EF's HasCheckConstraint
+        //   uses the column name in quotes for case-sensitive Postgres
+        //   identifiers; SQLite is lenient about casing.
+        // - Revision uint concurrency token, bumped manually in
+        //   BumpRevisions below (matches the PolicyVersion pattern from
+        //   ADR 0001).
+        modelBuilder.Entity<Override>(entity =>
+        {
+            entity.ToTable("overrides", t =>
+            {
+                t.HasCheckConstraint(
+                    "ck_overrides_effect_replacement",
+                    "(\"Effect\" = 'Exempt' AND \"ReplacementPolicyVersionId\" IS NULL) OR " +
+                    "(\"Effect\" = 'Replace' AND \"ReplacementPolicyVersionId\" IS NOT NULL)");
+            });
+            entity.HasKey(o => o.Id);
+
+            entity.Property(o => o.ScopeKind).HasConversion<string>().HasMaxLength(16).IsRequired();
+            entity.Property(o => o.Effect).HasConversion<string>().HasMaxLength(16).IsRequired();
+            entity.Property(o => o.State).HasConversion<string>().HasMaxLength(16).IsRequired();
+            entity.Property(o => o.ScopeRef).IsRequired().HasMaxLength(256);
+            entity.Property(o => o.ProposerSubjectId).IsRequired().HasMaxLength(128);
+            entity.Property(o => o.ApproverSubjectId).HasMaxLength(128);
+            entity.Property(o => o.Rationale).IsRequired().HasMaxLength(2000);
+            entity.Property(o => o.RevocationReason).HasMaxLength(2000);
+            entity.Property(o => o.Revision).IsConcurrencyToken();
+
+            entity.HasOne(o => o.PolicyVersion)
+                .WithMany()
+                .HasForeignKey(o => o.PolicyVersionId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(o => o.ReplacementPolicyVersion)
+                .WithMany()
+                .HasForeignKey(o => o.ReplacementPolicyVersionId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(o => new { o.ScopeKind, o.ScopeRef, o.State })
+                .HasDatabaseName("ix_overrides_scope_state");
+            entity.HasIndex(o => o.ExpiresAt)
+                .HasDatabaseName("ix_overrides_expiry_approved")
+                .HasFilter("\"State\" = 'Approved'");
+        });
     }
 
     // Override only the `bool`-flavoured routing entry points. EF routes `SaveChanges()` →
@@ -316,6 +384,18 @@ public class AppDbContext : DbContext
     private void BumpRevisions()
     {
         foreach (var entry in ChangeTracker.Entries<PolicyVersion>())
+        {
+            if (entry.State == EntityState.Modified)
+            {
+                entry.Entity.Revision = unchecked(entry.Entity.Revision + 1);
+            }
+        }
+
+        // P5.1: Override carries the same uint Revision concurrency
+        // token; bump on every modification so the reaper (P5.3) and
+        // approval workflow (P5.2) surface optimistic-concurrency
+        // conflicts instead of silently overwriting each other.
+        foreach (var entry in ChangeTracker.Entries<Override>())
         {
             if (entry.State == EntityState.Modified)
             {
