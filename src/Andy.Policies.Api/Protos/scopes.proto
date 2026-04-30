@@ -1,0 +1,145 @@
+// Copyright (c) Rivoli AI 2026. All rights reserved.
+// Licensed under the Apache License, Version 2.0.
+//
+// gRPC contract for the scope hierarchy (P4.6,
+// rivoli-ai/andy-policies#34). Sits alongside policies.proto,
+// lifecycle.proto, and bindings.proto in the same `andy_policies`
+// package + `Andy.Policies.Api.Protos` C# namespace so existing
+// consumers can pull in scope RPCs without a second stub generation.
+//
+// Wire format conventions match the sibling protos:
+//   - target_ref / display_name / created_at / updated_at use snake_case
+//     (proto convention) — generated to PascalCase in C#.
+//   - state / enforcement / severity stay strings on
+//     EffectivePolicyMessage so proto evolution doesn't couple to
+//     internal enum renames (matches lifecycle.proto + bindings.proto).
+//   - target_ref on ScopeNodeMessage avoids the C# `ref` keyword
+//     conflict surfaced in some generators.
+//   - ScopeType is a proto3 enum; the *_UNSPECIFIED zero value is
+//     rejected as InvalidArgument by the server.
+
+syntax = "proto3";
+
+option csharp_namespace = "Andy.Policies.Api.Protos";
+
+package andy_policies;
+
+service ScopesService {
+  // List nodes (optional type filter).
+  rpc ListScopes (ListScopesRequest) returns (ListScopesResponse);
+
+  // Single-node read; returns NOT_FOUND when missing.
+  rpc GetScope (GetScopeRequest) returns (ScopeNodeResponse);
+
+  // Full forest as nested ScopeTreeMessage. Empty catalogue returns an
+  // empty tree list.
+  rpc GetScopeTree (GetScopeTreeRequest) returns (GetScopeTreeResponse);
+
+  // Create a node. Refuses ladder violations with FailedPrecondition,
+  // duplicate (Type, Ref) with AlreadyExists, missing parent with
+  // NotFound.
+  rpc CreateScope (CreateScopeRequest) returns (ScopeNodeResponse);
+
+  // Hard-delete a leaf node. Refuses with FailedPrecondition when the
+  // node still has descendants.
+  rpc DeleteScope (DeleteScopeRequest) returns (DeleteScopeResponse);
+
+  // Resolve the effective policy set using the P4.3 stricter-tightens-
+  // only fold. Returns NOT_FOUND for unknown scope ids.
+  rpc GetEffectivePolicies (GetEffectivePoliciesRequest) returns (EffectivePolicySetResponse);
+}
+
+// -- enums ----------------------------------------------------------------
+
+enum ScopeType {
+  SCOPE_TYPE_UNSPECIFIED = 0;
+  SCOPE_TYPE_ORG = 1;
+  SCOPE_TYPE_TENANT = 2;
+  SCOPE_TYPE_TEAM = 3;
+  SCOPE_TYPE_REPO = 4;
+  SCOPE_TYPE_TEMPLATE = 5;
+  SCOPE_TYPE_RUN = 6;
+}
+
+enum ProtoBindStrength {
+  BIND_STRENGTH_PROTO_UNSPECIFIED = 0;
+  BIND_STRENGTH_PROTO_MANDATORY = 1;
+  BIND_STRENGTH_PROTO_RECOMMENDED = 2;
+}
+
+// -- shared messages ------------------------------------------------------
+
+message ScopeNodeMessage {
+  string id = 1;
+  string parent_id = 2;            // empty for root nodes
+  ScopeType type = 3;
+  string target_ref = 4;
+  string display_name = 5;
+  string materialized_path = 6;
+  int32 depth = 7;
+  string created_at = 8;            // ISO 8601 (DateTimeOffset.ToString("o"))
+  string updated_at = 9;
+}
+
+message ScopeTreeMessage {
+  ScopeNodeMessage node = 1;
+  repeated ScopeTreeMessage children = 2;
+}
+
+message EffectivePolicyMessage {
+  string policy_id = 1;
+  string policy_version_id = 2;
+  string policy_key = 3;
+  int32 version = 4;
+  ProtoBindStrength bind_strength = 5;
+  string source_binding_id = 6;
+  string source_scope_node_id = 7;  // empty when fallback exact-match path used
+  ScopeType source_scope_type = 8;  // SCOPE_TYPE_UNSPECIFIED in fallback path
+  int32 source_depth = 9;
+}
+
+// -- request / response messages -----------------------------------------
+
+message ListScopesRequest {
+  ScopeType type = 1;               // SCOPE_TYPE_UNSPECIFIED for no filter
+}
+
+message ListScopesResponse {
+  repeated ScopeNodeMessage nodes = 1;
+}
+
+message GetScopeRequest {
+  string id = 1;
+}
+
+message ScopeNodeResponse {
+  ScopeNodeMessage node = 1;
+}
+
+message GetScopeTreeRequest {}
+
+message GetScopeTreeResponse {
+  repeated ScopeTreeMessage forest = 1;
+}
+
+message CreateScopeRequest {
+  string parent_id = 1;             // empty for root Org
+  ScopeType type = 2;
+  string target_ref = 3;
+  string display_name = 4;
+}
+
+message DeleteScopeRequest {
+  string id = 1;
+}
+
+message DeleteScopeResponse {}
+
+message GetEffectivePoliciesRequest {
+  string id = 1;
+}
+
+message EffectivePolicySetResponse {
+  string scope_node_id = 1;          // empty in fallback exact-match path
+  repeated EffectivePolicyMessage policies = 2;
+}
