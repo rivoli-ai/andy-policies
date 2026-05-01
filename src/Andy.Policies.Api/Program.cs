@@ -225,6 +225,7 @@ builder.Services.AddSwaggerGen(options =>
     }
 
     options.SchemaFilter<Andy.Policies.Api.Swagger.PolicyDimensionSchemaFilter>();
+    options.DocumentFilter<Andy.Policies.Api.Swagger.OverridesDocumentFilter>();
 
     options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
     {
