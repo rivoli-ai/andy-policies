@@ -121,6 +121,12 @@ builder.Services.AddScoped<Andy.Policies.Application.Interfaces.ILifecycleTransi
 // "allow-all" semantics apply only to the subject→permission check.
 builder.Services.AddScoped<Andy.Policies.Application.Interfaces.IOverrideService, Andy.Policies.Infrastructure.Services.OverrideService>();
 builder.Services.AddScoped<Andy.Policies.Application.Interfaces.IRbacChecker, Andy.Policies.Infrastructure.Services.AllowAllRbacChecker>();
+// P5.3 (#53): periodic sweep that transitions Approved overrides past
+// ExpiresAt into Expired. Runs even when the experimental-overrides
+// gate is off — turning the feature off must not strand previously
+// approved overrides past expiry. Cadence reads live from
+// andy-settings (key andy.policies.overrideExpiryReaperCadenceSeconds).
+builder.Services.AddHostedService<Andy.Policies.Infrastructure.BackgroundServices.OverrideExpiryReaper>();
 // P2.4 (#14): the rationale policy reads andy.policies.rationaleRequired from
 // the andy-settings snapshot on every check (fail-safe to required=true if the
 // snapshot has not yet observed the key). Registered as a singleton because it
@@ -152,7 +158,8 @@ builder.Services.AddOpenTelemetry()
         metrics.AddAspNetCoreInstrumentation()
                .AddHttpClientInstrumentation()
                .AddRuntimeInstrumentation()
-               .AddMeter(Andy.Policies.Infrastructure.Services.AndySettingsRationalePolicy.MeterName);
+               .AddMeter(Andy.Policies.Infrastructure.Services.AndySettingsRationalePolicy.MeterName)
+               .AddMeter(Andy.Policies.Infrastructure.BackgroundServices.OverrideExpiryReaper.MeterName);
         if (!string.IsNullOrEmpty(otlpEndpoint))
             metrics.AddOtlpExporter(o => o.Endpoint = new Uri(otlpEndpoint));
     });

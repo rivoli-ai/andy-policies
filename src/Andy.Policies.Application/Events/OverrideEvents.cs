@@ -34,12 +34,26 @@ public sealed record OverrideApproved(
 
 /// <summary>
 /// Emitted in-process when an <c>Override</c> is explicitly revoked
-/// before expiry. The reaper-driven Expired transition will emit a
-/// separate <c>OverrideExpired</c> event when P5.3 lands.
+/// before expiry. The reaper-driven Expired transition emits the
+/// separate <see cref="OverrideExpired"/> event so audit (P6) can
+/// distinguish operator-initiated revocation from system-driven
+/// expiry.
 /// </summary>
 public sealed record OverrideRevoked(
     Guid OverrideId,
     Guid PolicyVersionId,
     string ActorSubjectId,
     string Reason,
+    DateTimeOffset At);
+
+/// <summary>
+/// Emitted in-process when <c>OverrideExpiryReaper</c> transitions an
+/// approved <c>Override</c> past <c>ExpiresAt</c> to
+/// <see cref="OverrideState.Expired"/> (P5.3, story
+/// rivoli-ai/andy-policies#53). Distinct from <see cref="OverrideRevoked"/>
+/// so P6 audit can record <c>actor=system:reaper</c>.
+/// </summary>
+public sealed record OverrideExpired(
+    Guid OverrideId,
+    Guid PolicyVersionId,
     DateTimeOffset At);

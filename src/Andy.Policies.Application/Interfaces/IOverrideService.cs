@@ -26,9 +26,11 @@ namespace Andy.Policies.Application.Interfaces;
 ///     <see cref="OverrideState.Revoked"/> from either
 ///     <c>Proposed</c> or <c>Approved</c>; requires a non-empty
 ///     revocation reason.</item>
+///   <item><c>ExpireAsync</c> — system-only transition into
+///     <see cref="OverrideState.Expired"/>. Called exclusively by
+///     <c>OverrideExpiryReaper</c> (P5.3); skips RBAC and is the only
+///     code path into the <c>Expired</c> state.</item>
 /// </list>
-/// The reaper (P5.3) is the only path into
-/// <see cref="OverrideState.Expired"/>.
 /// </remarks>
 public interface IOverrideService
 {
@@ -47,6 +49,23 @@ public interface IOverrideService
         RevokeOverrideRequest request,
         string actorSubjectId,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// System-only transition: moves an <c>Approved</c> override past
+    /// its <c>ExpiresAt</c> into <see cref="OverrideState.Expired"/>.
+    /// Called exclusively by <c>OverrideExpiryReaper</c> (P5.3,
+    /// rivoli-ai/andy-policies#53). Skips RBAC because there is no
+    /// human actor; emits <c>OverrideExpired</c> (distinct from
+    /// <c>OverrideRevoked</c> so audit can record
+    /// <c>actor=system:reaper</c>).
+    /// </summary>
+    /// <returns>The DTO of the newly-expired row.</returns>
+    /// <exception cref="Andy.Policies.Application.Exceptions.NotFoundException">
+    /// No row matches <paramref name="id"/>.</exception>
+    /// <exception cref="Andy.Policies.Application.Exceptions.ConflictException">
+    /// Row is not <c>Approved</c>, or its <c>ExpiresAt</c> is still in
+    /// the future (i.e. the reaper raced an updated expiry).</exception>
+    Task<OverrideDto> ExpireAsync(Guid id, CancellationToken ct = default);
 
     Task<OverrideDto?> GetAsync(Guid id, CancellationToken ct = default);
 

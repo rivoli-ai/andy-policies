@@ -107,6 +107,15 @@
         "dataType": "Boolean",
         "defaultValue": "false",
         "allowedScopes": ["Machine", "Application", "Team"]
+      },
+      {
+        "key": "andy.policies.overrideExpiryReaperCadenceSeconds",
+        "displayName": "Override Expiry Reaper Cadence (seconds)",
+        "description": "How often the OverrideExpiryReaper sweeps for approved overrides past ExpiresAt. Clamped to a minimum of 5 seconds in code.",
+        "category": "Experimentation",
+        "dataType": "Integer",
+        "defaultValue": "60",
+        "allowedScopes": ["Machine", "Application"]
       }
     ]
   }

@@ -296,6 +296,48 @@ public sealed class OverrideService : IOverrideService
         return ToDto(ovr);
     }
 
+    public async Task<OverrideDto> ExpireAsync(Guid id, CancellationToken ct = default)
+    {
+        await using var transaction = await _db.Database
+            .BeginTransactionAsync(IsolationLevel.Serializable, ct)
+            .ConfigureAwait(false);
+
+        var ovr = await _db.Overrides
+            .FirstOrDefaultAsync(o => o.Id == id, ct)
+            .ConfigureAwait(false)
+            ?? throw new NotFoundException($"Override {id} not found.");
+
+        if (ovr.State != OverrideState.Approved)
+        {
+            // Race tolerance: if the reaper picked up an id that another
+            // actor revoked between the scan and this call, the conflict
+            // here is the reaper's signal to skip the row. The hosted
+            // service catches ConflictException and continues.
+            throw new ConflictException(
+                $"Override {id} is in state {ovr.State}; only Approved overrides can be expired.");
+        }
+
+        var now = _clock.GetUtcNow();
+        if (ovr.ExpiresAt > now)
+        {
+            // Belt-and-braces: protects against operator/test fixtures
+            // that bump ExpiresAt forward between scan and expire.
+            throw new ConflictException(
+                $"Override {id} is not yet due (ExpiresAt={ovr.ExpiresAt:o}, now={now:o}).");
+        }
+
+        ovr.State = OverrideState.Expired;
+        await _db.SaveChangesAsync(ct).ConfigureAwait(false);
+        await transaction.CommitAsync(ct).ConfigureAwait(false);
+
+        await _events.DispatchAsync(new OverrideExpired(
+            OverrideId: ovr.Id,
+            PolicyVersionId: ovr.PolicyVersionId,
+            At: now), ct).ConfigureAwait(false);
+
+        return ToDto(ovr);
+    }
+
     public async Task<OverrideDto?> GetAsync(Guid id, CancellationToken ct = default)
     {
         var ovr = await _db.Overrides.AsNoTracking()
