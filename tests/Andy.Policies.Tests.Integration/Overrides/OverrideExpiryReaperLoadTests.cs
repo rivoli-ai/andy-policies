@@ -43,7 +43,14 @@ public class OverrideExpiryReaperLoadTests : IDisposable
 {
     private const int DueRows = 5_000;
     private const int FutureRows = 5_000;
-    private const int WallClockBudgetSeconds = 30;
+
+    // 90s wall budget + 50-sweep cap give significant headroom over
+    // the dev-laptop measurement (~10 sweeps in ~5s). CI runners
+    // (ubuntu-latest shared) are notoriously variable; the budget
+    // is sized to fail on a genuinely broken implementation, not on
+    // a slow runner. 5,000 rows / 500 cap = 10 sweeps minimum.
+    private const int WallClockBudgetSeconds = 90;
+    private const int MaxSweepIterations = 50;
     private const long MaxHeapDeltaBytes = 200L * 1024 * 1024; // 200 MB
 
     private sealed class LoadFactory : WebApplicationFactory<Program>
@@ -159,7 +166,7 @@ public class OverrideExpiryReaperLoadTests : IDisposable
         var heapBefore = GC.GetTotalMemory(forceFullCollection: true);
         var stopwatch = Stopwatch.StartNew();
         var totalExpired = 0;
-        for (var i = 0; i < 25 && totalExpired < DueRows; i++)
+        for (var i = 0; i < MaxSweepIterations && totalExpired < DueRows; i++)
         {
             totalExpired += await reaper.SweepOnceAsync(CancellationToken.None);
             if (stopwatch.Elapsed.TotalSeconds > WallClockBudgetSeconds)
