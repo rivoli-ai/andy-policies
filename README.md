@@ -346,6 +346,29 @@ route on (`policy.override.disabled`,
 `policy.override.invalid_argument`, `policy.override.rbac_denied`),
 matching the REST `errorCode` extension members from P5.5.
 
+The gRPC `OverridesService` (P5.7,
+[#60](https://github.com/rivoli-ai/andy-policies/issues/60)) lives in
+`overrides.proto` alongside the existing service protos (same
+`andy_policies` package + `Andy.Policies.Api.Protos` namespace) and
+exposes six RPCs: `ProposeOverride`, `ApproveOverride`,
+`RevokeOverride`, `ListOverrides`, `GetOverride`,
+`GetActiveOverrides`. `ProtoScopeKind`, `ProtoEffectKind`, and
+`ProtoOverrideState` are proto3 enums (UNSPECIFIED rejected as
+`InvalidArgument`); subject ids and timestamps travel as strings on
+`OverrideMessage` so proto evolution doesn't couple to internal
+renames. Surface-parity error contracts: `PERMISSION_DENIED` carries
+trailer `override_disabled=1` when the gate is off and
+`reason=self_approval` or `reason=forbidden` for self-approval / RBAC
+denials.
+
+`andy-policies-cli overrides {propose,approve,revoke,list,get,active}`
+(P5.7, [#60](https://github.com/rivoli-ai/andy-policies/issues/60))
+talks to the REST surface and inherits its auth + gate enforcement.
+`--expires-at` accepts ISO 8601 (`2026-05-01T00:00:00Z`) or relative
+durations (`+30d`, `+8h`, `+45m`); past values fail-fast at the CLI
+layer with a clear stderr message before round-tripping to the
+server.
+
 ## Ports
 
 Per the ecosystem registry at [`../andy-service-template/docs/ports.md`](../andy-service-template/docs/ports.md). Three deployment modes; the same host can run any combination because each mode uses a distinct port range.
