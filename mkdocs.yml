@@ -16,6 +16,8 @@ nav:
   - Testing: testing.md
   - Deployment: deployment.md
   - Security: security.md
+  - Concepts:
+    - Overrides: concepts/overrides.md
   - Design:
     - Policy document core: design/policy-document-core.md
     - Lifecycle states: design/lifecycle.md
@@ -24,10 +26,14 @@ nav:
     - Resolution algorithm: design/resolution-algorithm.md
   - Guides:
     - Consumer integration — bindings: guides/consumer-integration-bindings.md
+  - Runbooks:
+    - Override approver: runbooks/override-approver.md
+    - Override operator: runbooks/override-operator.md
   - ADRs:
     - 0001 Policy versioning: adr/0001-policy-versioning.md
     - 0002 Lifecycle states: adr/0002-lifecycle-states.md
     - 0003 Bindings: adr/0003-bindings.md
     - 0004 Scope hierarchy: adr/0004-scope-hierarchy.md
+    - 0005 Overrides: adr/0005-overrides.md
     - 0006 Audit hash chain: adr/0006-audit-hash-chain.md
     - 0007 Edit RBAC: adr/0007-edit-rbac.md
