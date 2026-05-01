@@ -302,6 +302,36 @@ For the *why* behind each design decision (typed 6-level, materialized
 path, dual write+read enforcement, structural cycle-impossibility),
 see [ADR 0004 — Scope hierarchy + tighten-only resolution](docs/adr/0004-scope-hierarchy.md).
 
+### Override endpoints
+
+REST surface for `Override` propose/approve/revoke + list/get/active
+(P5.5, [#58](https://github.com/rivoli-ai/andy-policies/issues/58)).
+Six endpoints sit on top of `IOverrideService`:
+
+```http
+POST  /api/overrides                                              # propose → 201
+POST  /api/overrides/{id}/approve                                 # approve → 200
+POST  /api/overrides/{id}/revoke                                  # revoke → 200
+GET   /api/overrides?state=&scopeKind=&scopeRef=&policyVersionId= # list
+GET   /api/overrides/{id}                                          # get → 200/404
+GET   /api/overrides/active?scopeKind=&scopeRef=                   # effective set
+```
+
+The three writes carry `[OverrideWriteGate]` (P5.4, [#56](https://github.com/rivoli-ai/andy-policies/issues/56))
+— when `andy.policies.experimentalOverridesEnabled` is `false` they
+return 403 with `errorCode: override.disabled`. Reads bypass the gate
+so the resolution algorithm (P4.3) keeps working when the toggle is
+off. `GET /api/overrides/active` returns only rows where
+`State == Approved` AND `ExpiresAt > now`; expired rows are excluded
+even before the next reaper tick.
+
+Approve-by-proposer returns 403 with `errorCode: override.self_approval_forbidden`
+(distinct from a generic 403 so MCP/gRPC/CLI can mirror the same
+contract). Revoke requires a non-empty `RevocationReason`. The reaper
+(P5.3, [#53](https://github.com/rivoli-ai/andy-policies/issues/53))
+is the only path into the `Expired` state — explicit revocation goes
+to `Revoked`.
+
 ## Ports
 
 Per the ecosystem registry at [`../andy-service-template/docs/ports.md`](../andy-service-template/docs/ports.md). Three deployment modes; the same host can run any combination because each mode uses a distinct port range.

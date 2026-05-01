@@ -386,6 +386,273 @@ paths:
       responses:
         '200':
           description: OK
+  /api/overrides:
+    post:
+      tags:
+        - Overrides
+      summary: "Propose a new override. Inserts in `Proposed` state; the\r\napprover (a different subject) drives the next transition via\r\n`POST /api/overrides/{id}/approve`."
+      operationId: Overrides_Propose
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProposeOverrideRequest'
+          text/json:
+            schema:
+              $ref: '#/components/schemas/ProposeOverrideRequest'
+          application/*+json:
+            schema:
+              $ref: '#/components/schemas/ProposeOverrideRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OverrideDto'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+    get:
+      tags:
+        - Overrides
+      summary: "List overrides matching the optional filter. Returns rows in\r\nany state; use `state=Approved` for the live set or\r\n`GET /api/overrides/active` for the\r\nscope-narrowed-and-non-expired projection."
+      operationId: Overrides_List
+      parameters:
+        - name: state
+          in: query
+          schema:
+            $ref: '#/components/schemas/OverrideState'
+        - name: scopeKind
+          in: query
+          schema:
+            $ref: '#/components/schemas/OverrideScopeKind'
+        - name: scopeRef
+          in: query
+          schema:
+            type: string
+        - name: policyVersionId
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OverrideDto'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  '/api/overrides/{id}/approve':
+    post:
+      tags:
+        - Overrides
+      summary: "Approve a `Proposed` override. Returns 403 with errorCode\r\n`override.self_approval_forbidden` when the approver is\r\nalso the proposer; 409 if the row is already past\r\n`Proposed`."
+      operationId: Overrides_Approve
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OverrideDto'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  '/api/overrides/{id}/revoke':
+    post:
+      tags:
+        - Overrides
+      summary: "Revoke a `Proposed` or `Approved` override. Requires\r\na non-empty `RevocationReason`; the reaper-driven\r\n`Expired` path goes through P5.3 instead."
+      operationId: Overrides_Revoke
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RevokeOverrideRequest'
+          text/json:
+            schema:
+              $ref: '#/components/schemas/RevokeOverrideRequest'
+          application/*+json:
+            schema:
+              $ref: '#/components/schemas/RevokeOverrideRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OverrideDto'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  '/api/overrides/{id}':
+    get:
+      tags:
+        - Overrides
+      summary: "Fetch a single override by id. Returns 404 if the row does not\r\nexist; visibility is not state-gated (an Expired or Revoked\r\nrow is still readable for audit)."
+      operationId: Overrides_Get
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OverrideDto'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /api/overrides/active:
+    get:
+      tags:
+        - Overrides
+      summary: "Currently-effective overrides for the given (scopeKind, scopeRef)\r\npair. Returns only rows where `State == Approved` AND\r\n`ExpiresAt > now` — expired rows are excluded even if\r\nthe reaper has not yet ticked. Consumed by P4.3 chain\r\nresolution and by Conductor at admission time."
+      operationId: Overrides_Active
+      parameters:
+        - name: scopeKind
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/OverrideScopeKind'
+        - name: scopeRef
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OverrideDto'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /api/Policies:
     get:
       tags:
@@ -1298,6 +1565,69 @@ components:
           nullable: true
       additionalProperties: false
       description: "Request payload for the lifecycle transition endpoints (P2.3, story\r\nrivoli-ai/andy-policies#13): publish, winding-down, retire. The single\r\n`rationale` field is forwarded to `ILifecycleTransitionService`\r\nwhere `IRationalePolicy` validates it against the\r\n`andy.policies.rationaleRequired` setting (P2.4 wires the dynamic\r\ngate; P2.3 ships with the require-non-empty default)."
+    OverrideDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        policyVersionId:
+          type: string
+          format: uuid
+        scopeKind:
+          $ref: '#/components/schemas/OverrideScopeKind'
+        scopeRef:
+          type: string
+          nullable: true
+        effect:
+          $ref: '#/components/schemas/OverrideEffect'
+        replacementPolicyVersionId:
+          type: string
+          format: uuid
+          nullable: true
+        proposerSubjectId:
+          type: string
+          nullable: true
+        approverSubjectId:
+          type: string
+          nullable: true
+        state:
+          $ref: '#/components/schemas/OverrideState'
+        proposedAt:
+          type: string
+          format: date-time
+        approvedAt:
+          type: string
+          format: date-time
+          nullable: true
+        expiresAt:
+          type: string
+          format: date-time
+        rationale:
+          type: string
+          nullable: true
+        revocationReason:
+          type: string
+          nullable: true
+      additionalProperties: false
+      description: "Wire-format projection of an `Override` (P5.2, story\r\nrivoli-ai/andy-policies#52). Surface controllers (REST P5.5,\r\nMCP/gRPC/CLI in P5.6 / P5.7) emit this shape directly so wire\r\nbehaviour stays uniform across surfaces."
+    OverrideEffect:
+      enum:
+        - Exempt
+        - Replace
+      type: string
+    OverrideScopeKind:
+      enum:
+        - Principal
+        - Cohort
+      type: string
+    OverrideState:
+      enum:
+        - Proposed
+        - Approved
+        - Revoked
+        - Expired
+      type: string
     PolicyDto:
       type: object
       properties:
@@ -1401,6 +1731,31 @@ components:
           type: string
           nullable: true
       additionalProperties: { }
+    ProposeOverrideRequest:
+      type: object
+      properties:
+        policyVersionId:
+          type: string
+          format: uuid
+        scopeKind:
+          $ref: '#/components/schemas/OverrideScopeKind'
+        scopeRef:
+          type: string
+          nullable: true
+        effect:
+          $ref: '#/components/schemas/OverrideEffect'
+        replacementPolicyVersionId:
+          type: string
+          format: uuid
+          nullable: true
+        expiresAt:
+          type: string
+          format: date-time
+        rationale:
+          type: string
+          nullable: true
+      additionalProperties: false
+      description: "Request payload for `IOverrideService.ProposeAsync` (P5.2,\r\nstory rivoli-ai/andy-policies#52). The service validates that\r\nAndy.Policies.Application.Dtos.ProposeOverrideRequest.Effect matches the presence of\r\nAndy.Policies.Application.Dtos.ProposeOverrideRequest.ReplacementPolicyVersionId: `Replace` requires\r\nnon-null, `Exempt` requires null. Both\r\nAndy.Policies.Application.Dtos.ProposeOverrideRequest.PolicyVersionId and (if present)\r\nAndy.Policies.Application.Dtos.ProposeOverrideRequest.ReplacementPolicyVersionId must reference an\r\nexisting `PolicyVersion`."
     ResolveBindingsResponse:
       type: object
       properties:
@@ -1463,6 +1818,14 @@ components:
           $ref: '#/components/schemas/BindStrength'
       additionalProperties: false
       description: "A consumer-ready binding projection (P3.4, story\r\nrivoli-ai/andy-policies#22). Joins the live `Binding` row to its\r\ntarget `PolicyVersion` and stable `Policy` identity so a\r\ncaller (Conductor's ActionBus, andy-tasks per-task gates) gets enough\r\ncontext to decide what to do without a second round-trip. Wire-format\r\ncasing follows ADR 0001 §6: `Enforcement` uppercase RFC 2119\r\ntokens, `Severity` lowercase, `VersionState` PascalCase."
+    RevokeOverrideRequest:
+      type: object
+      properties:
+        revocationReason:
+          type: string
+          nullable: true
+      additionalProperties: false
+      description: "Request payload for `IOverrideService.RevokeAsync` (P5.2).\r\nThe reason is required and persisted to\r\n`Override.RevocationReason`; reaper-driven expiry\r\n(`Expired`) leaves the column null."
     ScopeNodeDto:
       type: object
       properties:
@@ -1559,6 +1922,8 @@ tags:
     description: "REST surface for `Binding` mutation, single-id read, and target-side\r\nquery (P3.3, story rivoli-ai/andy-policies#21). Delegates to\r\nAndy.Policies.Application.Interfaces.IBindingService from P3.2 — same service powering MCP\r\n(P3.5), gRPC (P3.6), and CLI (P3.7). Service exceptions are mapped by\r\nthe global `PolicyExceptionHandler` (already covers\r\nAndy.Policies.Application.Exceptions.NotFoundException,\r\nAndy.Policies.Application.Exceptions.ConflictException, and\r\nAndy.Policies.Application.Exceptions.ValidationException; the\r\nAndy.Policies.Application.Exceptions.BindingRetiredVersionException\r\ninherits from Andy.Policies.Application.Exceptions.ConflictException so\r\nthe existing 409 mapping catches it)."
   - name: Help
     description: "Serves help content from markdown files in content/help/.\r\nConsumable by any client: Angular, Swift (Conductor), CLI, MCP."
+  - name: Overrides
+    description: "REST surface for `Override` propose/approve/revoke + list/get\r\n(P5.5, story rivoli-ai/andy-policies#58). Six endpoints sit on top\r\nof Andy.Policies.Application.Interfaces.IOverrideService; the controller is a thin\r\nwire-format adapter and never re-implements the state machine.\r\nService exceptions map via `PolicyExceptionHandler`:\r\nAndy.Policies.Application.Exceptions.ValidationException → 400,\r\nAndy.Policies.Application.Exceptions.NotFoundException → 404,\r\nAndy.Policies.Application.Exceptions.ConflictException → 409,\r\nAndy.Policies.Application.Exceptions.SelfApprovalException → 403\r\n(errorCode `override.self_approval_forbidden`),\r\nAndy.Policies.Application.Exceptions.RbacDeniedException → 403\r\n(errorCode `rbac.denied`)."
   - name: Policies
     description: "REST surface for the policy catalog (P1.5, story rivoli-ai/andy-policies#75).\r\nAll endpoints delegate to Andy.Policies.Application.Interfaces.IPolicyService; service exceptions are\r\nmapped to status codes by `PolicyExceptionHandler` (registered globally)."
   - name: PolicyVersionBindings
