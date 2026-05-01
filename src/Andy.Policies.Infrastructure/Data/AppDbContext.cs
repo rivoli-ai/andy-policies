@@ -25,6 +25,8 @@ public class AppDbContext : DbContext
 
     public DbSet<Override> Overrides => Set<Override>();
 
+    public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -310,6 +312,82 @@ public class AppDbContext : DbContext
             entity.HasIndex(o => o.ExpiresAt)
                 .HasDatabaseName("ix_overrides_expiry_approved")
                 .HasFilter("\"State\" = 'Approved'");
+        });
+
+        // P6.1 (#41): tamper-evident catalog audit log. The migration
+        // emits provider-specific append-only enforcement (Postgres
+        // trigger + REVOKE on the runtime app role; SQLite trigger);
+        // the EF mapping just describes the shape and the indexes
+        // P6.5/6.6 query against. Storage notes:
+        //   - Seq is bigserial on Postgres / INTEGER AUTOINCREMENT on
+        //     SQLite. P6.2's hash-chain verifier walks rows ordered
+        //     by Seq (not by Timestamp; clocks can skew, sequence
+        //     cannot).
+        //   - PrevHash + Hash land as bytea on Postgres / BLOB on
+        //     SQLite. Pinning byte length to 32 in the entity keeps
+        //     the SHA-256 invariant readable in C#; the column type
+        //     stays variable-length so a future hash upgrade
+        //     doesn't need a schema migration.
+        //   - ActorRoles travels as text[] on Postgres (native
+        //     arrays make role-set queries trivial) and falls back
+        //     to a comma-joined string on SQLite (handled via
+        //     value converter so the entity surface stays string[]).
+        //   - FieldDiffJson is jsonb on Postgres for the same
+        //     query-shape reason; TEXT on SQLite.
+        modelBuilder.Entity<AuditEvent>(entity =>
+        {
+            entity.ToTable("audit_events");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Seq)
+                .HasColumnName("seq")
+                .ValueGeneratedOnAdd();
+            entity.HasIndex(e => e.Seq)
+                .IsUnique()
+                .HasDatabaseName("ix_audit_events_seq");
+
+            entity.Property(e => e.ActorSubjectId).IsRequired().HasMaxLength(256);
+            entity.Property(e => e.Action).IsRequired().HasMaxLength(128);
+            entity.Property(e => e.EntityType).IsRequired().HasMaxLength(64);
+            entity.Property(e => e.EntityId).IsRequired().HasMaxLength(128);
+            entity.Property(e => e.Rationale).HasMaxLength(2000);
+
+            entity.HasIndex(e => new { e.EntityType, e.EntityId })
+                .HasDatabaseName("ix_audit_events_entity");
+            entity.HasIndex(e => e.ActorSubjectId)
+                .HasDatabaseName("ix_audit_events_actor");
+            entity.HasIndex(e => e.Timestamp)
+                .HasDatabaseName("ix_audit_events_timestamp");
+
+            if (isNpgsql)
+            {
+                // Native bytea / jsonb / text[] on Postgres so P6.5+
+                // queries can leverage GIN/B-Tree on the structured
+                // columns directly.
+                entity.Property(e => e.PrevHash).HasColumnType("bytea").IsRequired();
+                entity.Property(e => e.Hash).HasColumnType("bytea").IsRequired();
+                entity.Property(e => e.FieldDiffJson).HasColumnType("jsonb").IsRequired();
+                entity.Property(e => e.ActorRoles).HasColumnType("text[]").IsRequired();
+            }
+            else
+            {
+                // SQLite fallback: BLOB for hashes, TEXT for the
+                // patch document, and a delimited string for roles.
+                // The roles converter splits on a control char that
+                // can never appear in an RBAC role name.
+                var rolesConverter = new ValueConverter<string[], string>(
+                    arr => string.Join('', arr),
+                    str => string.IsNullOrEmpty(str)
+                        ? Array.Empty<string>()
+                        : str.Split('', StringSplitOptions.None));
+                var rolesComparer = new ValueComparer<string[]>(
+                    (a, b) => (a == null && b == null) || (a != null && b != null && a.SequenceEqual(b)),
+                    arr => arr.Aggregate(0, (h, s) => HashCode.Combine(h, s.GetHashCode())),
+                    arr => arr.ToArray());
+                entity.Property(e => e.ActorRoles)
+                    .HasConversion(rolesConverter)
+                    .Metadata.SetValueComparer(rolesComparer);
+            }
         });
     }
 
