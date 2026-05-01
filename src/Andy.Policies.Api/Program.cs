@@ -115,6 +115,12 @@ builder.Services.AddScoped<Andy.Policies.Application.Interfaces.ITightenOnlyVali
 // content-addressed sequence pointer.
 builder.Services.AddSingleton<Andy.Policies.Application.Interfaces.IAuditWriter, Andy.Policies.Infrastructure.Services.NoopAuditWriter>();
 builder.Services.AddScoped<Andy.Policies.Application.Interfaces.ILifecycleTransitionService, Andy.Policies.Infrastructure.Services.LifecycleTransitionService>();
+// P5.2 (#52): override propose/approve/revoke service. AllowAllRbacChecker
+// is a placeholder until P7.2 (#51) wires the real andy-rbac client; the
+// JWT layer at the API edge still enforces authentication, so the
+// "allow-all" semantics apply only to the subject→permission check.
+builder.Services.AddScoped<Andy.Policies.Application.Interfaces.IOverrideService, Andy.Policies.Infrastructure.Services.OverrideService>();
+builder.Services.AddScoped<Andy.Policies.Application.Interfaces.IRbacChecker, Andy.Policies.Infrastructure.Services.AllowAllRbacChecker>();
 // P2.4 (#14): the rationale policy reads andy.policies.rationaleRequired from
 // the andy-settings snapshot on every check (fail-safe to required=true if the
 // snapshot has not yet observed the key). Registered as a singleton because it
