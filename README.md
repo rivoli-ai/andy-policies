@@ -332,6 +332,20 @@ contract). Revoke requires a non-empty `RevocationReason`. The reaper
 is the only path into the `Expired` state — explicit revocation goes
 to `Revoked`.
 
+The same operations are exposed to LLM agents through the MCP
+endpoint at `/mcp` (P5.6, [#59](https://github.com/rivoli-ai/andy-policies/issues/59)):
+`policy.override.propose`, `policy.override.approve`,
+`policy.override.revoke`, `policy.override.list`, `policy.override.get`,
+and `policy.override.active`. All six delegate to the same
+`IOverrideService` as REST, so gate semantics, self-approval rejection,
+state-machine enforcement, and `active` time-gating behave identically
+across surfaces. Errors come back as prefixed codes the gateway can
+route on (`policy.override.disabled`,
+`policy.override.self_approval_forbidden`,
+`policy.override.invalid_state`, `policy.override.not_found`,
+`policy.override.invalid_argument`, `policy.override.rbac_denied`),
+matching the REST `errorCode` extension members from P5.5.
+
 ## Ports
 
 Per the ecosystem registry at [`../andy-service-template/docs/ports.md`](../andy-service-template/docs/ports.md). Three deployment modes; the same host can run any combination because each mode uses a distinct port range.
