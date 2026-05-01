@@ -53,6 +53,9 @@
     <Protobuf Include="Protos\bindings.proto" GrpcServices="Both" />
     <!-- scopes.proto: P4.6 (#34). Hierarchical scope tree CRUD + walk. -->
     <Protobuf Include="Protos\scopes.proto" GrpcServices="Both" />
+    <!-- overrides.proto: P5.7 (#60). Override propose/approve/revoke +
+         list/get/active over the same IOverrideService as REST + MCP. -->
+    <Protobuf Include="Protos\overrides.proto" GrpcServices="Both" />
   </ItemGroup>
 
 </Project>

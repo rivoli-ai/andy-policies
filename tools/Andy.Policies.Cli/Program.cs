@@ -68,6 +68,10 @@ internal static class Program
         ScopeCommands.Register(scopesCommand, apiUrlOption, tokenOption, outputOption);
         rootCommand.AddCommand(scopesCommand);
 
+        var overridesCommand = new Command("overrides", "Manage policy overrides");
+        OverrideCommands.Register(overridesCommand, apiUrlOption, tokenOption, outputOption);
+        rootCommand.AddCommand(overridesCommand);
+
         return await rootCommand.InvokeAsync(args);
     }
 }
