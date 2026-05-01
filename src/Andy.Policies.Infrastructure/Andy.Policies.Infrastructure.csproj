@@ -7,6 +7,11 @@
   <ItemGroup>
     <ProjectReference Include="..\Andy.Policies.Application\Andy.Policies.Application.csproj" />
     <ProjectReference Include="..\Andy.Policies.Domain\Andy.Policies.Domain.csproj" />
+    <!-- P6.5 (#45): CanonicalJson + AuditEnvelopeHasher live in
+         Shared so the CLI's offline verifier can compute identical
+         hashes without an EF / Npgsql dependency. Application
+         already references Shared transitively via DTOs. -->
+    <ProjectReference Include="..\Andy.Policies.Shared\Andy.Policies.Shared.csproj" />
   </ItemGroup>
 
   <ItemGroup>

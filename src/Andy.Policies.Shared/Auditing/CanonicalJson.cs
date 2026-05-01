@@ -5,7 +5,7 @@ using System.Buffers;
 using System.Text;
 using System.Text.Json;
 
-namespace Andy.Policies.Infrastructure.Audit;
+namespace Andy.Policies.Shared.Auditing;
 
 /// <summary>
 /// Canonical JSON serializer for the audit hash envelope (P6.2,
@@ -33,7 +33,7 @@ namespace Andy.Policies.Infrastructure.Audit;
 /// fixtures we control. ADR 0006 documents the trade-off.
 /// </para>
 /// </remarks>
-internal static class CanonicalJson
+public static class CanonicalJson
 {
     /// <summary>
     /// Serialise a <see cref="JsonElement"/> graph to the canonical

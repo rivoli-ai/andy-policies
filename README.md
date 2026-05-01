@@ -369,6 +369,40 @@ durations (`+30d`, `+8h`, `+45m`); past values fail-fast at the CLI
 layer with a clear stderr message before round-tripping to the
 server.
 
+### Audit chain verification
+
+REST endpoint for verifying the catalog audit hash chain (P6.5,
+[#45](https://github.com/rivoli-ai/andy-policies/issues/45)):
+
+```http
+GET /api/audit/verify?fromSeq=&toSeq=
+```
+
+Returns 200 with a `ChainVerificationDto` (`{ valid,
+firstDivergenceSeq, inspectedCount, lastSeq }`) regardless of
+outcome — divergence is a queryable state, not an HTTP error.
+400 ProblemDetails (`type=/problems/audit-verify-range`,
+`errorCode=audit.verify.invalid_range`) on \`fromSeq > toSeq\` or
+non-positive bounds.
+
+The CLI mirrors the endpoint with both live and offline modes:
+
+```bash
+# Live — hits /api/audit/verify on the configured server
+andy-policies-cli audit verify --from 1 --to 10000
+
+# Offline — re-runs the chain verifier locally against an
+# NDJSON export. Required for external auditors handed an
+# archival copy; uses the same Shared CanonicalJson +
+# AuditEnvelopeHasher the live writer uses, so live and
+# offline produce byte-identical results.
+andy-policies-cli audit verify --file ./audit-export.ndjson
+```
+
+Exit code 0 on a valid chain, 6 (\`AuditDivergence\`) on
+divergence — distinct from 1 (transport) so cron / CI jobs can
+branch on "the chain itself is broken" vs "the API is unreachable."
+
 ## Ports
 
 Per the ecosystem registry at [`../andy-service-template/docs/ports.md`](../andy-service-template/docs/ports.md). Three deployment modes; the same host can run any combination because each mode uses a distinct port range.
@@ -387,7 +421,7 @@ The docker-compose in this repo binds Mode 2 ports so it can coexist with a nati
 | Layer | Project | Entities / responsibilities |
 |-------|---------|-----------------------------|
 | Domain | `src/Andy.Policies.Domain` | `Policy`, `PolicyVersion`, `Binding` (P3.1, [#19](https://github.com/rivoli-ai/andy-policies/issues/19)), `ScopeNode` (P4.1, [#28](https://github.com/rivoli-ai/andy-policies/issues/28)), `Override` (P5.1, [#49](https://github.com/rivoli-ai/andy-policies/issues/49)), `AuditEvent` (P6.1, [#41](https://github.com/rivoli-ai/andy-policies/issues/41) — append-only via DB triggers + role grants), dimension enums (`EnforcementLevel`, `Severity`, `LifecycleState`, `BindingTargetType`, `BindStrength`, `ScopeType`, `OverrideScopeKind`, `OverrideEffect`, `OverrideState`); `Bundle` (P8) lands with its respective epic |
-| Application | `src/Andy.Policies.Application` | `IPolicyService`, `IBindingService`, `IScopeService`, `IOverrideService` (P5.2, [#52](https://github.com/rivoli-ai/andy-policies/issues/52)), `IRbacChecker`; remaining per-epic interfaces (`IAuditChain`, `IBundleService`) added by later stories |
+| Application | `src/Andy.Policies.Application` | `IPolicyService`, `IBindingService`, `IScopeService`, `IOverrideService` (P5.2, [#52](https://github.com/rivoli-ai/andy-policies/issues/52)), `IRbacChecker`, `IAuditChain` + `IAuditDiffGenerator` (P6.2/P6.3, [#42](https://github.com/rivoli-ai/andy-policies/issues/42)/[#43](https://github.com/rivoli-ai/andy-policies/issues/43)); `IBundleService` lands with its respective epic |
 | Infrastructure | `src/Andy.Policies.Infrastructure` | EF Core (`AppDbContext` + migrations), `PolicyService` implementation, `PolicySeeder` for the six stock policies, andy-rbac / andy-settings adapters |
 | API | `src/Andy.Policies.Api` | REST controllers, MCP tools, gRPC services, OIDC/JWT auth, OpenAPI generation, OpenTelemetry wiring |
 | Shared | `src/Andy.Policies.Shared` | Cross-project DTOs, common enums |

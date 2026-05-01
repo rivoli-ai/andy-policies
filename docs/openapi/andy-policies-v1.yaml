@@ -18,6 +18,50 @@ paths:
       responses:
         '200':
           description: OK
+  /api/audit/verify:
+    get:
+      tags:
+        - Audit
+      summary: "Verifies the catalog audit hash chain, optionally bounded\r\nto a `[fromSeq, toSeq]` range. Divergence is\r\nreported as `{ valid: false, firstDivergenceSeq: N }`\r\nin the body (HTTP 200) — divergence is a legitimate\r\nqueryable state, not an HTTP error."
+      operationId: Audit_Verify
+      parameters:
+        - name: fromSeq
+          in: query
+          description: "Inclusive lower bound. Defaults to\r\n            1 when omitted."
+          schema:
+            type: integer
+            format: int64
+        - name: toSeq
+          in: query
+          description: "Inclusive upper bound. Defaults to\r\n            MAX(seq) when omitted."
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: "Verification result. `valid`\r\n            may be true or false; `firstDivergenceSeq` is\r\n            non-null only when `valid` is false."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChainVerificationDto'
+        '400':
+          description: "When `fromSeq` >\r\n            `toSeq`, or either is < 1."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '401':
+          description: Caller is unauthenticated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: "Caller lacks the\r\n            `andy-policies:audit:verify` permission (P7.2)."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /api/bindings:
     post:
       tags:
@@ -1411,6 +1455,27 @@ components:
         - Tenant
         - Org
       type: string
+    ChainVerificationDto:
+      type: object
+      properties:
+        valid:
+          type: boolean
+          description: "True when the inspected range is\r\n            internally consistent — every row's `PrevHash` matches\r\n            the previous row's computed hash, and every row's `Hash`\r\n            matches the recomputed SHA-256."
+        firstDivergenceSeq:
+          type: integer
+          description: "When Andy.Policies.Application.Dtos.ChainVerificationDto.Valid is\r\n            false, the `Seq` of the first row whose hashes don't\r\n            line up. Null on a valid chain."
+          format: int64
+          nullable: true
+        inspectedCount:
+          type: integer
+          description: "Number of rows the verifier\r\n            walked."
+          format: int64
+        lastSeq:
+          type: integer
+          description: "Largest `Seq` observed by the\r\n            verifier (i.e. the right end of the inspected range, or 0\r\n            when the chain is empty)."
+          format: int64
+      additionalProperties: false
+      description: "Wire-format projection of\r\nAndy.Policies.Application.Interfaces.ChainVerificationResult (P6.5, story\r\nrivoli-ai/andy-policies#45). Returned by\r\n`GET /api/audit/verify` and the corresponding MCP /\r\ngRPC surfaces."
     CreateBindingRequest:
       type: object
       properties:
@@ -1960,6 +2025,8 @@ components:
 security:
   - Bearer: [ ]
 tags:
+  - name: Audit
+    description: "REST surface for the catalog audit chain (P6.5+). This file\r\nscaffolds the `verify` endpoint (P6.5, story\r\nrivoli-ai/andy-policies#45); list / get / export endpoints\r\nfollow in P6.6+."
   - name: Bindings
     description: "REST surface for `Binding` mutation, single-id read, and target-side\r\nquery (P3.3, story rivoli-ai/andy-policies#21). Delegates to\r\nAndy.Policies.Application.Interfaces.IBindingService from P3.2 — same service powering MCP\r\n(P3.5), gRPC (P3.6), and CLI (P3.7). Service exceptions are mapped by\r\nthe global `PolicyExceptionHandler` (already covers\r\nAndy.Policies.Application.Exceptions.NotFoundException,\r\nAndy.Policies.Application.Exceptions.ConflictException, and\r\nAndy.Policies.Application.Exceptions.ValidationException; the\r\nAndy.Policies.Application.Exceptions.BindingRetiredVersionException\r\ninherits from Andy.Policies.Application.Exceptions.ConflictException so\r\nthe existing 409 mapping catches it)."
   - name: Help
