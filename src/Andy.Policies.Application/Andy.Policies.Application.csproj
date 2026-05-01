@@ -8,6 +8,11 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Andy.Policies.Domain\Andy.Policies.Domain.csproj" />
+    <!-- P6.3 (#43): [AuditIgnore] / [AuditRedact] attributes live in
+         Shared so DTOs in Application can decorate themselves
+         without an outward dependency on Infrastructure (where
+         the diff generator that consumes the attributes lives). -->
+    <ProjectReference Include="..\Andy.Policies.Shared\Andy.Policies.Shared.csproj" />
   </ItemGroup>
 
 </Project>
