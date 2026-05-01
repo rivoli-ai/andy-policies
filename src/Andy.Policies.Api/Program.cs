@@ -127,6 +127,12 @@ builder.Services.AddScoped<Andy.Policies.Application.Interfaces.IRbacChecker, An
 // approved overrides past expiry. Cadence reads live from
 // andy-settings (key andy.policies.overrideExpiryReaperCadenceSeconds).
 builder.Services.AddHostedService<Andy.Policies.Infrastructure.BackgroundServices.OverrideExpiryReaper>();
+// P5.4 (#56): runtime gate over andy.policies.experimentalOverridesEnabled.
+// Singleton because the impl owns the OTel gauge meter; the underlying
+// ISettingsSnapshot is also a singleton. Surface filters (P5.5+) read
+// IExperimentalOverridesGate.IsEnabled per-request and translate "off"
+// to the surface's equivalent of HTTP 403.
+builder.Services.AddSingleton<Andy.Policies.Application.Settings.IExperimentalOverridesGate, Andy.Policies.Infrastructure.Settings.ExperimentalOverridesGate>();
 // P2.4 (#14): the rationale policy reads andy.policies.rationaleRequired from
 // the andy-settings snapshot on every check (fail-safe to required=true if the
 // snapshot has not yet observed the key). Registered as a singleton because it
@@ -159,7 +165,8 @@ builder.Services.AddOpenTelemetry()
                .AddHttpClientInstrumentation()
                .AddRuntimeInstrumentation()
                .AddMeter(Andy.Policies.Infrastructure.Services.AndySettingsRationalePolicy.MeterName)
-               .AddMeter(Andy.Policies.Infrastructure.BackgroundServices.OverrideExpiryReaper.MeterName);
+               .AddMeter(Andy.Policies.Infrastructure.BackgroundServices.OverrideExpiryReaper.MeterName)
+               .AddMeter(Andy.Policies.Infrastructure.Settings.ExperimentalOverridesGate.MeterName);
         if (!string.IsNullOrEmpty(otlpEndpoint))
             metrics.AddOtlpExporter(o => o.Endpoint = new Uri(otlpEndpoint));
     });
