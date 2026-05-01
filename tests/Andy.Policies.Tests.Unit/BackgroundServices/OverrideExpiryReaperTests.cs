@@ -125,8 +125,9 @@ public class OverrideExpiryReaperTests
         var count = await reaper.SweepOnceAsync(CancellationToken.None);
 
         count.Should().Be(2);
+        var ids = new List<Guid> { dueA.Id, dueB.Id, future.Id };
         var states = await db.Overrides.AsNoTracking()
-            .Where(o => new[] { dueA.Id, dueB.Id, future.Id }.Contains(o.Id))
+            .Where(o => ids.Contains(o.Id))
             .ToDictionaryAsync(o => o.Id, o => o.State);
         states[dueA.Id].Should().Be(OverrideState.Expired);
         states[dueB.Id].Should().Be(OverrideState.Expired);
