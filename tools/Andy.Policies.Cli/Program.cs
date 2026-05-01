@@ -72,6 +72,10 @@ internal static class Program
         OverrideCommands.Register(overridesCommand, apiUrlOption, tokenOption, outputOption);
         rootCommand.AddCommand(overridesCommand);
 
+        var auditCommand = new Command("audit", "Inspect the catalog audit chain");
+        AuditCommands.Register(auditCommand, apiUrlOption, tokenOption, outputOption);
+        rootCommand.AddCommand(auditCommand);
+
         return await rootCommand.InvokeAsync(args);
     }
 }

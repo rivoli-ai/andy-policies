@@ -2,15 +2,12 @@
 // Licensed under the Apache License, Version 2.0.
 
 using System.Data;
-using System.Globalization;
-using System.Security.Cryptography;
-using System.Text.Json;
 using Andy.Policies.Application.Dtos;
 using Andy.Policies.Application.Interfaces;
 using Andy.Policies.Domain.Entities;
 using Andy.Policies.Infrastructure.Data;
+using Andy.Policies.Shared.Auditing;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Andy.Policies.Infrastructure.Audit;
 
@@ -168,7 +165,7 @@ public sealed class AuditChain : IAuditChain
         var id = Guid.NewGuid();
         var timestamp = _clock.GetUtcNow();
         var roles = request.ActorRoles.ToArray();
-        var hash = ComputeHash(
+        var hash = AuditEnvelopeHasher.ComputeHash(
             prevHash,
             id,
             timestamp,
@@ -252,7 +249,7 @@ public sealed class AuditChain : IAuditChain
                 return new ChainVerificationResult(false, row.Seq, inspected, lastSeq);
             }
 
-            var recomputed = ComputeHash(
+            var recomputed = AuditEnvelopeHasher.ComputeHash(
                 prev,
                 row.Id,
                 row.Timestamp,
@@ -272,77 +269,6 @@ public sealed class AuditChain : IAuditChain
         }
 
         return new ChainVerificationResult(true, null, inspected, lastSeq);
-    }
-
-    /// <summary>
-    /// Computes <c>SHA-256(prevHash || canonicalJson(payload))</c>
-    /// where <c>payload</c> is the closed audit envelope. Public
-    /// so unit tests can pin golden vectors without going through
-    /// the full append path.
-    /// </summary>
-    public static byte[] ComputeHash(
-        byte[] prevHash,
-        Guid id,
-        DateTimeOffset timestamp,
-        string actorSubjectId,
-        IReadOnlyList<string> actorRoles,
-        string action,
-        string entityType,
-        string entityId,
-        string fieldDiffJson,
-        string? rationale)
-    {
-        // Embed the patch document as parsed JSON, not as a string —
-        // serialising it as a string would re-quote and miss the
-        // canonicalisation. JsonDocument must be wrapped in `using`
-        // to keep the underlying buffer alive while we read.
-        using var diffDoc = JsonDocument.Parse(string.IsNullOrEmpty(fieldDiffJson) ? "[]" : fieldDiffJson);
-
-        // Build the envelope as an in-memory JSON tree so
-        // CanonicalJson sorts keys and writes deterministic bytes.
-        using var stream = new MemoryStream();
-        using (var writer = new Utf8JsonWriter(stream))
-        {
-            writer.WriteStartObject();
-            writer.WriteString("action", action);
-            writer.WritePropertyName("actorRoles");
-            writer.WriteStartArray();
-            // Sort actorRoles lex order so insertion order doesn't
-            // change the hash. The canonicaliser also preserves
-            // array order, but pre-sorting bakes the contract into
-            // the input itself.
-            foreach (var r in actorRoles.OrderBy(s => s, StringComparer.Ordinal))
-            {
-                writer.WriteStringValue(r);
-            }
-            writer.WriteEndArray();
-            writer.WriteString("actorSubjectId", actorSubjectId);
-            writer.WriteString("entityId", entityId);
-            writer.WriteString("entityType", entityType);
-            writer.WritePropertyName("fieldDiff");
-            diffDoc.RootElement.WriteTo(writer);
-            writer.WriteString("id", id.ToString());
-            if (rationale is null)
-            {
-                writer.WriteNull("rationale");
-            }
-            else
-            {
-                writer.WriteString("rationale", rationale);
-            }
-            writer.WriteString("timestamp",
-                timestamp.UtcDateTime.ToString("yyyy-MM-ddTHH:mm:ss.fffZ", CultureInfo.InvariantCulture));
-            writer.WriteEndObject();
-        }
-        stream.Position = 0;
-        using var doc = JsonDocument.Parse(stream);
-        var canonical = CanonicalJson.Serialize(doc.RootElement);
-
-        // SHA-256 of (prevHash || canonical).
-        using var sha = SHA256.Create();
-        sha.TransformBlock(prevHash, 0, prevHash.Length, null, 0);
-        sha.TransformFinalBlock(canonical, 0, canonical.Length);
-        return sha.Hash!;
     }
 
     private static bool ByteEquals(byte[] a, byte[] b)

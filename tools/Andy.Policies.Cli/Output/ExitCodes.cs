@@ -18,6 +18,12 @@ internal static class ExitCodes
     public const int Auth = 3;
     public const int NotFound = 4;
     public const int Conflict = 5;
+    /// <summary>P6.5 (#45) — chain divergence detected. Distinct
+    /// from <see cref="Transport"/> so cron jobs can branch on
+    /// "the chain itself is broken" vs. "the API is unreachable."
+    /// Audit-export tooling treats <c>6</c> as the canonical
+    /// "chain integrity failed" signal.</summary>
+    public const int AuditDivergence = 6;
 
     public static int FromStatus(HttpStatusCode status) => status switch
     {

@@ -1,7 +1,7 @@
 // Copyright (c) Rivoli AI 2026. All rights reserved.
 // Licensed under the Apache License, Version 2.0.
 
-using Andy.Policies.Infrastructure.Audit;
+using Andy.Policies.Shared.Auditing;
 using FluentAssertions;
 using Xunit;
 
@@ -9,7 +9,7 @@ namespace Andy.Policies.Tests.Unit.Audit;
 
 /// <summary>
 /// P6.2 (#42) — golden-vector tests for
-/// <see cref="AuditChain.ComputeHash"/>. Pin a small set of
+/// <see cref="AuditEnvelopeHasher.ComputeHash"/>. Pin a small set of
 /// (prevHash, payload) → expected SHA-256 hex outputs so any
 /// change to the canonical-JSON envelope shape (key set, key
 /// names, ordering, timestamp format, etc.) becomes a noisy
@@ -23,7 +23,7 @@ public class AuditChainHashTests
     [Fact]
     public void GenesisHash_IsDeterministic_AcrossInvocations()
     {
-        var a = AuditChain.ComputeHash(
+        var a = AuditEnvelopeHasher.ComputeHash(
             Genesis32,
             id: Guid.Parse("11111111-1111-1111-1111-111111111111"),
             timestamp: new DateTimeOffset(2026, 5, 1, 12, 0, 0, TimeSpan.Zero),
@@ -35,7 +35,7 @@ public class AuditChainHashTests
             fieldDiffJson: "[]",
             rationale: "first event");
 
-        var b = AuditChain.ComputeHash(
+        var b = AuditEnvelopeHasher.ComputeHash(
             Genesis32,
             id: Guid.Parse("11111111-1111-1111-1111-111111111111"),
             timestamp: new DateTimeOffset(2026, 5, 1, 12, 0, 0, TimeSpan.Zero),
@@ -57,7 +57,7 @@ public class AuditChainHashTests
         // The hash must depend on something other than the
         // 32-zero-byte prevHash; a zeroed output would imply a bug
         // in the SHA-256 invocation or the canonical JSON pipeline.
-        var hash = AuditChain.ComputeHash(
+        var hash = AuditEnvelopeHasher.ComputeHash(
             Genesis32,
             id: Guid.NewGuid(),
             timestamp: DateTimeOffset.UtcNow,
@@ -89,11 +89,11 @@ public class AuditChainHashTests
             entityId = "00000000-0000-0000-0000-000000000002",
             fieldDiffJson = "[]",
         };
-        var withFoo = AuditChain.ComputeHash(
+        var withFoo = AuditEnvelopeHasher.ComputeHash(
             Genesis32, common.id, common.timestamp, common.actorSubjectId,
             common.actorRoles, common.action, common.entityType, common.entityId,
             common.fieldDiffJson, "rationale foo");
-        var withBar = AuditChain.ComputeHash(
+        var withBar = AuditEnvelopeHasher.ComputeHash(
             Genesis32, common.id, common.timestamp, common.actorSubjectId,
             common.actorRoles, common.action, common.entityType, common.entityId,
             common.fieldDiffJson, "rationale bar");
@@ -113,11 +113,11 @@ public class AuditChainHashTests
             id = Guid.Parse("33333333-3333-3333-3333-333333333333"),
             timestamp = new DateTimeOffset(2026, 5, 1, 12, 0, 0, TimeSpan.Zero),
         };
-        var alpha = AuditChain.ComputeHash(
+        var alpha = AuditEnvelopeHasher.ComputeHash(
             Genesis32, common.id, common.timestamp, "user:test",
             new[] { "admin", "author" }, "policy.update", "Policy",
             "00000000-0000-0000-0000-000000000003", "[]", null);
-        var omega = AuditChain.ComputeHash(
+        var omega = AuditEnvelopeHasher.ComputeHash(
             Genesis32, common.id, common.timestamp, "user:test",
             new[] { "author", "admin" }, "policy.update", "Policy",
             "00000000-0000-0000-0000-000000000003", "[]", null);
@@ -131,11 +131,11 @@ public class AuditChainHashTests
         // The chain treats string.Empty / null / "[]" as the same
         // empty-patch payload. The hash output must be identical
         // for all three.
-        var withExplicit = AuditChain.ComputeHash(
+        var withExplicit = AuditEnvelopeHasher.ComputeHash(
             Genesis32, Guid.Empty,
             new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
             "u", new[] { "r" }, "a", "Policy", "id", "[]", null);
-        var withWhitespace = AuditChain.ComputeHash(
+        var withWhitespace = AuditEnvelopeHasher.ComputeHash(
             Genesis32, Guid.Empty,
             new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
             "u", new[] { "r" }, "a", "Policy", "id", "  []  ", null);
@@ -151,15 +151,15 @@ public class AuditChainHashTests
         // Compute three hashes in sequence: each row's prevHash
         // equals the previous row's hash. Verifies the linking
         // contract that drives VerifyChainAsync.
-        var h1 = AuditChain.ComputeHash(
+        var h1 = AuditEnvelopeHasher.ComputeHash(
             Genesis32, Guid.Parse("00000000-0000-0000-0000-000000000001"),
             new DateTimeOffset(2026, 5, 1, 12, 0, 0, TimeSpan.Zero),
             "u1", new[] { "r" }, "policy.create", "Policy", "p1", "[]", null);
-        var h2 = AuditChain.ComputeHash(
+        var h2 = AuditEnvelopeHasher.ComputeHash(
             h1, Guid.Parse("00000000-0000-0000-0000-000000000002"),
             new DateTimeOffset(2026, 5, 1, 12, 0, 1, TimeSpan.Zero),
             "u2", new[] { "r" }, "policy.update", "Policy", "p1", "[]", null);
-        var h3 = AuditChain.ComputeHash(
+        var h3 = AuditEnvelopeHasher.ComputeHash(
             h2, Guid.Parse("00000000-0000-0000-0000-000000000003"),
             new DateTimeOffset(2026, 5, 1, 12, 0, 2, TimeSpan.Zero),
             "u1", new[] { "r" }, "policy.publish", "Policy", "p1", "[]", null);
@@ -181,9 +181,9 @@ public class AuditChainHashTests
             .AddTicks(4567);
         var t2 = new DateTimeOffset(2026, 5, 1, 12, 0, 0, 123, TimeSpan.Zero);
 
-        var h1 = AuditChain.ComputeHash(
+        var h1 = AuditEnvelopeHasher.ComputeHash(
             Genesis32, Guid.Empty, t1, "u", new[] { "r" }, "a", "T", "id", "[]", null);
-        var h2 = AuditChain.ComputeHash(
+        var h2 = AuditEnvelopeHasher.ComputeHash(
             Genesis32, Guid.Empty, t2, "u", new[] { "r" }, "a", "T", "id", "[]", null);
 
         h1.Should().Equal(h2);

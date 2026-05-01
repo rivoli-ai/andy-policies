@@ -11,6 +11,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- P6.5 (#45): the offline mode of `audit verify` re-computes
+         hashes against an NDJSON export. Shared exposes the
+         CanonicalJson + AuditEnvelopeHasher pure helpers so the
+         CLI inherits no EF / Npgsql dependency. -->
+    <ProjectReference Include="..\..\src\Andy.Policies.Shared\Andy.Policies.Shared.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <InternalsVisibleTo Include="Andy.Policies.Tests.Unit" />
     <!-- P2.7 (#17): integration tests drive the CLI command tree against a
          WebApplicationFactory<Program>, swapping the production HttpClient
