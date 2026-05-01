@@ -119,6 +119,11 @@ builder.Services.AddSingleton<Andy.Policies.Application.Interfaces.IAuditWriter,
 // invoke AppendAsync inside their own DbContext transaction so
 // state-change + audit-row commit atomically.
 builder.Services.AddScoped<Andy.Policies.Application.Interfaces.IAuditChain, Andy.Policies.Infrastructure.Audit.AuditChain>();
+// P6.3 (#43): RFC 6902 JSON Patch diff generator. Singleton
+// because the implementation is pure + caches reflection
+// metadata per type; injected into every mutating service so
+// audit envelope diffs are produced uniformly.
+builder.Services.AddSingleton<Andy.Policies.Application.Interfaces.IAuditDiffGenerator, Andy.Policies.Infrastructure.Audit.JsonPatchDiffGenerator>();
 builder.Services.AddScoped<Andy.Policies.Application.Interfaces.ILifecycleTransitionService, Andy.Policies.Infrastructure.Services.LifecycleTransitionService>();
 // P5.2 (#52): override propose/approve/revoke service. AllowAllRbacChecker
 // is a placeholder until P7.2 (#51) wires the real andy-rbac client; the
