@@ -182,7 +182,17 @@ builder.Services.AddOpenTelemetry()
     });
 
 // --- Swagger ---
-builder.Services.AddControllers()
+builder.Services.AddControllers(options =>
+    {
+        // P6.4 (#44): defense-in-depth rationale enforcement.
+        // The filter checks IRationalePolicy.IsRequired on every
+        // mutating request and rejects empty / whitespace-only
+        // rationales with 400 ProblemDetails *before* the service
+        // layer runs. The service-level RationaleRequiredException
+        // path remains as a second guarantee for code paths that
+        // bypass the filter (e.g. background workers).
+        options.Filters.Add<Andy.Policies.Api.Filters.RationaleRequiredFilter>();
+    })
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
