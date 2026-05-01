@@ -434,6 +434,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+      x-error-codes:
+        - override.disabled
+        - override.self_approval_forbidden
+        - rbac.denied
+        - validation_failed
+        - not_found
+        - invalid_state
     get:
       tags:
         - Overrides
@@ -478,6 +485,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+      x-error-codes:
+        - override.disabled
+        - override.self_approval_forbidden
+        - rbac.denied
+        - validation_failed
+        - not_found
+        - invalid_state
   '/api/overrides/{id}/approve':
     post:
       tags:
@@ -522,6 +536,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+      x-error-codes:
+        - override.disabled
+        - override.self_approval_forbidden
+        - rbac.denied
+        - validation_failed
+        - not_found
+        - invalid_state
   '/api/overrides/{id}/revoke':
     post:
       tags:
@@ -583,6 +604,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+      x-error-codes:
+        - override.disabled
+        - override.self_approval_forbidden
+        - rbac.denied
+        - validation_failed
+        - not_found
+        - invalid_state
   '/api/overrides/{id}':
     get:
       tags:
@@ -615,6 +643,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+      x-error-codes:
+        - override.disabled
+        - override.self_approval_forbidden
+        - rbac.denied
+        - validation_failed
+        - not_found
+        - invalid_state
   /api/overrides/active:
     get:
       tags:
@@ -653,6 +688,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+      x-error-codes:
+        - override.disabled
+        - override.self_approval_forbidden
+        - rbac.denied
+        - validation_failed
+        - not_found
+        - invalid_state
   /api/Policies:
     get:
       tags:
@@ -1923,7 +1965,7 @@ tags:
   - name: Help
     description: "Serves help content from markdown files in content/help/.\r\nConsumable by any client: Angular, Swift (Conductor), CLI, MCP."
   - name: Overrides
-    description: "REST surface for `Override` propose/approve/revoke + list/get\r\n(P5.5, story rivoli-ai/andy-policies#58). Six endpoints sit on top\r\nof Andy.Policies.Application.Interfaces.IOverrideService; the controller is a thin\r\nwire-format adapter and never re-implements the state machine.\r\nService exceptions map via `PolicyExceptionHandler`:\r\nAndy.Policies.Application.Exceptions.ValidationException → 400,\r\nAndy.Policies.Application.Exceptions.NotFoundException → 404,\r\nAndy.Policies.Application.Exceptions.ConflictException → 409,\r\nAndy.Policies.Application.Exceptions.SelfApprovalException → 403\r\n(errorCode `override.self_approval_forbidden`),\r\nAndy.Policies.Application.Exceptions.RbacDeniedException → 403\r\n(errorCode `rbac.denied`)."
+    description: Per-principal or per-cohort experimental policy overrides with approver + expiry. Writes (propose / approve / revoke) are gated by andy.policies.experimentalOverridesEnabled (default false); reads remain available regardless of the toggle so the resolution algorithm keeps working when the gate is off.
   - name: Policies
     description: "REST surface for the policy catalog (P1.5, story rivoli-ai/andy-policies#75).\r\nAll endpoints delegate to Andy.Policies.Application.Interfaces.IPolicyService; service exceptions are\r\nmapped to status codes by `PolicyExceptionHandler` (registered globally)."
   - name: PolicyVersionBindings
