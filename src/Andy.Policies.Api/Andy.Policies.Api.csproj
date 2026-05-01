@@ -24,12 +24,17 @@
     </PackageReference>
     <PackageReference Include="ModelContextProtocol" Version="0.4.0-preview.3" />
     <PackageReference Include="ModelContextProtocol.AspNetCore" Version="0.4.0-preview.3" />
-    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.9.0" />
-    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.9.0" />
-    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.9.0" />
-    <PackageReference Include="OpenTelemetry.Instrumentation.EntityFrameworkCore" Version="1.0.0-beta.12" />
-    <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.9.0" />
-    <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" Version="1.9.0" />
+    <!-- Bumped from 1.9.0 to fix GHSA-4625-4j76-fww9 (OTLP exporter
+         disk-retry temp-path local blob injection). The fix shipped in
+         the Exporter at 1.15.3; the sibling Instrumentation/Hosting
+         packages bump in lockstep to keep the OpenTelemetry core
+         dependency coherent. -->
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.15.3" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.15.3" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.15.2" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.EntityFrameworkCore" Version="1.15.1-beta.1" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.15.1" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" Version="1.15.1" />
     <PackageReference Include="Serilog.AspNetCore" Version="8.0.3" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.8.1" />
   </ItemGroup>
