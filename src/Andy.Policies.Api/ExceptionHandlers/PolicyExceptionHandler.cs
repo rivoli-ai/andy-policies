@@ -112,6 +112,54 @@ public sealed class PolicyExceptionHandler : IExceptionHandler
             return true;
         }
 
+        // P5.5 (#58): override-specific 403s carry typed errorCodes
+        // distinct from a generic 403 so MCP / gRPC / CLI surfaces can
+        // mirror the same contract (P5.6 / P5.7) and the Cockpit UI
+        // can branch on `errorCode` rather than parsing English.
+        if (exception is SelfApprovalException sax)
+        {
+            var problem403 = new ProblemDetails
+            {
+                Status = StatusCodes.Status403Forbidden,
+                Title = "Self-approval forbidden",
+                Detail = sax.Message,
+                Type = "/problems/override-self-approval",
+                Instance = httpContext.Request.Path,
+                Extensions =
+                {
+                    ["errorCode"] = "override.self_approval_forbidden",
+                    ["overrideId"] = sax.OverrideId,
+                    ["subjectId"] = sax.SubjectId,
+                },
+            };
+            httpContext.Response.StatusCode = StatusCodes.Status403Forbidden;
+            await httpContext.Response.WriteAsJsonAsync(problem403, cancellationToken);
+            return true;
+        }
+
+        if (exception is RbacDeniedException rdex)
+        {
+            var problem403 = new ProblemDetails
+            {
+                Status = StatusCodes.Status403Forbidden,
+                Title = "RBAC denied",
+                Detail = rdex.Message,
+                Type = "/problems/rbac-denied",
+                Instance = httpContext.Request.Path,
+                Extensions =
+                {
+                    ["errorCode"] = "rbac.denied",
+                    ["subjectId"] = rdex.SubjectId,
+                    ["permission"] = rdex.Permission,
+                    ["resourceInstanceId"] = rdex.ResourceInstanceId,
+                    ["reason"] = rdex.Reason,
+                },
+            };
+            httpContext.Response.StatusCode = StatusCodes.Status403Forbidden;
+            await httpContext.Response.WriteAsJsonAsync(problem403, cancellationToken);
+            return true;
+        }
+
         // P4.4: tighten-only violation carries the offending ancestor
         // binding id + scope node id so admins can triage from the
         // error response without a follow-up query. We inject the

@@ -373,14 +373,20 @@ public sealed class OverrideService : IOverrideService
         ArgumentException.ThrowIfNullOrEmpty(scopeRef);
 
         var now = _clock.GetUtcNow();
+        // Filter on (ScopeKind, ScopeRef, State) server-side (covered
+        // by ix_overrides_scope_state) and refine on ExpiresAt + order
+        // client-side. SQLite cannot translate DateTimeOffset
+        // comparisons or ordering — same posture as the rest of the
+        // codebase (see PolicyService list filters and the
+        // OverrideExpiryReaper sweep).
         var rows = await _db.Overrides.AsNoTracking()
             .Where(o => o.ScopeKind == scopeKind
                         && o.ScopeRef == scopeRef
-                        && o.State == OverrideState.Approved
-                        && o.ExpiresAt > now)
+                        && o.State == OverrideState.Approved)
             .ToListAsync(ct)
             .ConfigureAwait(false);
         return rows
+            .Where(o => o.ExpiresAt > now)
             .OrderBy(o => o.ApprovedAt)
             .Select(ToDto)
             .ToList();

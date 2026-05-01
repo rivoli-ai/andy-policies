@@ -20,6 +20,14 @@ public sealed class TestAuthHandler : AuthenticationHandler<AuthenticationScheme
     public const string SchemeName = "Test";
     public const string TestSubjectId = "test-user";
 
+    /// <summary>
+    /// Optional request header that overrides <see cref="TestSubjectId"/>
+    /// for a single request. P5.5 (#58) needs multi-actor scenarios
+    /// (self-approval, propose-as-A + approve-as-B); the header lets
+    /// tests pin the subject without spinning up a second factory.
+    /// </summary>
+    public const string SubjectHeader = "X-Test-Subject";
+
     public TestAuthHandler(
         IOptionsMonitor<AuthenticationSchemeOptions> options,
         ILoggerFactory logger,
@@ -28,7 +36,10 @@ public sealed class TestAuthHandler : AuthenticationHandler<AuthenticationScheme
 
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
-        var claims = new[] { new Claim(ClaimTypes.Name, TestSubjectId) };
+        var subjectId = Request.Headers.TryGetValue(SubjectHeader, out var override_) && !string.IsNullOrEmpty(override_)
+            ? override_.ToString()
+            : TestSubjectId;
+        var claims = new[] { new Claim(ClaimTypes.Name, subjectId) };
         var identity = new ClaimsIdentity(claims, SchemeName);
         var principal = new ClaimsPrincipal(identity);
         var ticket = new AuthenticationTicket(principal, SchemeName);
