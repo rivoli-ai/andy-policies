@@ -24,7 +24,7 @@ Governance policy catalog for the Andy ecosystem. A versioned registry of struct
 - **Versioned policy documents** — structured envelope with immutable published versions.
 - **Lifecycle states** — `draft` / `active` / `winding-down` / `retired`.
 - **Bindings as metadata** — policy ↔ story template / repo / scope as structured data; no evaluation.
-- **Experimental scopes** — per-principal or per-cohort overrides with approver + expiry.
+- **Experimental scopes** — per-principal or per-cohort overrides with approver + expiry; a periodic reaper transitions approved overrides past their `expiresAt` into the `Expired` state automatically (P5.3, [#53](https://github.com/rivoli-ai/andy-policies/issues/53)).
 - **Edit RBAC** — who may author, who must approve a publish. Subject→permission checks delegate to [Andy RBAC](https://github.com/rivoli-ai/andy-rbac); the edit matrix itself lives here.
 - **Catalog change audit** — every edit, publish, transition, binding, and override recorded with actor, timestamp, structured field-level diff, required rationale, and tamper-evident chain. Reads are not audited.
 - **Bundle pinning** — consumers pin a bundle version for reproducibility.
