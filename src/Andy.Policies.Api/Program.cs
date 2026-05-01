@@ -114,6 +114,11 @@ builder.Services.AddScoped<Andy.Policies.Application.Interfaces.ITightenOnlyVali
 // hash-chained writer. Singleton because the P6 implementation will own a
 // content-addressed sequence pointer.
 builder.Services.AddSingleton<Andy.Policies.Application.Interfaces.IAuditWriter, Andy.Policies.Infrastructure.Services.NoopAuditWriter>();
+// P6.2 (#42): tamper-evident catalog audit chain. Scoped because
+// AuditChain depends on the scoped AppDbContext; downstream callers
+// invoke AppendAsync inside their own DbContext transaction so
+// state-change + audit-row commit atomically.
+builder.Services.AddScoped<Andy.Policies.Application.Interfaces.IAuditChain, Andy.Policies.Infrastructure.Audit.AuditChain>();
 builder.Services.AddScoped<Andy.Policies.Application.Interfaces.ILifecycleTransitionService, Andy.Policies.Infrastructure.Services.LifecycleTransitionService>();
 // P5.2 (#52): override propose/approve/revoke service. AllowAllRbacChecker
 // is a placeholder until P7.2 (#51) wires the real andy-rbac client; the

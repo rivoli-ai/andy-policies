@@ -339,9 +339,15 @@ public class AppDbContext : DbContext
             entity.ToTable("audit_events");
             entity.HasKey(e => e.Id);
 
+            // Seq is assigned explicitly by the AuditChain (P6.2)
+            // under the advisory lock / process semaphore, so the
+            // value comes from the writer rather than from a
+            // bigserial/AUTOINCREMENT column. ValueGeneratedNever
+            // keeps EF from synthesising an INSERT shape that
+            // expects database-side generation.
             entity.Property(e => e.Seq)
                 .HasColumnName("seq")
-                .ValueGeneratedOnAdd();
+                .ValueGeneratedNever();
             entity.HasIndex(e => e.Seq)
                 .IsUnique()
                 .HasDatabaseName("ix_audit_events_seq");
