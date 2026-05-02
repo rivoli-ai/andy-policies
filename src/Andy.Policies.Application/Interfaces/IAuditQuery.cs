@@ -35,6 +35,14 @@ public interface IAuditQuery
     /// there are more rows after this page.
     /// </summary>
     Task<AuditPageDto> QueryAsync(AuditQueryFilter filter, CancellationToken ct);
+
+    /// <summary>
+    /// Returns a single event by its
+    /// <see cref="Domain.Entities.AuditEvent.Id"/>, or
+    /// <c>null</c> when no row matches. P6.7's MCP
+    /// <c>policy.audit.get</c> tool delegates here.
+    /// </summary>
+    Task<AuditEventDto?> GetAsync(Guid id, CancellationToken ct);
 }
 
 /// <summary>

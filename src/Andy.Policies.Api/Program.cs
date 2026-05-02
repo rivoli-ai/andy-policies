@@ -123,6 +123,10 @@ builder.Services.AddScoped<Andy.Policies.Application.Interfaces.IAuditChain, And
 // because AuditQuery depends on the scoped AppDbContext; the
 // service is read-only (no transactions, no advisory locks).
 builder.Services.AddScoped<Andy.Policies.Application.Interfaces.IAuditQuery, Andy.Policies.Infrastructure.Audit.AuditQuery>();
+// P6.7 (#48): streaming NDJSON exporter for the audit chain.
+// Scoped because AuditExporter depends on the scoped AppDbContext;
+// the exporter itself is read-only (no transactions).
+builder.Services.AddScoped<Andy.Policies.Application.Interfaces.IAuditExporter, Andy.Policies.Infrastructure.Audit.AuditExporter>();
 // P6.3 (#43): RFC 6902 JSON Patch diff generator. Singleton
 // because the implementation is pure + caches reflection
 // metadata per type; injected into every mutating service so

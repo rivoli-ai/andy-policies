@@ -423,6 +423,21 @@ table is append-only and grows monotonically — offset windows
 would shift under concurrent inserts, and skipping the head of
 a million-row table is a scan, not a seek.
 
+The same operations are exposed to LLM agents through MCP
+(P6.7, [#48](https://github.com/rivoli-ai/andy-policies/issues/48)):
+`policy.audit.list`, `policy.audit.get`, `policy.audit.verify`,
+and `policy.audit.export`. All four delegate to the same
+`IAuditQuery` / `IAuditChain` / `IAuditExporter` services as
+REST. Errors come back as prefixed codes
+(`policy.audit.invalid_argument`, `policy.audit.not_found`).
+`policy.audit.export` returns a base64-encoded UTF-8 NDJSON
+bundle: one `"type":"event"` line per audit row plus a trailing
+`"type":"summary"` line carrying `fromSeq`, `toSeq`, `count`,
+`genesisPrevHashHex`, and `terminalHashHex`. The bundle is
+verifiable offline by `andy-policies-cli audit verify --file`
+(P6.5) — integrity rests on the embedded hash chain; v1 ships
+no external KMS / detached signature.
+
 ## Ports
 
 Per the ecosystem registry at [`../andy-service-template/docs/ports.md`](../andy-service-template/docs/ports.md). Three deployment modes; the same host can run any combination because each mode uses a distinct port range.

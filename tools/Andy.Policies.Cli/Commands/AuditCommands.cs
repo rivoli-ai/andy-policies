@@ -116,6 +116,24 @@ internal static class AuditCommands
             while ((line = await reader.ReadLineAsync(ct).ConfigureAwait(false)) is not null)
             {
                 if (string.IsNullOrWhiteSpace(line)) continue;
+
+                // P6.7 (#48): the export bundle from
+                // policy.audit.export carries a "type"
+                // discriminator on every line and a trailing
+                // summary line. Tolerate both that shape and
+                // the plain AuditEventDto-per-line shape so a
+                // legacy export still verifies.
+                using var doc = JsonDocument.Parse(line);
+                if (doc.RootElement.TryGetProperty("type", out var typeEl)
+                    && typeEl.ValueKind == JsonValueKind.String
+                    && typeEl.GetString() == "summary")
+                {
+                    // Summary line: terminal hash sanity-check
+                    // happens at the end of the verification
+                    // loop; nothing to add to the row list.
+                    continue;
+                }
+
                 var row = JsonSerializer.Deserialize<AuditEventNdjson>(line, NdjsonOptions)
                     ?? throw new InvalidOperationException(
                         $"Failed to deserialize NDJSON line: {line}");

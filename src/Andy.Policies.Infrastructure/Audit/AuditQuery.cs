@@ -44,6 +44,14 @@ public sealed class AuditQuery : IAuditQuery
         _db = db;
     }
 
+    public async Task<AuditEventDto?> GetAsync(Guid id, CancellationToken ct)
+    {
+        var ev = await _db.AuditEvents.AsNoTracking()
+            .FirstOrDefaultAsync(e => e.Id == id, ct)
+            .ConfigureAwait(false);
+        return ev is null ? null : ToDto(ev);
+    }
+
     public async Task<AuditPageDto> QueryAsync(AuditQueryFilter filter, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(filter);
