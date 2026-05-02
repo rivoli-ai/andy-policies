@@ -31,11 +31,48 @@ public class AuditCommandsTests
         return root;
     }
 
-    [Fact]
-    public void Audit_RegistersVerifySubcommand()
+    [Theory]
+    [InlineData("list")]
+    [InlineData("get")]
+    [InlineData("verify")]
+    [InlineData("export")]
+    public void Audit_RegistersSubcommand(string name)
     {
         var root = BuildAuditRoot();
-        root.Subcommands.Select(c => c.Name).Should().Contain("verify");
+        root.Subcommands.Select(c => c.Name).Should().Contain(name);
+    }
+
+    [Fact]
+    public void List_HasFilterOptions_NoneRequired()
+    {
+        var root = BuildAuditRoot();
+        var list = root.Subcommands.First(c => c.Name == "list");
+
+        list.Options.Select(o => o.Name).Should().Contain(new[]
+        {
+            "actor", "entity-type", "entity-id", "action", "from", "to", "cursor", "page-size",
+        });
+        list.Options.Where(o => o.IsRequired).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Get_RequiresPositionalIdArgument()
+    {
+        var root = BuildAuditRoot();
+        var get = root.Subcommands.First(c => c.Name == "get");
+
+        get.Arguments.Should().ContainSingle().Which.Name.Should().Be("id");
+    }
+
+    [Fact]
+    public void Export_RequiresOutputFlag()
+    {
+        var root = BuildAuditRoot();
+        var export = root.Subcommands.First(c => c.Name == "export");
+
+        export.Options.Where(o => o.IsRequired).Select(o => o.Name)
+            .Should().Contain("out");
+        export.Options.Select(o => o.Name).Should().Contain(new[] { "from", "to", "out" });
     }
 
     [Fact]
