@@ -438,6 +438,24 @@ verifiable offline by `andy-policies-cli audit verify --file`
 (P6.5) — integrity rests on the embedded hash chain; v1 ships
 no external KMS / detached signature.
 
+The gRPC `AuditService` (P6.8,
+[#50](https://github.com/rivoli-ai/andy-policies/issues/50)) lives
+in `audit.proto` alongside the existing service protos and exposes
+four RPCs: `ListAudit`, `GetAudit`, `VerifyAudit`,
+`ExportAudit` (server-streaming). Status mapping: `INVALID_ARGUMENT`
+for bad inputs (page size, GUID, range, cursor); `NOT_FOUND` for
+unknown ids. Export streams ≥16 KiB chunks; concatenating chunks
+yields a bundle byte-identical to the MCP / REST exports.
+
+The CLI mirrors the gRPC + REST surfaces with four verbs:
+
+```bash
+andy-policies-cli audit list --actor user:alice --entity-type Policy
+andy-policies-cli audit get <event-guid>
+andy-policies-cli audit verify [--from N] [--to M] [--file export.ndjson]
+andy-policies-cli audit export --out audit.ndjson
+```
+
 ## Ports
 
 Per the ecosystem registry at [`../andy-service-template/docs/ports.md`](../andy-service-template/docs/ports.md). Three deployment modes; the same host can run any combination because each mode uses a distinct port range.

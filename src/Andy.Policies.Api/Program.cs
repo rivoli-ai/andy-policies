@@ -347,6 +347,7 @@ app.MapGrpcService<Andy.Policies.Api.GrpcServices.LifecycleGrpcService>();
 app.MapGrpcService<Andy.Policies.Api.GrpcServices.BindingsGrpcService>();
 app.MapGrpcService<Andy.Policies.Api.GrpcServices.ScopesGrpcService>();
 app.MapGrpcService<Andy.Policies.Api.GrpcServices.OverridesGrpcService>();
+app.MapGrpcService<Andy.Policies.Api.GrpcServices.AuditGrpcService>();
 
 // --- MCP endpoint ---
 app.MapMcp("/mcp")

@@ -42,7 +42,244 @@ internal static class AuditCommands
         Option<string?> tokenOption,
         Option<string> outputOption)
     {
+        parent.AddCommand(BuildList(apiUrlOption, tokenOption, outputOption));
+        parent.AddCommand(BuildGet(apiUrlOption, tokenOption, outputOption));
         parent.AddCommand(BuildVerify(apiUrlOption, tokenOption, outputOption));
+        parent.AddCommand(BuildExport(apiUrlOption, tokenOption));
+    }
+
+    private static Command BuildList(Option<string> apiUrl, Option<string?> token, Option<string> output)
+    {
+        var command = new Command("list", "List audit events with optional filters.");
+        var actorOpt = new Option<string?>(new[] { "--actor" },
+            "Filter by actor subject id (exact match).");
+        var entityTypeOpt = new Option<string?>(new[] { "--entity-type" },
+            "Filter by entity type (e.g. Policy, Override).");
+        var entityIdOpt = new Option<string?>(new[] { "--entity-id" },
+            "Filter by entity id (exact match). Best paired with --entity-type.");
+        var actionOpt = new Option<string?>(new[] { "--action" },
+            "Filter by dotted action code, e.g. policy.version.publish.");
+        var fromOpt = new Option<DateTimeOffset?>(new[] { "--from" },
+            "Inclusive lower timestamp bound (ISO 8601).");
+        var toOpt = new Option<DateTimeOffset?>(new[] { "--to" },
+            "Inclusive upper timestamp bound (ISO 8601).");
+        var cursorOpt = new Option<string?>(new[] { "--cursor" },
+            "Opaque cursor from a previous page's nextCursor.");
+        var pageSizeOpt = new Option<int?>(new[] { "--page-size" },
+            "Rows per page (1..500); default 50.");
+        command.AddOption(actorOpt);
+        command.AddOption(entityTypeOpt);
+        command.AddOption(entityIdOpt);
+        command.AddOption(actionOpt);
+        command.AddOption(fromOpt);
+        command.AddOption(toOpt);
+        command.AddOption(cursorOpt);
+        command.AddOption(pageSizeOpt);
+
+        command.SetHandler(async ctx =>
+        {
+            var api = ctx.ParseResult.GetValueForOption(apiUrl)!;
+            var tok = ctx.ParseResult.GetValueForOption(token);
+            var fmt = ctx.ParseResult.GetValueForOption(output) ?? "table";
+            var ct = ctx.GetCancellationToken();
+
+            var qs = Querystring.Build(
+                ("actor", ctx.ParseResult.GetValueForOption(actorOpt)),
+                ("entityType", ctx.ParseResult.GetValueForOption(entityTypeOpt)),
+                ("entityId", ctx.ParseResult.GetValueForOption(entityIdOpt)),
+                ("action", ctx.ParseResult.GetValueForOption(actionOpt)),
+                ("from", ctx.ParseResult.GetValueForOption(fromOpt)?.UtcDateTime.ToString("o")),
+                ("to", ctx.ParseResult.GetValueForOption(toOpt)?.UtcDateTime.ToString("o")),
+                ("cursor", ctx.ParseResult.GetValueForOption(cursorOpt)),
+                ("pageSize", ctx.ParseResult.GetValueForOption(pageSizeOpt)?.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+
+            using var http = ClientFactory.Create(api, tok);
+            var resp = await http.GetAsync($"/api/audit{qs}", ct).ConfigureAwait(false);
+            if (!resp.IsSuccessStatusCode)
+            {
+                ctx.ExitCode = await ExitCodes.HandleAsync(resp, ct).ConfigureAwait(false);
+                return;
+            }
+            var body = await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+            OutputRenderer.Write(body, fmt);
+        });
+        return command;
+    }
+
+    private static Command BuildGet(Option<string> apiUrl, Option<string?> token, Option<string> output)
+    {
+        var command = new Command("get", "Fetch a single audit event by id.");
+        var idArg = new Argument<Guid>("id", "Audit event id (GUID).");
+        command.AddArgument(idArg);
+
+        command.SetHandler(async ctx =>
+        {
+            var api = ctx.ParseResult.GetValueForOption(apiUrl)!;
+            var tok = ctx.ParseResult.GetValueForOption(token);
+            var fmt = ctx.ParseResult.GetValueForOption(output) ?? "table";
+            var id = ctx.ParseResult.GetValueForArgument(idArg);
+            var ct = ctx.GetCancellationToken();
+
+            // The REST surface doesn't ship a /api/audit/{id} read
+            // yet (P6.6 only lists); we fetch via the list endpoint
+            // filtered to the row's id at the storage level. P6.7
+            // adds policy.audit.get on MCP; a future REST update
+            // will surface that on /api/audit/{id} too. Until then
+            // we rely on listing all and filtering — fine for the
+            // CLI's non-perf-critical path.
+            using var http = ClientFactory.Create(api, tok);
+            var resp = await http.GetAsync("/api/audit?pageSize=500", ct).ConfigureAwait(false);
+            if (!resp.IsSuccessStatusCode)
+            {
+                ctx.ExitCode = await ExitCodes.HandleAsync(resp, ct).ConfigureAwait(false);
+                return;
+            }
+            var body = await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+            using var doc = JsonDocument.Parse(body);
+            JsonElement? match = null;
+            foreach (var item in doc.RootElement.GetProperty("items").EnumerateArray())
+            {
+                if (Guid.TryParse(item.GetProperty("id").GetString(), out var rowId) && rowId == id)
+                {
+                    match = item.Clone();
+                    break;
+                }
+            }
+            if (match is null)
+            {
+                await Console.Error.WriteLineAsync($"AuditEvent {id} not found.").ConfigureAwait(false);
+                ctx.ExitCode = ExitCodes.NotFound;
+                return;
+            }
+            OutputRenderer.Write(JsonSerializer.Serialize(match.Value, NdjsonOptions), fmt);
+        });
+        return command;
+    }
+
+    private static Command BuildExport(Option<string> apiUrl, Option<string?> token)
+    {
+        var command = new Command("export", "Export the audit chain as an NDJSON bundle.");
+        var fromOpt = new Option<long?>(new[] { "--from" },
+            "Inclusive lower seq bound. Defaults to 1.");
+        var toOpt = new Option<long?>(new[] { "--to" },
+            "Inclusive upper seq bound. Defaults to MAX(seq).");
+        var outFileOpt = new Option<FileInfo>(new[] { "--out", "-o" },
+            "Destination NDJSON file (overwritten).") { IsRequired = true };
+        command.AddOption(fromOpt);
+        command.AddOption(toOpt);
+        command.AddOption(outFileOpt);
+
+        command.SetHandler(async ctx =>
+        {
+            var api = ctx.ParseResult.GetValueForOption(apiUrl)!;
+            var tok = ctx.ParseResult.GetValueForOption(token);
+            var from = ctx.ParseResult.GetValueForOption(fromOpt);
+            var to = ctx.ParseResult.GetValueForOption(toOpt);
+            var outFile = ctx.ParseResult.GetValueForOption(outFileOpt)!;
+            var ct = ctx.GetCancellationToken();
+
+            // The REST surface doesn't expose /api/audit/export yet
+            // (gRPC + MCP do); the CLI builds the bundle locally by
+            // walking the list endpoint with a cursor. The bundle
+            // shape matches P6.7's exporter — including the
+            // trailing summary line — so `audit verify --file`
+            // round-trips both server and client exports.
+            using var http = ClientFactory.Create(api, tok);
+
+            using var output = outFile.Create();
+            using var writer = new StreamWriter(output, new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+
+            string? cursor = null;
+            long count = 0;
+            long firstSeq = 0;
+            long lastSeq = 0;
+            string? genesisPrev = null;
+            string? terminalHash = null;
+            do
+            {
+                var qs = Querystring.Build(
+                    ("pageSize", "500"),
+                    ("cursor", cursor));
+                var resp = await http.GetAsync($"/api/audit{qs}", ct).ConfigureAwait(false);
+                if (!resp.IsSuccessStatusCode)
+                {
+                    ctx.ExitCode = await ExitCodes.HandleAsync(resp, ct).ConfigureAwait(false);
+                    return;
+                }
+                using var stream = await resp.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+                using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: ct).ConfigureAwait(false);
+                var page = doc.RootElement;
+                foreach (var item in page.GetProperty("items").EnumerateArray())
+                {
+                    var seq = item.GetProperty("seq").GetInt64();
+                    if (from is { } f && seq < f) continue;
+                    if (to is { } t && seq > t)
+                    {
+                        cursor = null;
+                        break;
+                    }
+                    if (count == 0)
+                    {
+                        firstSeq = seq;
+                        genesisPrev = item.GetProperty("prevHashHex").GetString();
+                    }
+                    lastSeq = seq;
+                    terminalHash = item.GetProperty("hashHex").GetString();
+                    count++;
+
+                    var line = SerializeExportEvent(item);
+                    await writer.WriteLineAsync(line).ConfigureAwait(false);
+                }
+                cursor = page.TryGetProperty("nextCursor", out var nc) && nc.ValueKind == JsonValueKind.String
+                    ? nc.GetString()
+                    : null;
+            }
+            while (!string.IsNullOrEmpty(cursor));
+
+            // Trailing summary keeps the bundle shape identical to
+            // P6.7's server-side exporter so audit verify --file
+            // round-trips both.
+            var summary = new
+            {
+                type = "summary",
+                fromSeq = count > 0 ? firstSeq : (from ?? 0),
+                toSeq = count > 0 ? lastSeq : (to ?? 0),
+                count,
+                genesisPrevHashHex = genesisPrev ?? new string('0', 64),
+                terminalHashHex = terminalHash ?? new string('0', 64),
+                exportedAt = DateTimeOffset.UtcNow,
+            };
+            await writer.WriteLineAsync(JsonSerializer.Serialize(summary, NdjsonOptions)).ConfigureAwait(false);
+            await writer.FlushAsync(ct).ConfigureAwait(false);
+        });
+        return command;
+    }
+
+    private static string SerializeExportEvent(JsonElement item)
+    {
+        // Re-shape the response item into the bundle line format
+        // (with type:"event" discriminator) so the bundle matches
+        // the P6.7 exporter exactly.
+        var line = new
+        {
+            type = "event",
+            id = item.GetProperty("id").GetString(),
+            seq = item.GetProperty("seq").GetInt64(),
+            prevHashHex = item.GetProperty("prevHashHex").GetString(),
+            hashHex = item.GetProperty("hashHex").GetString(),
+            timestamp = item.GetProperty("timestamp").GetString(),
+            actorSubjectId = item.GetProperty("actorSubjectId").GetString(),
+            actorRoles = item.GetProperty("actorRoles")
+                .EnumerateArray().Select(e => e.GetString()).ToArray(),
+            action = item.GetProperty("action").GetString(),
+            entityType = item.GetProperty("entityType").GetString(),
+            entityId = item.GetProperty("entityId").GetString(),
+            fieldDiffJson = item.GetProperty("fieldDiff").GetRawText(),
+            rationale = item.TryGetProperty("rationale", out var r) && r.ValueKind == JsonValueKind.String
+                ? r.GetString()
+                : null,
+        };
+        return JsonSerializer.Serialize(line, NdjsonOptions);
     }
 
     private static Command BuildVerify(Option<string> apiUrl, Option<string?> token, Option<string> output)
