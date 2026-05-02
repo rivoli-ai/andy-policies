@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://andy.local/schemas/audit-event.json",
+  "title": "AuditEvent",
+  "description": "Wire-format projection of one row in the andy-policies audit chain (P6). See docs/audit-envelope.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "seq",
+    "prevHashHex",
+    "hashHex",
+    "timestamp",
+    "actorSubjectId",
+    "actorRoles",
+    "action",
+    "entityType",
+    "entityId",
+    "fieldDiff"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Stable random GUID assigned at write time."
+    },
+    "seq": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Database-assigned monotonic sequence; not part of the hash envelope."
+    },
+    "prevHashHex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "SHA-256 of the previous row's hash; 64 zero chars for the genesis row."
+    },
+    "hashHex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "SHA-256(prevHash || canonicalJson(envelope))."
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "UTC ISO 8601 with millisecond precision and Z suffix."
+    },
+    "actorSubjectId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "JWT sub claim of the actor."
+    },
+    "actorRoles": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "RBAC roles snapshot. Sorted lex order before hashing."
+    },
+    "action": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Dotted action code (e.g. policy.version.publish)."
+    },
+    "entityType": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Canonical type of the mutated entity."
+    },
+    "entityId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "String form of the mutated row's primary key."
+    },
+    "fieldDiff": {
+      "type": "array",
+      "description": "RFC 6902 JSON Patch document; embedded as a JSON array, not a JSON-encoded string. Defaults to [] for create/delete events.",
+      "items": {
+        "type": "object",
+        "required": ["op", "path"],
+        "properties": {
+          "op": {
+            "type": "string",
+            "enum": ["add", "replace", "remove"]
+          },
+          "path": {
+            "type": "string",
+            "pattern": "^/.*$"
+          },
+          "value": {}
+        }
+      }
+    },
+    "rationale": {
+      "type": ["string", "null"],
+      "description": "Free-text rationale; null permitted only when andy.policies.rationaleRequired is off (P6.4)."
+    }
+  }
+}
