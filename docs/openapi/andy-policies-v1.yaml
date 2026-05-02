@@ -62,6 +62,81 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+  /api/audit:
+    get:
+      tags:
+        - Audit
+      summary: "Cursor-paginated query over the catalog audit chain\r\n(P6.6, story rivoli-ai/andy-policies#46). All filter\r\nparameters are AND'd; `cursor` is opaque base64 from\r\na previous page's `nextCursor`."
+      operationId: Audit_List
+      parameters:
+        - name: actor
+          in: query
+          description: "Exact-match\r\n            `ActorSubjectId`."
+          schema:
+            type: string
+        - name: from
+          in: query
+          description: Inclusive lower timestamp bound.
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          description: Inclusive upper timestamp bound.
+          schema:
+            type: string
+            format: date-time
+        - name: entityType
+          in: query
+          description: "Exact-match entity type (e.g.\r\n            `Policy`)."
+          schema:
+            type: string
+        - name: entityId
+          in: query
+          description: Exact-match entity id.
+          schema:
+            type: string
+        - name: action
+          in: query
+          description: Exact-match action code.
+          schema:
+            type: string
+        - name: cursor
+          in: query
+          description: "Opaque cursor from a previous\r\n            page's `nextCursor`."
+          schema:
+            type: string
+        - name: pageSize
+          in: query
+          description: "Rows per page; default 50, max\r\n            500."
+          schema:
+            type: integer
+            format: int32
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditPageDto'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /api/bindings:
     post:
       tags:
@@ -1411,6 +1486,78 @@ paths:
                 $ref: '#/components/schemas/ProblemDetails'
 components:
   schemas:
+    AuditEventDto:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Stable random GUID assigned at write time.
+          format: uuid
+        seq:
+          type: integer
+          description: "DB-assigned monotonic sequence number; chain\r\n            verification walks rows ordered by this column."
+          format: int64
+        prevHashHex:
+          type: string
+          description: "Lowercase hex of the previous row's\r\n            `Hash`; 64 zero chars for the genesis row."
+          nullable: true
+        hashHex:
+          type: string
+          description: "Lowercase hex of\r\n            `SHA-256(prevHash || canonicalJson(payload))`."
+          nullable: true
+        timestamp:
+          type: string
+          description: UTC instant the event was written.
+          format: date-time
+        actorSubjectId:
+          type: string
+          description: JWT `sub` claim of the actor.
+          nullable: true
+        actorRoles:
+          type: array
+          items:
+            type: string
+          description: Snapshot of actor RBAC roles.
+          nullable: true
+        action:
+          type: string
+          description: "Dotted action code (e.g.\r\n            `policy.version.publish`)."
+          nullable: true
+        entityType:
+          type: string
+          description: Canonical type of the mutated entity.
+          nullable: true
+        entityId:
+          type: string
+          description: "String form of the mutated entity's\r\n            primary key."
+          nullable: true
+        fieldDiff:
+          description: "Parsed RFC 6902 JSON Patch document.\r\n            Travels on the wire as a JSON array (P6.6, story\r\n            rivoli-ai/andy-policies#46) — not as a JSON-encoded string —\r\n            so consumers can `jq '.fieldDiff[0].op'` directly without\r\n            a second parse. Defaults to `[]` for create / delete\r\n            events whose diff is implicit."
+        rationale:
+          type: string
+          description: "Free-text rationale supplied by the\r\n            actor; nullable when the rationale-required filter is off."
+          nullable: true
+      additionalProperties: false
+      description: "Wire-format projection of `Andy.Policies.Domain.Entities.AuditEvent`\r\n(P6.2, story rivoli-ai/andy-policies#42). Hashes travel as\r\nlowercase hex strings so REST/MCP/gRPC consumers don't have to\r\nagree on a binary encoding; the binary form stays in the\r\ndatabase column."
+    AuditPageDto:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditEventDto'
+          description: "Audit events for this page, ordered by\r\n            `Seq` ascending."
+          nullable: true
+        nextCursor:
+          type: string
+          description: "Opaque base64-URL encoded boundary\r\n            for the next page. Null when no more rows match the\r\n            filter."
+          nullable: true
+        pageSize:
+          type: integer
+          description: "Echo of the requested page size.\r\n            Useful for clients that paginate based on the server's\r\n            honoured value (e.g. when the request omits the parameter\r\n            and gets the default)."
+          format: int32
+      additionalProperties: false
+      description: "Cursor-paginated response from `GET /api/audit` (P6.6,\r\nstory rivoli-ai/andy-policies#46). Cursor pagination is\r\nchosen over offset because the audit table grows\r\nmonotonically — offset windows would shift under concurrent\r\ninserts, and skipping the head of a million-row table is a\r\nscan, not a seek."
     BindStrength:
       enum:
         - Mandatory

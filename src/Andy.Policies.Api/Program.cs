@@ -119,6 +119,10 @@ builder.Services.AddSingleton<Andy.Policies.Application.Interfaces.IAuditWriter,
 // invoke AppendAsync inside their own DbContext transaction so
 // state-change + audit-row commit atomically.
 builder.Services.AddScoped<Andy.Policies.Application.Interfaces.IAuditChain, Andy.Policies.Infrastructure.Audit.AuditChain>();
+// P6.6 (#46): cursor-paginated query over audit_events. Scoped
+// because AuditQuery depends on the scoped AppDbContext; the
+// service is read-only (no transactions, no advisory locks).
+builder.Services.AddScoped<Andy.Policies.Application.Interfaces.IAuditQuery, Andy.Policies.Infrastructure.Audit.AuditQuery>();
 // P6.3 (#43): RFC 6902 JSON Patch diff generator. Singleton
 // because the implementation is pure + caches reflection
 // metadata per type; injected into every mutating service so
