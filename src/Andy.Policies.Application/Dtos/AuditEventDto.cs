@@ -1,6 +1,8 @@
 // Copyright (c) Rivoli AI 2026. All rights reserved.
 // Licensed under the Apache License, Version 2.0.
 
+using System.Text.Json;
+
 namespace Andy.Policies.Application.Dtos;
 
 /// <summary>
@@ -25,8 +27,12 @@ namespace Andy.Policies.Application.Dtos;
 /// <param name="EntityType">Canonical type of the mutated entity.</param>
 /// <param name="EntityId">String form of the mutated entity's
 /// primary key.</param>
-/// <param name="FieldDiffJson">RFC 6902 JSON Patch document; never
-/// null, defaults to <c>"[]"</c>.</param>
+/// <param name="FieldDiff">Parsed RFC 6902 JSON Patch document.
+/// Travels on the wire as a JSON array (P6.6, story
+/// rivoli-ai/andy-policies#46) — not as a JSON-encoded string —
+/// so consumers can <c>jq '.fieldDiff[0].op'</c> directly without
+/// a second parse. Defaults to <c>[]</c> for create / delete
+/// events whose diff is implicit.</param>
 /// <param name="Rationale">Free-text rationale supplied by the
 /// actor; nullable when the rationale-required filter is off.</param>
 public sealed record AuditEventDto(
@@ -40,5 +46,5 @@ public sealed record AuditEventDto(
     string Action,
     string EntityType,
     string EntityId,
-    string FieldDiffJson,
+    JsonElement FieldDiff,
     string? Rationale);

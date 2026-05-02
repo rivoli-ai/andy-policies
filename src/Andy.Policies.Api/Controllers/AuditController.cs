@@ -4,6 +4,7 @@
 using Andy.Policies.Api.Filters;
 using Andy.Policies.Application.Dtos;
 using Andy.Policies.Application.Interfaces;
+using Andy.Policies.Infrastructure.Audit;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -39,11 +40,16 @@ namespace Andy.Policies.Api.Controllers;
 [Tags("Audit")]
 public sealed class AuditController : ControllerBase
 {
-    private readonly IAuditChain _chain;
+    private const int DefaultPageSize = 50;
+    private const int MaxPageSize = 500;
 
-    public AuditController(IAuditChain chain)
+    private readonly IAuditChain _chain;
+    private readonly IAuditQuery _query;
+
+    public AuditController(IAuditChain chain, IAuditQuery query)
     {
         _chain = chain;
+        _query = query;
     }
 
     /// <summary>
@@ -95,6 +101,93 @@ public sealed class AuditController : ControllerBase
             result.FirstDivergenceSeq,
             result.InspectedCount,
             result.LastSeq));
+    }
+
+    /// <summary>
+    /// Cursor-paginated query over the catalog audit chain
+    /// (P6.6, story rivoli-ai/andy-policies#46). All filter
+    /// parameters are AND'd; <c>cursor</c> is opaque base64 from
+    /// a previous page's <c>nextCursor</c>.
+    /// </summary>
+    /// <param name="actor">Exact-match
+    /// <c>ActorSubjectId</c>.</param>
+    /// <param name="from">Inclusive lower timestamp bound.</param>
+    /// <param name="to">Inclusive upper timestamp bound.</param>
+    /// <param name="entityType">Exact-match entity type (e.g.
+    /// <c>Policy</c>).</param>
+    /// <param name="entityId">Exact-match entity id.</param>
+    /// <param name="action">Exact-match action code.</param>
+    /// <param name="cursor">Opaque cursor from a previous
+    /// page's <c>nextCursor</c>.</param>
+    /// <param name="pageSize">Rows per page; default 50, max
+    /// 500.</param>
+    /// <param name="ct">Request cancellation token.</param>
+    [HttpGet]
+    [ProducesResponseType(typeof(AuditPageDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<AuditPageDto>> List(
+        [FromQuery] string? actor,
+        [FromQuery] DateTimeOffset? from,
+        [FromQuery] DateTimeOffset? to,
+        [FromQuery] string? entityType,
+        [FromQuery] string? entityId,
+        [FromQuery] string? action,
+        [FromQuery] string? cursor,
+        [FromQuery] int? pageSize,
+        CancellationToken ct)
+    {
+        var size = pageSize ?? DefaultPageSize;
+        if (size < 1 || size > MaxPageSize)
+        {
+            return BadRequestProblem(
+                title: "Invalid page size",
+                detail: $"pageSize must be in [1, {MaxPageSize}].",
+                type: "/problems/audit-list-page-size",
+                code: "audit.list.invalid_page_size");
+        }
+        if (from is { } f && to is { } t && f > t)
+        {
+            return BadRequestProblem(
+                title: "Invalid time range",
+                detail: $"from ({f:o}) must be <= to ({t:o}).",
+                type: "/problems/audit-list-range",
+                code: "audit.list.invalid_range");
+        }
+
+        long? after;
+        try
+        {
+            after = AuditQuery.DecodeCursor(cursor);
+        }
+        catch (FormatException)
+        {
+            return BadRequestProblem(
+                title: "Invalid cursor",
+                detail: "cursor is not a recognised base64-JSON token.",
+                type: "/problems/audit-list-cursor",
+                code: "audit.list.invalid_cursor");
+        }
+
+        var page = await _query.QueryAsync(
+            new AuditQueryFilter(actor, from, to, entityType, entityId, action, after, size),
+            ct);
+        return Ok(page);
+    }
+
+    private ActionResult BadRequestProblem(string title, string detail, string type, string code)
+    {
+        var problem = new ProblemDetails
+        {
+            Status = StatusCodes.Status400BadRequest,
+            Title = title,
+            Detail = detail,
+            Type = type,
+            Instance = HttpContext.Request.Path,
+            Extensions = { ["errorCode"] = code },
+        };
+        return BadRequest(problem);
     }
 
     private ActionResult<ChainVerificationDto> BadRequestRange(string detail)

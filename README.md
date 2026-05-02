@@ -403,6 +403,26 @@ Exit code 0 on a valid chain, 6 (\`AuditDivergence\`) on
 divergence — distinct from 1 (transport) so cron / CI jobs can
 branch on "the chain itself is broken" vs "the API is unreachable."
 
+### Audit query
+
+Cursor-paginated query over the catalog audit chain (P6.6,
+[#46](https://github.com/rivoli-ai/andy-policies/issues/46)):
+
+```http
+GET /api/audit?actor=&from=&to=&entityType=&entityId=&action=&cursor=&pageSize=
+```
+
+Returns 200 with `AuditPageDto` (`{ items, nextCursor, pageSize }`).
+Filters are AND'd; cursor is opaque base64 from a previous page's
+`nextCursor`. Default `pageSize` 50, max 500. Hashes travel as
+lowercase hex (`prevHashHex`, `hashHex`); `fieldDiff` travels
+as a parsed JSON Patch array, not a JSON-encoded string.
+
+Cursor pagination over offset is non-negotiable here: the audit
+table is append-only and grows monotonically — offset windows
+would shift under concurrent inserts, and skipping the head of
+a million-row table is a scan, not a seek.
+
 ## Ports
 
 Per the ecosystem registry at [`../andy-service-template/docs/ports.md`](../andy-service-template/docs/ports.md). Three deployment modes; the same host can run any combination because each mode uses a distinct port range.

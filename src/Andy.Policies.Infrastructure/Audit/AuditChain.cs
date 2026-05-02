@@ -281,17 +281,28 @@ public sealed class AuditChain : IAuditChain
         return true;
     }
 
-    private static AuditEventDto ToDto(AuditEvent ev) => new(
-        ev.Id,
-        ev.Seq,
-        Convert.ToHexString(ev.PrevHash).ToLowerInvariant(),
-        Convert.ToHexString(ev.Hash).ToLowerInvariant(),
-        ev.Timestamp,
-        ev.ActorSubjectId,
-        ev.ActorRoles,
-        ev.Action,
-        ev.EntityType,
-        ev.EntityId,
-        ev.FieldDiffJson,
-        ev.Rationale);
+    internal static AuditEventDto ToDto(AuditEvent ev)
+    {
+        // The persisted form is a JSON string (Postgres jsonb +
+        // SQLite TEXT); the wire form parses it so the patch document
+        // travels as a JSON array, not a JSON-encoded string. Parsing
+        // here keeps the JsonElement's underlying buffer alive for
+        // the lifetime of the DTO via JsonDocument cloning.
+        using var doc = System.Text.Json.JsonDocument.Parse(
+            string.IsNullOrEmpty(ev.FieldDiffJson) ? "[]" : ev.FieldDiffJson);
+        var fieldDiff = doc.RootElement.Clone();
+        return new(
+            ev.Id,
+            ev.Seq,
+            Convert.ToHexString(ev.PrevHash).ToLowerInvariant(),
+            Convert.ToHexString(ev.Hash).ToLowerInvariant(),
+            ev.Timestamp,
+            ev.ActorSubjectId,
+            ev.ActorRoles,
+            ev.Action,
+            ev.EntityType,
+            ev.EntityId,
+            fieldDiff,
+            ev.Rationale);
+    }
 }
