@@ -117,6 +117,27 @@ public class AuditCommandsTests
         }
     }
 
+    [Fact]
+    public async Task Verify_OfflineFile_BundleWithSummaryTrailer_ExitCode0()
+    {
+        // P6.7 (#48): the audit export bundle format adds a
+        // "type":"event" discriminator on each event line and
+        // a trailing "type":"summary" line. The CLI must parse
+        // both shapes — the summary is metadata, not an event,
+        // and must be skipped without flagging divergence.
+        var path = WriteTempBundle(count: 3);
+        try
+        {
+            var rootCmd = BuildAuditRoot();
+            var result = await rootCmd.InvokeAsync(new[] { "verify", "--file", path });
+            result.Should().Be(0);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
     /// <summary>
     /// Materialises a <paramref name="count"/>-event NDJSON chain on disk
     /// using the production hasher; optionally flips a single byte of the
@@ -164,6 +185,64 @@ public class AuditCommandsTests
             sb.AppendLine(JsonSerializer.Serialize(dto, new JsonSerializerOptions(JsonSerializerDefaults.Web)));
             prev = hash;
         }
+        File.WriteAllText(path, sb.ToString());
+        return path;
+    }
+
+    /// <summary>
+    /// Materialises a <paramref name="count"/>-event audit bundle on
+    /// disk in the P6.7 export format: every event line carries
+    /// <c>"type":"event"</c> and a trailing
+    /// <c>"type":"summary"</c> line wraps the bundle. The CLI's
+    /// offline verifier must skip the summary line and verify
+    /// the events end-to-end.
+    /// </summary>
+    private static string WriteTempBundle(int count)
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"audit-bundle-{Guid.NewGuid():n}.ndjson");
+        var sb = new StringBuilder();
+        var prev = new byte[32];
+        string? terminalHashHex = null;
+        for (var i = 1; i <= count; i++)
+        {
+            var id = Guid.Parse($"00000000-0000-0000-0000-{i:D12}");
+            var ts = new DateTimeOffset(2026, 5, 1, 12, 0, 0, TimeSpan.Zero).AddSeconds(i);
+            var hash = AuditEnvelopeHasher.ComputeHash(
+                prev, id, ts, "user:test", new[] { "admin" }, "policy.update",
+                "Policy", $"00000000-0000-0000-0000-{i:D12}", "[]", $"event #{i}");
+
+            var hashHex = Convert.ToHexString(hash).ToLowerInvariant();
+            terminalHashHex = hashHex;
+            var line = new
+            {
+                type = "event",
+                id,
+                seq = (long)i,
+                prevHashHex = Convert.ToHexString(prev).ToLowerInvariant(),
+                hashHex,
+                timestamp = ts,
+                actorSubjectId = "user:test",
+                actorRoles = new[] { "admin" },
+                action = "policy.update",
+                entityType = "Policy",
+                entityId = $"00000000-0000-0000-0000-{i:D12}",
+                fieldDiffJson = "[]",
+                rationale = $"event #{i}",
+            };
+            sb.AppendLine(JsonSerializer.Serialize(line, new JsonSerializerOptions(JsonSerializerDefaults.Web)));
+            prev = hash;
+        }
+        var summary = new
+        {
+            type = "summary",
+            fromSeq = 1L,
+            toSeq = (long)count,
+            count = (long)count,
+            genesisPrevHashHex = new string('0', 64),
+            terminalHashHex = terminalHashHex ?? new string('0', 64),
+            exportedAt = DateTimeOffset.UtcNow,
+        };
+        sb.AppendLine(JsonSerializer.Serialize(summary, new JsonSerializerOptions(JsonSerializerDefaults.Web)));
         File.WriteAllText(path, sb.ToString());
         return path;
     }
