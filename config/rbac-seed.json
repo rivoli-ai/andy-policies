@@ -1,0 +1,109 @@
+{
+  "applicationCode": "andy-policies",
+  "applicationName": "Andy Policies",
+  "description": "Governance policy catalog — structured, versioned policy documents with lifecycle and audit trail.",
+  "resourceTypes": [
+    { "code": "policy",   "name": "Policy",          "supportsInstances": true  },
+    { "code": "binding",  "name": "Policy Binding",  "supportsInstances": true  },
+    { "code": "override", "name": "Policy Override", "supportsInstances": true  },
+    { "code": "scope",    "name": "Scope Node",      "supportsInstances": true  },
+    { "code": "bundle",   "name": "Policy Bundle",   "supportsInstances": true  },
+    { "code": "audit",    "name": "Audit Event",     "supportsInstances": true  },
+    { "code": "settings", "name": "Settings",        "supportsInstances": false }
+  ],
+  "permissions": [
+    { "code": "andy-policies:policy:read",       "name": "Read policies",            "resourceType": "policy"   },
+    { "code": "andy-policies:policy:author",     "name": "Author drafts",            "resourceType": "policy"   },
+    { "code": "andy-policies:policy:publish",    "name": "Publish a draft",          "resourceType": "policy"   },
+    { "code": "andy-policies:policy:transition", "name": "Wind-down / retire",       "resourceType": "policy"   },
+    { "code": "andy-policies:binding:read",      "name": "Read bindings",            "resourceType": "binding"  },
+    { "code": "andy-policies:binding:manage",    "name": "Create / delete bindings", "resourceType": "binding"  },
+    { "code": "andy-policies:scope:read",        "name": "Read scope tree",          "resourceType": "scope"    },
+    { "code": "andy-policies:scope:manage",      "name": "Create / delete scopes",   "resourceType": "scope"    },
+    { "code": "andy-policies:override:read",     "name": "Read overrides",           "resourceType": "override" },
+    { "code": "andy-policies:override:propose",  "name": "Propose an override",      "resourceType": "override" },
+    { "code": "andy-policies:override:approve",  "name": "Approve an override",      "resourceType": "override" },
+    { "code": "andy-policies:override:revoke",   "name": "Revoke an override",       "resourceType": "override" },
+    { "code": "andy-policies:bundle:read",       "name": "Read bundles",             "resourceType": "bundle"   },
+    { "code": "andy-policies:bundle:create",     "name": "Create a bundle",          "resourceType": "bundle"   },
+    { "code": "andy-policies:bundle:delete",     "name": "Soft-delete a bundle",     "resourceType": "bundle"   },
+    { "code": "andy-policies:audit:read",        "name": "Read audit events",        "resourceType": "audit"    },
+    { "code": "andy-policies:audit:export",      "name": "Export audit chain",       "resourceType": "audit"    },
+    { "code": "andy-policies:audit:verify",      "name": "Verify audit chain",       "resourceType": "audit"    }
+  ],
+  "roles": [
+    {
+      "code": "admin",
+      "name": "Administrator",
+      "description": "Full access: author, publish, transition, edit bindings, manage overrides.",
+      "isSystem": true,
+      "permissionCodes": ["*"]
+    },
+    {
+      "code": "author",
+      "name": "Policy Author",
+      "description": "May author drafts and propose publish; cannot approve own publishes.",
+      "isSystem": true,
+      "permissionCodes": [
+        "andy-policies:policy:read",
+        "andy-policies:policy:author",
+        "andy-policies:binding:read",
+        "andy-policies:scope:read",
+        "andy-policies:override:read",
+        "andy-policies:override:propose",
+        "andy-policies:bundle:read",
+        "andy-policies:audit:read"
+      ]
+    },
+    {
+      "code": "approver",
+      "name": "Publish Approver",
+      "description": "Approves transitions of drafts to active versions.",
+      "isSystem": true,
+      "permissionCodes": [
+        "andy-policies:policy:read",
+        "andy-policies:policy:publish",
+        "andy-policies:policy:transition",
+        "andy-policies:binding:read",
+        "andy-policies:binding:manage",
+        "andy-policies:scope:read",
+        "andy-policies:override:read",
+        "andy-policies:override:approve",
+        "andy-policies:override:revoke",
+        "andy-policies:bundle:read",
+        "andy-policies:bundle:create",
+        "andy-policies:audit:read"
+      ]
+    },
+    {
+      "code": "risk",
+      "name": "Risk / Compliance",
+      "description": "Read-all plus audit-export.",
+      "isSystem": true,
+      "permissionCodes": [
+        "andy-policies:policy:read",
+        "andy-policies:binding:read",
+        "andy-policies:scope:read",
+        "andy-policies:override:read",
+        "andy-policies:bundle:read",
+        "andy-policies:audit:read",
+        "andy-policies:audit:export",
+        "andy-policies:audit:verify"
+      ]
+    },
+    {
+      "code": "viewer",
+      "name": "Viewer",
+      "description": "Read-only access to active policies and public audit trail.",
+      "isSystem": true,
+      "permissionCodes": [
+        "andy-policies:policy:read",
+        "andy-policies:binding:read",
+        "andy-policies:scope:read",
+        "andy-policies:override:read",
+        "andy-policies:bundle:read"
+      ]
+    }
+  ],
+  "testUserRole": "admin"
+}
