@@ -456,6 +456,35 @@ andy-policies-cli audit verify [--from N] [--to M] [--file export.ndjson]
 andy-policies-cli audit export --out audit.ndjson
 ```
 
+## Edit RBAC
+
+Subject→permission evaluation delegates to [Andy RBAC](https://github.com/rivoli-ai/andy-rbac); the permission *vocabulary* lives here in [`config/registration.json`](config/registration.json) (`rbac` block) and is mirrored in [`config/rbac-seed.json`](config/rbac-seed.json) for direct seeding. andy-rbac upserts the application, resource types, permissions, and role↔permission edges from this manifest on first boot.
+
+### Permission catalog
+
+| Code | Resource | Held by |
+|---|---|---|
+| `andy-policies:policy:read`        | policy   | author, approver, risk, viewer |
+| `andy-policies:policy:author`      | policy   | author |
+| `andy-policies:policy:publish`     | policy   | approver |
+| `andy-policies:policy:transition`  | policy   | approver |
+| `andy-policies:binding:read`       | binding  | author, approver, risk, viewer |
+| `andy-policies:binding:manage`     | binding  | approver |
+| `andy-policies:scope:read`         | scope    | author, approver, risk, viewer |
+| `andy-policies:scope:manage`       | scope    | (admin only) |
+| `andy-policies:override:read`      | override | author, approver, risk, viewer |
+| `andy-policies:override:propose`   | override | author |
+| `andy-policies:override:approve`   | override | approver |
+| `andy-policies:override:revoke`    | override | approver |
+| `andy-policies:bundle:read`        | bundle   | author, approver, risk, viewer |
+| `andy-policies:bundle:create`      | bundle   | approver |
+| `andy-policies:bundle:delete`      | bundle   | (admin only) |
+| `andy-policies:audit:read`         | audit    | author, approver, risk |
+| `andy-policies:audit:export`       | audit    | risk |
+| `andy-policies:audit:verify`       | audit    | risk |
+
+`admin` holds the `*` wildcard. Authoritative source: `config/registration.json`. ADR 0007 (P7.7, [#65](https://github.com/rivoli-ai/andy-policies/issues/65)) covers the delegation choice and the self-approval invariant.
+
 ## Ports
 
 Per the ecosystem registry at [`../andy-service-template/docs/ports.md`](../andy-service-template/docs/ports.md). Three deployment modes; the same host can run any combination because each mode uses a distinct port range.
