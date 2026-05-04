@@ -18,6 +18,7 @@ nav:
   - Security: security.md
   - Concepts:
     - Overrides: concepts/overrides.md
+    - Audit envelope: audit-envelope.md
   - Design:
     - Policy document core: design/policy-document-core.md
     - Lifecycle states: design/lifecycle.md
@@ -29,6 +30,7 @@ nav:
   - Runbooks:
     - Override approver: runbooks/override-approver.md
     - Override operator: runbooks/override-operator.md
+    - Audit compliance: runbooks/audit-compliance.md
   - ADRs:
     - 0001 Policy versioning: adr/0001-policy-versioning.md
     - 0002 Lifecycle states: adr/0002-lifecycle-states.md
