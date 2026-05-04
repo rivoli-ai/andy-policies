@@ -16,6 +16,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Xunit;
 
@@ -87,6 +88,19 @@ public class OverrideExpiryReaperLoadTests : IDisposable
                         .Build();
                 });
 
+                // Strip the reaper from IHostedService so the BackgroundService
+                // executor is not running concurrently with the test's manual
+                // SweepOnceAsync loop. Without this the two race on the same
+                // due rows: the background sweep wins on some, the foreground
+                // ExpireAsync then throws ConflictException and is swallowed,
+                // so the test's locally-summed totalExpired falls below
+                // DueRows even though the DB is fully drained. See #166.
+                var hostedReaper = services.SingleOrDefault(d =>
+                    d.ServiceType == typeof(IHostedService)
+                    && d.ImplementationType == typeof(OverrideExpiryReaper));
+                if (hostedReaper is not null) services.Remove(hostedReaper);
+                services.TryAddSingleton<OverrideExpiryReaper>();
+
                 using var sp = services.BuildServiceProvider();
                 using var scope = sp.CreateScope();
                 var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -106,14 +120,14 @@ public class OverrideExpiryReaperLoadTests : IDisposable
     public void Dispose() => _factory.Dispose();
 
     private static OverrideExpiryReaper ResolveReaper(WebApplicationFactory<Program> factory)
-        => factory.Services.GetServices<IHostedService>()
-            .OfType<OverrideExpiryReaper>()
-            .Single();
+        => factory.Services.GetRequiredService<OverrideExpiryReaper>();
 
     [Fact]
     public async Task SweepUntilDrained_ExpiresAllDueRows_LeavesFutureUntouched_WithinBudget()
     {
-        // Trigger host startup so the BackgroundService is registered + wired.
+        // Trigger host startup so DI is built. The reaper is registered as
+        // a singleton (not as IHostedService) for this factory — see the
+        // configure-services block above for why.
         _ = _factory.CreateClient();
         var rootSp = _factory.Services;
         var reaper = ResolveReaper(_factory);
