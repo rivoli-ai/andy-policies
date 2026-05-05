@@ -464,6 +464,8 @@ The runtime adapter is `HttpRbacChecker` (P7.2, [#51](https://github.com/rivoli-
 
 **Author cannot self-approve** (P7.3, [#55](https://github.com/rivoli-ai/andy-policies/issues/55)). The publish endpoint rejects when the actor matches the version's `ProposerSubjectId` — even when andy-rbac would say *yes* to both `:author` and `:publish`. Domain invariant; admin override is deliberately absent. Returns **HTTP 403** with ProblemDetails `errorCode = "policy.publish_self_approval_forbidden"`, no state mutation. `WindingDown` and `Retire` are administrative hygiene transitions and do not apply this check.
 
+**Per-action policy attributes** (P7.4, [#57](https://github.com/rivoli-ai/andy-policies/issues/57)). Every REST controller action carries `[Authorize(Policy = "andy-policies:…")]` naming a permission code from the catalog above. `RbacAuthorizationHandler` extracts the subject id (`sub` / `NameIdentifier` / `Identity.Name`), the JWT `groups` claim, and a route-derived resource instance (`{type}:{routeId}`), then delegates to `IRbacChecker`. A denied or fail-closed decision means the action returns 403; an allowed decision lets the request proceed. MCP and gRPC interceptors (P7.6) reuse the same handler.
+
 ### Permission catalog
 
 | Code | Resource | Held by |

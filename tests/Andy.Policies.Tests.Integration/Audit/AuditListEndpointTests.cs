@@ -65,6 +65,8 @@ public class AuditListEndpointTests : IDisposable
                 if (ctxDescriptor is not null) services.Remove(ctxDescriptor);
                 services.AddDbContext<AppDbContext>(opts => opts.UseSqlite(_connection));
 
+                services.ReplaceWithAllowAll();
+
                 services.AddAuthentication(TestAuthHandler.SchemeName)
                     .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(
                         TestAuthHandler.SchemeName, _ => { });

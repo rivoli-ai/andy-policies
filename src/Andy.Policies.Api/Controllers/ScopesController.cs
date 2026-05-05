@@ -45,6 +45,7 @@ public sealed class ScopesController : ControllerBase
     /// (Depth, Ref).
     /// </summary>
     [HttpGet]
+    [Authorize(Policy = "andy-policies:scope:read")]
     [ProducesResponseType(typeof(IReadOnlyList<ScopeNodeDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<ScopeNodeDto>>> List(
         [FromQuery] ScopeType? type,
@@ -61,6 +62,7 @@ public sealed class ScopesController : ControllerBase
     /// snapshotting.
     /// </summary>
     [HttpGet("tree")]
+    [Authorize(Policy = "andy-policies:scope:read")]
     [ProducesResponseType(typeof(IReadOnlyList<ScopeTreeDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<ScopeTreeDto>>> Tree(CancellationToken ct)
     {
@@ -72,6 +74,7 @@ public sealed class ScopesController : ControllerBase
     /// Get a single scope node by id. Returns 404 if not found.
     /// </summary>
     [HttpGet("{id:guid}")]
+    [Authorize(Policy = "andy-policies:scope:read")]
     [ProducesResponseType(typeof(ScopeNodeDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ScopeNodeDto>> Get(Guid id, CancellationToken ct)
@@ -86,6 +89,7 @@ public sealed class ScopesController : ControllerBase
     /// doesn't exist.
     /// </summary>
     [HttpGet("{id:guid}/effective-policies")]
+    [Authorize(Policy = "andy-policies:scope:read")]
     [ProducesResponseType(typeof(EffectivePolicySetDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<EffectivePolicySetDto>> Effective(Guid id, CancellationToken ct)
@@ -102,6 +106,7 @@ public sealed class ScopesController : ControllerBase
     /// returns 400.
     /// </summary>
     [HttpPost]
+    [Authorize(Policy = "andy-policies:scope:manage")]
     [ProducesResponseType(typeof(ScopeNodeDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -121,6 +126,7 @@ public sealed class ScopesController : ControllerBase
     /// leaves first.
     /// </summary>
     [HttpDelete("{id:guid}")]
+    [Authorize(Policy = "andy-policies:scope:manage")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]

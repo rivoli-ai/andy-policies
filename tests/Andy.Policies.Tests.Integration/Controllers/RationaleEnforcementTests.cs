@@ -88,6 +88,8 @@ public class RationaleEnforcementTests
                 if (snapshotDescriptor is not null) services.Remove(snapshotDescriptor);
                 services.AddSingleton<ISettingsSnapshot>(Snapshot);
 
+                services.ReplaceWithAllowAll();
+
                 services.AddAuthentication(TestAuthHandler.SchemeName)
                     .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(
                         TestAuthHandler.SchemeName, _ => { });

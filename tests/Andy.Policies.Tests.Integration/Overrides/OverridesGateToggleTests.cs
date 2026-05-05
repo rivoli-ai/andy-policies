@@ -79,6 +79,8 @@ public class OverridesGateToggleTests : IDisposable
                 if (gateDescriptor is not null) services.Remove(gateDescriptor);
                 services.AddSingleton<IExperimentalOverridesGate>(Gate);
 
+                services.ReplaceWithAllowAll();
+
                 services.AddAuthentication(TestAuthHandler.SchemeName)
                     .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(
                         TestAuthHandler.SchemeName, _ => { });

@@ -27,6 +27,7 @@ public class PoliciesController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize(Policy = "andy-policies:policy:read")]
     public async Task<ActionResult<IReadOnlyList<PolicyDto>>> List(
         [FromQuery] string? namePrefix,
         [FromQuery] string? scope,
@@ -49,6 +50,7 @@ public class PoliciesController : ControllerBase
     }
 
     [HttpGet("{id:guid}")]
+    [Authorize(Policy = "andy-policies:policy:read")]
     public async Task<ActionResult<PolicyDto>> Get(Guid id, CancellationToken ct)
     {
         var policy = await _policies.GetPolicyAsync(id, ct);
@@ -56,6 +58,7 @@ public class PoliciesController : ControllerBase
     }
 
     [HttpGet("by-name/{name}")]
+    [Authorize(Policy = "andy-policies:policy:read")]
     public async Task<ActionResult<PolicyDto>> GetByName(string name, CancellationToken ct)
     {
         var policy = await _policies.GetPolicyByNameAsync(name, ct);
@@ -63,6 +66,7 @@ public class PoliciesController : ControllerBase
     }
 
     [HttpGet("{id:guid}/versions")]
+    [Authorize(Policy = "andy-policies:policy:read")]
     public async Task<ActionResult<IReadOnlyList<PolicyVersionDto>>> ListVersions(
         Guid id, CancellationToken ct)
     {
@@ -77,6 +81,7 @@ public class PoliciesController : ControllerBase
     /// and the GUID constraint makes the two routes unambiguous regardless.
     /// </summary>
     [HttpGet("{id:guid}/versions/active")]
+    [Authorize(Policy = "andy-policies:policy:read")]
     public async Task<ActionResult<PolicyVersionDto>> GetActiveVersion(
         Guid id, CancellationToken ct)
     {
@@ -85,6 +90,7 @@ public class PoliciesController : ControllerBase
     }
 
     [HttpGet("{id:guid}/versions/{versionId:guid}")]
+    [Authorize(Policy = "andy-policies:policy:read")]
     public async Task<ActionResult<PolicyVersionDto>> GetVersion(
         Guid id, Guid versionId, CancellationToken ct)
     {
@@ -93,6 +99,7 @@ public class PoliciesController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = "andy-policies:policy:author")]
     public async Task<ActionResult<PolicyVersionDto>> Create(
         [FromBody] CreatePolicyRequest request, CancellationToken ct)
     {
@@ -105,6 +112,7 @@ public class PoliciesController : ControllerBase
     }
 
     [HttpPut("{id:guid}/versions/{versionId:guid}")]
+    [Authorize(Policy = "andy-policies:policy:author")]
     public async Task<ActionResult<PolicyVersionDto>> UpdateDraft(
         Guid id,
         Guid versionId,
@@ -117,6 +125,7 @@ public class PoliciesController : ControllerBase
     }
 
     [HttpPost("{id:guid}/versions/{sourceVersionId:guid}/bump")]
+    [Authorize(Policy = "andy-policies:policy:author")]
     public async Task<ActionResult<PolicyVersionDto>> Bump(
         Guid id, Guid sourceVersionId, CancellationToken ct)
     {
