@@ -5,10 +5,12 @@ using System.ComponentModel;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Andy.Policies.Api.Mcp.Authorization;
 using Andy.Policies.Application.Dtos;
 using Andy.Policies.Application.Exceptions;
 using Andy.Policies.Application.Interfaces;
 using Andy.Policies.Domain.Enums;
+using Microsoft.AspNetCore.Http;
 using ModelContextProtocol.Server;
 
 namespace Andy.Policies.Api.Mcp;
@@ -104,8 +106,11 @@ public static class ScopeTools
         "Org → Tenant → Team → Repo → Template → Run ladder; mismatched " +
         "parent type returns policy.scope.parent_type_mismatch. " +
         "Duplicate (Type, Ref) returns policy.scope.ref_conflict.")]
+    [RbacGuard("andy-policies:scope:manage")]
     public static async Task<string> Create(
         IScopeService service,
+        IHttpContextAccessor httpContext,
+        IRbacChecker rbac,
         [Description("Parent scope node id (GUID). Empty / 'null' for a root Org.")] string? parentId,
         [Description("Scope type (Org/Tenant/Team/Repo/Template/Run).")] string type,
         [Description("Opaque scope reference (e.g. 'repo:rivoli-ai/conductor').")] string @ref,
@@ -126,6 +131,16 @@ public static class ScopeTools
                 return $"policy.scope.invalid_input: parentId '{parentId}' is not a valid GUID.";
             }
             parentGuid = parsed;
+        }
+
+        try
+        {
+            await McpRbacGuard.EnsureAsync(rbac, httpContext,
+                "andy-policies:scope:manage", $"{scopeType}:{@ref}", ct);
+        }
+        catch (McpAuthorizationException ex)
+        {
+            return $"policy.scope.forbidden: {ex.Reason}";
         }
 
         try
@@ -155,14 +170,26 @@ public static class ScopeTools
     [McpServerTool(Name = "policy.scope.delete"), Description(
         "Delete a leaf scope node. Refuses with " +
         "policy.scope.has_descendants when the node still has children.")]
+    [RbacGuard("andy-policies:scope:manage")]
     public static async Task<string> Delete(
         IScopeService service,
+        IHttpContextAccessor httpContext,
+        IRbacChecker rbac,
         [Description("Scope node id (GUID).")] string id,
         CancellationToken ct = default)
     {
         if (!Guid.TryParse(id, out var nodeId))
         {
             return $"policy.scope.invalid_input: '{id}' is not a valid GUID.";
+        }
+        try
+        {
+            await McpRbacGuard.EnsureAsync(rbac, httpContext,
+                "andy-policies:scope:manage", $"scope:{nodeId}", ct);
+        }
+        catch (McpAuthorizationException ex)
+        {
+            return $"policy.scope.forbidden: {ex.Reason}";
         }
         try
         {

@@ -53,6 +53,13 @@ public class OverrideToolsTests
             => Task.FromResult(new RbacDecision(true, "test-allow"));
     }
 
+    /// <summary>
+    /// Default RBAC stub for tests that aren't exercising the
+    /// authorization path itself — keeps the test bodies focused on the
+    /// MCP-tool wire contract rather than restating the AllowRbac wiring.
+    /// </summary>
+    private static readonly IRbacChecker AllowRbacInstance = new AllowRbac();
+
     private sealed class NoopDispatcher : IDomainEventDispatcher
     {
         public Task DispatchAsync<TEvent>(TEvent domainEvent, CancellationToken ct = default)
@@ -138,7 +145,7 @@ public class OverrideToolsTests
         gate.IsEnabled = false;
 
         var output = await OverrideTools.Propose(
-            svc, gate, AccessorFor("user:proposer"),
+            svc, gate, AccessorFor("user:proposer"), AllowRbacInstance,
             version.Id.ToString(), "Principal", "user:42",
             "Exempt", DateTimeOffset.UtcNow.AddDays(1).ToString("o"), "rationale");
 
@@ -152,7 +159,7 @@ public class OverrideToolsTests
         var version = await SeedActiveAsync(db);
 
         var output = await OverrideTools.Propose(
-            svc, gate, AccessorFor(null),
+            svc, gate, AccessorFor(null), AllowRbacInstance,
             version.Id.ToString(), "Principal", "user:42",
             "Exempt", DateTimeOffset.UtcNow.AddDays(1).ToString("o"), "rationale");
 
@@ -166,7 +173,7 @@ public class OverrideToolsTests
         var version = await SeedActiveAsync(db);
 
         var output = await OverrideTools.Propose(
-            svc, gate, AccessorFor("user:proposer"),
+            svc, gate, AccessorFor("user:proposer"), AllowRbacInstance,
             version.Id.ToString(), "Principal", "user:42",
             "Exempt", DateTimeOffset.UtcNow.AddDays(1).ToString("o"),
             "expedite vendor-blocked story");
@@ -184,7 +191,7 @@ public class OverrideToolsTests
         var (svc, _, gate) = NewServices();
 
         var output = await OverrideTools.Propose(
-            svc, gate, AccessorFor("user:proposer"),
+            svc, gate, AccessorFor("user:proposer"), AllowRbacInstance,
             "not-a-guid", "Principal", "user:42",
             "Exempt", DateTimeOffset.UtcNow.AddDays(1).ToString("o"), "rationale");
 
@@ -198,7 +205,7 @@ public class OverrideToolsTests
         var version = await SeedActiveAsync(db);
 
         var output = await OverrideTools.Propose(
-            svc, gate, AccessorFor("user:proposer"),
+            svc, gate, AccessorFor("user:proposer"), AllowRbacInstance,
             version.Id.ToString(), "NotAScopeKind", "user:42",
             "Exempt", DateTimeOffset.UtcNow.AddDays(1).ToString("o"), "rationale");
 
@@ -215,7 +222,7 @@ public class OverrideToolsTests
         var proposed = await SeedProposedAsync(svc, db, proposer: "user:proposer");
 
         var output = await OverrideTools.Approve(
-            svc, gate, AccessorFor("user:approver"),
+            svc, gate, AccessorFor("user:approver"), AllowRbacInstance,
             proposed.Id.ToString());
 
         var dto = JsonSerializer.Deserialize<OverrideDto>(output, JsonOptions);
@@ -230,7 +237,7 @@ public class OverrideToolsTests
         var proposed = await SeedProposedAsync(svc, db, proposer: "user:proposer");
 
         var output = await OverrideTools.Approve(
-            svc, gate, AccessorFor("user:proposer"),
+            svc, gate, AccessorFor("user:proposer"), AllowRbacInstance,
             proposed.Id.ToString());
 
         output.Should().StartWith("policy.override.self_approval_forbidden:");
@@ -244,7 +251,7 @@ public class OverrideToolsTests
         await svc.ApproveAsync(proposed.Id, "user:approver");
 
         var output = await OverrideTools.Approve(
-            svc, gate, AccessorFor("user:other"),
+            svc, gate, AccessorFor("user:other"), AllowRbacInstance,
             proposed.Id.ToString());
 
         output.Should().StartWith("policy.override.invalid_state:");
@@ -256,7 +263,7 @@ public class OverrideToolsTests
         var (svc, _, gate) = NewServices();
 
         var output = await OverrideTools.Approve(
-            svc, gate, AccessorFor("user:approver"),
+            svc, gate, AccessorFor("user:approver"), AllowRbacInstance,
             Guid.NewGuid().ToString());
 
         output.Should().StartWith("policy.override.not_found:");
@@ -270,7 +277,7 @@ public class OverrideToolsTests
         gate.IsEnabled = false;
 
         var output = await OverrideTools.Approve(
-            svc, gate, AccessorFor("user:approver"),
+            svc, gate, AccessorFor("user:approver"), AllowRbacInstance,
             proposed.Id.ToString());
 
         output.Should().StartWith("policy.override.disabled:");
@@ -285,7 +292,7 @@ public class OverrideToolsTests
         var proposed = await SeedProposedAsync(svc, db);
 
         var output = await OverrideTools.Revoke(
-            svc, gate, AccessorFor("user:approver"),
+            svc, gate, AccessorFor("user:approver"), AllowRbacInstance,
             proposed.Id.ToString(), "withdrawn");
 
         var dto = JsonSerializer.Deserialize<OverrideDto>(output, JsonOptions);
@@ -300,7 +307,7 @@ public class OverrideToolsTests
         var proposed = await SeedProposedAsync(svc, db);
 
         var output = await OverrideTools.Revoke(
-            svc, gate, AccessorFor("user:approver"),
+            svc, gate, AccessorFor("user:approver"), AllowRbacInstance,
             proposed.Id.ToString(), "   ");
 
         output.Should().StartWith("policy.override.invalid_argument:");

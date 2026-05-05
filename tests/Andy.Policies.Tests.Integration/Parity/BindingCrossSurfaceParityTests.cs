@@ -11,6 +11,7 @@ using Andy.Policies.Application.Dtos;
 using Andy.Policies.Application.Interfaces;
 using Andy.Policies.Domain.Enums;
 using Andy.Policies.Tests.Integration.Controllers;
+using Andy.Policies.Tests.Integration.Fixtures;
 using FluentAssertions;
 using Grpc.Net.Client;
 using Microsoft.AspNetCore.Http;
@@ -222,7 +223,7 @@ public class BindingCrossSurfaceParityTests : IClassFixture<PoliciesApiFactory>,
         };
         var accessor = new HttpContextAccessor { HttpContext = ctx };
         var mcpOutput = await BindingTools.Create(
-            bindingService, accessor,
+            bindingService, accessor, McpToolStubs.AllowAllRbac,
             version.Id.ToString(), "Template", "template:retired-target", "Mandatory");
         mcpOutput.Should().StartWith("policy.binding.retired_target:");
     }

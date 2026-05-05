@@ -4,6 +4,7 @@
 using System.ComponentModel;
 using System.Security.Claims;
 using System.Text;
+using Andy.Policies.Api.Mcp.Authorization;
 using Andy.Policies.Application.Dtos;
 using Andy.Policies.Application.Exceptions;
 using Andy.Policies.Application.Interfaces;
@@ -44,14 +45,18 @@ public static class PolicyLifecycleTools
         "Active version of the same policy in the same DB transaction. Requires a " +
         "non-empty rationale when andy.policies.rationaleRequired is true (default). " +
         "Returns the updated version on success or a human-readable error string.")]
+    [RbacGuard("andy-policies:policy:publish")]
     public static Task<string> Publish(
         ILifecycleTransitionService transitions,
         IHttpContextAccessor httpContext,
+        IRbacChecker rbac,
         [Description("Policy id (GUID)")] string policyId,
         [Description("PolicyVersion id (GUID) of the Draft to publish")] string versionId,
         [Description("Human-readable reason recorded against the publish event")] string rationale,
         CancellationToken ct = default)
-        => TransitionAsync(transitions, httpContext, policyId, versionId,
+        => TransitionAsync(transitions, httpContext, rbac,
+            "andy-policies:policy:publish",
+            policyId, versionId,
             LifecycleState.Active.ToString(), rationale, ct);
 
     [McpServerTool(Name = "policy.version.transition"), Description(
@@ -60,15 +65,19 @@ public static class PolicyLifecycleTools
         "Any other (from, to) pair returns INVALID_TRANSITION. targetState is parsed " +
         "case-insensitively; targetState=Draft is rejected because the matrix has no edge " +
         "into Draft. Use policy.lifecycle.matrix to introspect allowed transitions.")]
+    [RbacGuard("andy-policies:policy:transition")]
     public static async Task<string> Transition(
         ILifecycleTransitionService transitions,
         IHttpContextAccessor httpContext,
+        IRbacChecker rbac,
         [Description("Policy id (GUID)")] string policyId,
         [Description("PolicyVersion id (GUID)")] string versionId,
         [Description("One of: Active, WindingDown, Retired (case-insensitive)")] string targetState,
         [Description("Human-readable reason recorded against the transition event")] string rationale,
         CancellationToken ct = default)
-        => await TransitionAsync(transitions, httpContext, policyId, versionId, targetState, rationale, ct);
+        => await TransitionAsync(transitions, httpContext, rbac,
+            "andy-policies:policy:transition",
+            policyId, versionId, targetState, rationale, ct);
 
     [McpServerTool(Name = "policy.lifecycle.matrix"), Description(
         "Returns the canonical lifecycle transition matrix as one rule per line. " +
@@ -90,6 +99,8 @@ public static class PolicyLifecycleTools
     private static async Task<string> TransitionAsync(
         ILifecycleTransitionService transitions,
         IHttpContextAccessor httpContext,
+        IRbacChecker rbac,
+        string permissionCode,
         string policyId,
         string versionId,
         string targetState,
@@ -117,6 +128,16 @@ public static class PolicyLifecycleTools
             // here means the tool was wired without auth (or a custom transport
             // bypassed it). Fail loud rather than write a fallback subject id.
             return "Authentication required: no subject id present on the caller's claims principal.";
+        }
+
+        try
+        {
+            await McpRbacGuard.EnsureAsync(rbac, httpContext,
+                permissionCode, $"version:{vid}", ct);
+        }
+        catch (McpAuthorizationException ex)
+        {
+            return $"policy.lifecycle.forbidden: {ex.Reason}";
         }
 
         try

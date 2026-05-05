@@ -8,10 +8,13 @@ using Andy.Policies.Application.Dtos;
 using Andy.Policies.Application.Interfaces;
 using Andy.Policies.Infrastructure.Audit;
 using Andy.Policies.Infrastructure.Data;
+using Andy.Policies.Tests.Integration.Fixtures;
 using FluentAssertions;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
+
+using static Andy.Policies.Tests.Integration.Fixtures.McpToolStubs;
 
 namespace Andy.Policies.Tests.Integration.Mcp;
 
@@ -167,7 +170,7 @@ public class AuditToolsTests : IDisposable
     public async Task Verify_HappyPath_ReturnsValidJson()
     {
         await SeedAsync(5);
-        var output = await AuditTools.Verify(_chain);
+        var output = await AuditTools.Verify(_chain, AccessorFor("test-user"), AllowAllRbac);
 
         var dto = JsonSerializer.Deserialize<ChainVerificationDto>(output, JsonOpts);
         dto!.Valid.Should().BeTrue();
@@ -178,14 +181,14 @@ public class AuditToolsTests : IDisposable
     [Fact]
     public async Task Verify_FromGreaterThanTo_ReturnsInvalidArgument()
     {
-        var output = await AuditTools.Verify(_chain, fromSeq: 10, toSeq: 5);
+        var output = await AuditTools.Verify(_chain, AccessorFor("test-user"), AllowAllRbac, fromSeq: 10, toSeq: 5);
         output.Should().StartWith("policy.audit.invalid_argument:");
     }
 
     [Fact]
     public async Task Verify_NonPositiveBound_ReturnsInvalidArgument()
     {
-        var output = await AuditTools.Verify(_chain, fromSeq: 0);
+        var output = await AuditTools.Verify(_chain, AccessorFor("test-user"), AllowAllRbac, fromSeq: 0);
         output.Should().StartWith("policy.audit.invalid_argument:");
     }
 
@@ -196,7 +199,7 @@ public class AuditToolsTests : IDisposable
     {
         await SeedAsync(3);
 
-        var base64 = await AuditTools.Export(_exporter);
+        var base64 = await AuditTools.Export(_exporter, AccessorFor("test-user"), AllowAllRbac);
 
         var bytes = Convert.FromBase64String(base64);
         var text = Encoding.UTF8.GetString(bytes);
@@ -213,7 +216,7 @@ public class AuditToolsTests : IDisposable
     {
         await SeedAsync(10);
 
-        var base64 = await AuditTools.Export(_exporter, fromSeq: 4, toSeq: 7);
+        var base64 = await AuditTools.Export(_exporter, AccessorFor("test-user"), AllowAllRbac, fromSeq: 4, toSeq: 7);
 
         var bytes = Convert.FromBase64String(base64);
         var lines = Encoding.UTF8.GetString(bytes)
@@ -224,7 +227,7 @@ public class AuditToolsTests : IDisposable
     [Fact]
     public async Task Export_FromGreaterThanTo_ReturnsInvalidArgument()
     {
-        var output = await AuditTools.Export(_exporter, fromSeq: 10, toSeq: 5);
+        var output = await AuditTools.Export(_exporter, AccessorFor("test-user"), AllowAllRbac, fromSeq: 10, toSeq: 5);
         output.Should().StartWith("policy.audit.invalid_argument:");
     }
 }

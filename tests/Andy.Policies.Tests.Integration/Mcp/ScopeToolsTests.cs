@@ -7,10 +7,13 @@ using Andy.Policies.Application.Dtos;
 using Andy.Policies.Domain.Enums;
 using Andy.Policies.Infrastructure.Data;
 using Andy.Policies.Infrastructure.Services;
+using Andy.Policies.Tests.Integration.Fixtures;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Xunit;
+
+using static Andy.Policies.Tests.Integration.Fixtures.McpToolStubs;
 
 namespace Andy.Policies.Tests.Integration.Mcp;
 
@@ -122,7 +125,7 @@ public class ScopeToolsTests
         var refValue = $"org:t-create-{Guid.NewGuid():N}".Substring(0, 18);
 
         var output = await ScopeTools.Create(
-            scopes, parentId: null, type: "Org", @ref: refValue, displayName: "Display");
+            scopes, AccessorFor("test-user"), AllowAllRbac, parentId: null, type: "Org", @ref: refValue, displayName: "Display");
 
         output.Should().Contain("ScopeNode ");
         output.Should().Contain($"Ref: {refValue}");
@@ -137,7 +140,7 @@ public class ScopeToolsTests
         var org = await scopes.CreateAsync(new CreateScopeNodeRequest(null, ScopeType.Org, "org:t-mis", "Org"));
 
         var output = await ScopeTools.Create(
-            scopes,
+            scopes, AccessorFor("test-user"), AllowAllRbac,
             parentId: org.Id.ToString(),
             type: "Team",  // Team's parent must be Tenant, not Org.
             @ref: "team:wrong",
@@ -152,7 +155,7 @@ public class ScopeToolsTests
         var (scopes, _, _) = NewServices();
 
         var output = await ScopeTools.Create(
-            scopes,
+            scopes, AccessorFor("test-user"), AllowAllRbac,
             parentId: Guid.NewGuid().ToString(),
             type: "Tenant",
             @ref: "tenant:orphan",
@@ -167,7 +170,7 @@ public class ScopeToolsTests
         var (scopes, _, _) = NewServices();
 
         var output = await ScopeTools.Create(
-            scopes, parentId: "not-a-guid", type: "Tenant", @ref: "tenant:bad", displayName: "Bad");
+            scopes, AccessorFor("test-user"), AllowAllRbac, parentId: "not-a-guid", type: "Tenant", @ref: "tenant:bad", displayName: "Bad");
 
         output.Should().StartWith("policy.scope.invalid_input:");
     }
@@ -178,10 +181,10 @@ public class ScopeToolsTests
         var (scopes, _, _) = NewServices();
         var dto = await scopes.CreateAsync(new CreateScopeNodeRequest(null, ScopeType.Org, "org:t-del", "Del"));
 
-        var first = await ScopeTools.Delete(scopes, dto.Id.ToString());
+        var first = await ScopeTools.Delete(scopes, AccessorFor("test-user"), AllowAllRbac, dto.Id.ToString());
         first.Should().Contain("deleted");
 
-        var second = await ScopeTools.Delete(scopes, dto.Id.ToString());
+        var second = await ScopeTools.Delete(scopes, AccessorFor("test-user"), AllowAllRbac, dto.Id.ToString());
         second.Should().StartWith("policy.scope.not_found:");
     }
 
@@ -192,7 +195,7 @@ public class ScopeToolsTests
         var org = await scopes.CreateAsync(new CreateScopeNodeRequest(null, ScopeType.Org, "org:t-d-non", "Org"));
         await scopes.CreateAsync(new CreateScopeNodeRequest(org.Id, ScopeType.Tenant, "tenant:t-d-non", "Tn"));
 
-        var output = await ScopeTools.Delete(scopes, org.Id.ToString());
+        var output = await ScopeTools.Delete(scopes, AccessorFor("test-user"), AllowAllRbac, org.Id.ToString());
 
         output.Should().StartWith("policy.scope.has_descendants:");
         output.Should().Contain("childCount=1");

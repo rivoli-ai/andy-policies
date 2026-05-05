@@ -363,7 +363,16 @@ builder.Services.AddCors(options =>
 });
 
 // --- gRPC ---
-builder.Services.AddGrpc();
+// P7.6 (#64): the gRPC interceptor mirrors the REST auth handler's
+// contract — same IRbacChecker, same fail-closed posture, same per-
+// permission code names from the P7.1 manifest.
+builder.Services.AddSingleton<
+    Andy.Policies.Api.GrpcServices.Authorization.IGrpcMethodPermissionMap,
+    Andy.Policies.Api.GrpcServices.Authorization.GrpcMethodPermissionMap>();
+builder.Services.AddGrpc(options =>
+{
+    options.Interceptors.Add<Andy.Policies.Api.GrpcServices.Authorization.RbacServerInterceptor>();
+});
 
 // P2.5 (#15) — MCP lifecycle tools read the caller subject id from the
 // HttpContext claims (same source as REST, gRPC, CLI). Without this

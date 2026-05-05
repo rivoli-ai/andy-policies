@@ -4,8 +4,10 @@
 using System.ComponentModel;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Andy.Policies.Api.Mcp.Authorization;
 using Andy.Policies.Application.Dtos;
 using Andy.Policies.Application.Interfaces;
+using Microsoft.AspNetCore.Http;
 using ModelContextProtocol.Server;
 
 namespace Andy.Policies.Api.Mcp;
@@ -32,11 +34,12 @@ namespace Andy.Policies.Api.Mcp;
 /// <c>andy-policies-cli audit verify --file</c> (P6.5).
 /// </para>
 /// <para>
-/// <b>RBAC posture.</b> Per-tool RBAC (<c>audit:read</c>,
-/// <c>audit:verify</c>, <c>audit:export</c>) lands with P7.2
-/// (#51) when the andy-rbac client wires up; today the JWT
-/// layer at the MCP edge enforces authentication and that
-/// suffices for development.
+/// <b>RBAC posture.</b> Per-tool RBAC (<c>audit:verify</c>,
+/// <c>audit:export</c>) is enforced via <see cref="McpRbacGuard"/>
+/// since P7.6 (#64), mirroring the gRPC interceptor on
+/// <c>AuditService</c>. Reads (<c>list</c>, <c>get</c>) remain
+/// gated only by JWT auth at the MCP edge; the gRPC
+/// surface is the canonical enforcement point for read-side.
 /// </para>
 /// </remarks>
 [McpServerToolType]
@@ -133,8 +136,11 @@ public static class AuditTools
         "inspectedCount, and lastSeq. Divergence is a queryable state, not " +
         "an error — valid=false with firstDivergenceSeq pinpoints the " +
         "tampered row.")]
+    [RbacGuard("andy-policies:audit:verify")]
     public static async Task<string> Verify(
         IAuditChain chain,
+        IHttpContextAccessor httpContext,
+        IRbacChecker rbac,
         [Description("Inclusive lower seq bound. Defaults to 1.")] long? fromSeq = null,
         [Description("Inclusive upper seq bound. Defaults to MAX(seq).")] long? toSeq = null,
         CancellationToken ct = default)
@@ -150,6 +156,16 @@ public static class AuditTools
         if (fromSeq is { } f && toSeq is { } t && f > t)
         {
             return $"policy.audit.invalid_argument: fromSeq ({f}) must be <= toSeq ({t}).";
+        }
+
+        try
+        {
+            await McpRbacGuard.EnsureAsync(rbac, httpContext,
+                "andy-policies:audit:verify", null, ct);
+        }
+        catch (McpAuthorizationException ex)
+        {
+            return $"policy.audit.forbidden: {ex.Reason}";
         }
 
         var result = await chain.VerifyChainAsync(fromSeq, toSeq, ct).ConfigureAwait(false);
@@ -169,8 +185,11 @@ public static class AuditTools
         "and exportedAt. The bundle is verifiable offline by " +
         "andy-policies-cli audit verify --file. Integrity is via the " +
         "embedded hash chain — no external KMS / detached signature.")]
+    [RbacGuard("andy-policies:audit:export")]
     public static async Task<string> Export(
         IAuditExporter exporter,
+        IHttpContextAccessor httpContext,
+        IRbacChecker rbac,
         [Description("Inclusive lower seq bound. Defaults to 1.")] long? fromSeq = null,
         [Description("Inclusive upper seq bound. Defaults to MAX(seq).")] long? toSeq = null,
         CancellationToken ct = default)
@@ -186,6 +205,16 @@ public static class AuditTools
         if (fromSeq is { } f && toSeq is { } t && f > t)
         {
             return $"policy.audit.invalid_argument: fromSeq ({f}) must be <= toSeq ({t}).";
+        }
+
+        try
+        {
+            await McpRbacGuard.EnsureAsync(rbac, httpContext,
+                "andy-policies:audit:export", null, ct);
+        }
+        catch (McpAuthorizationException ex)
+        {
+            return $"policy.audit.forbidden: {ex.Reason}";
         }
 
         // Buffer in memory before base64-encoding for the MCP
