@@ -299,6 +299,106 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+  '/api/bundles/{id}/resolve':
+    get:
+      tags:
+        - Bundles
+      summary: "Resolve bindings for a `(targetType, targetRef)` pair\r\nagainst a frozen bundle. Exact-match only (mirrors the live\r\n`GET /api/bindings/resolve`); no hierarchy walk.\r\nReturns 200 with a Andy.Policies.Application.Interfaces.BundleResolveResult; 404\r\nwhen the bundle does not exist or is soft-deleted; 400 when\r\ntargetRef is empty."
+      operationId: Bundles_Resolve
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: targetType
+          in: query
+          schema:
+            $ref: '#/components/schemas/BindingTargetType'
+        - name: targetRef
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BundleResolveResult'
+        '304':
+          description: Not Modified
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  '/api/bundles/{id}/policies/{policyId}':
+    get:
+      tags:
+        - Bundles
+      summary: "Look up a single pinned policy by id. Returns 200 with a\r\nAndy.Policies.Application.Interfaces.BundlePinnedPolicyDto, or 404 when the bundle\r\ndoes not exist / is soft-deleted, or the policy id is not in\r\nthe snapshot."
+      operationId: Bundles_GetPinnedPolicy
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: policyId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BundlePinnedPolicyDto'
+        '304':
+          description: Not Modified
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /api/Help/topics:
     get:
       tags:
@@ -1602,6 +1702,131 @@ components:
         - Tenant
         - Org
       type: string
+    BundlePinnedPolicyDto:
+      type: object
+      properties:
+        bundleId:
+          type: string
+          format: uuid
+        bundleName:
+          type: string
+          nullable: true
+        snapshotHash:
+          type: string
+          nullable: true
+        capturedAt:
+          type: string
+          format: date-time
+        policyId:
+          type: string
+          format: uuid
+        policyName:
+          type: string
+          nullable: true
+        policyVersionId:
+          type: string
+          format: uuid
+        versionNumber:
+          type: integer
+          format: int32
+        enforcement:
+          enum:
+            - MUST
+            - SHOULD
+            - MAY
+          type: string
+          nullable: true
+        severity:
+          enum:
+            - info
+            - moderate
+            - critical
+          type: string
+          nullable: true
+        scopes:
+          type: array
+          items:
+            type: string
+          nullable: true
+        rulesJson:
+          type: string
+          nullable: true
+        summary:
+          type: string
+          nullable: true
+      additionalProperties: false
+      description: "Single-policy projection from a bundle snapshot. Returned by\r\nM:Andy.Policies.Application.Interfaces.IBundleResolver.GetPinnedPolicyAsync(System.Guid,System.Guid,System.Threading.CancellationToken); carries the\r\nsnapshot coordinates so callers can stamp ETags / cache keys."
+    BundleResolveResult:
+      type: object
+      properties:
+        bundleId:
+          type: string
+          format: uuid
+        bundleName:
+          type: string
+          nullable: true
+        snapshotHash:
+          type: string
+          nullable: true
+        capturedAt:
+          type: string
+          format: date-time
+        targetType:
+          $ref: '#/components/schemas/BindingTargetType'
+        targetRef:
+          type: string
+          nullable: true
+        bindings:
+          type: array
+          items:
+            $ref: '#/components/schemas/BundleResolvedBindingDto'
+          nullable: true
+        count:
+          type: integer
+          format: int32
+      additionalProperties: false
+      description: "Envelope for M:Andy.Policies.Application.Interfaces.IBundleResolver.ResolveAsync(System.Guid,Andy.Policies.Domain.Enums.BindingTargetType,System.String,System.Threading.CancellationToken). Carries\r\nthe bundle identity + snapshot coordinate (Andy.Policies.Application.Interfaces.BundleResolveResult.SnapshotHash,\r\nAndy.Policies.Application.Interfaces.BundleResolveResult.CapturedAt) so callers caching the response have\r\neverything they need to validate it against a re-fetched bundle."
+    BundleResolvedBindingDto:
+      type: object
+      properties:
+        bindingId:
+          type: string
+          format: uuid
+        policyId:
+          type: string
+          format: uuid
+        policyName:
+          type: string
+          nullable: true
+        policyVersionId:
+          type: string
+          format: uuid
+        versionNumber:
+          type: integer
+          format: int32
+        enforcement:
+          enum:
+            - MUST
+            - SHOULD
+            - MAY
+          type: string
+          nullable: true
+        severity:
+          enum:
+            - info
+            - moderate
+            - critical
+          type: string
+          nullable: true
+        scopes:
+          type: array
+          items:
+            type: string
+          nullable: true
+        bindStrength:
+          $ref: '#/components/schemas/BindStrength'
+      additionalProperties: false
+      description: "Per-binding row in Andy.Policies.Application.Interfaces.BundleResolveResult.Bindings.\r\nMirrors Andy.Policies.Application.Dtos.ResolvedBindingDto\r\nfrom P3.4: same wire-format casing, same fields. The only\r\ndifference is the data source (frozen snapshot vs. live tables)."
     ChainVerificationDto:
       type: object
       properties:
@@ -2176,6 +2401,8 @@ tags:
     description: "REST surface for the catalog audit chain (P6.5+). This file\r\nscaffolds the `verify` endpoint (P6.5, story\r\nrivoli-ai/andy-policies#45); list / get / export endpoints\r\nfollow in P6.6+."
   - name: Bindings
     description: "REST surface for `Binding` mutation, single-id read, and target-side\r\nquery (P3.3, story rivoli-ai/andy-policies#21). Delegates to\r\nAndy.Policies.Application.Interfaces.IBindingService from P3.2 — same service powering MCP\r\n(P3.5), gRPC (P3.6), and CLI (P3.7). Service exceptions are mapped by\r\nthe global `PolicyExceptionHandler` (already covers\r\nAndy.Policies.Application.Exceptions.NotFoundException,\r\nAndy.Policies.Application.Exceptions.ConflictException, and\r\nAndy.Policies.Application.Exceptions.ValidationException; the\r\nAndy.Policies.Application.Exceptions.BindingRetiredVersionException\r\ninherits from Andy.Policies.Application.Exceptions.ConflictException so\r\nthe existing 409 mapping catches it)."
+  - name: Bundles
+    description: "REST surface for resolving and reading from a frozen\r\nAndy.Policies.Domain.Entities.Bundle snapshot\r\n(P8.3, story rivoli-ai/andy-policies#83). Two endpoints today:\r\n<list type=\"bullet\"><item>`GET /api/bundles/{id}/resolve?targetType=&targetRef=`\r\n    — bindings against the snapshot for a target.</item><item>`GET /api/bundles/{id}/policies/{policyId}` — pinned\r\n    policy lookup.</item></list>\r\nMutation surfaces (POST / DELETE) land in P8.4–P8.5 alongside the\r\nMCP and gRPC parity."
   - name: Help
     description: "Serves help content from markdown files in content/help/.\r\nConsumable by any client: Angular, Swift (Conductor), CLI, MCP."
   - name: Overrides
