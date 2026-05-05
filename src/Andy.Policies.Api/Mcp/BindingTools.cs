@@ -6,10 +6,12 @@ using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Andy.Policies.Api.Mcp.Authorization;
 using Andy.Policies.Application.Dtos;
 using Andy.Policies.Application.Exceptions;
 using Andy.Policies.Application.Interfaces;
 using Andy.Policies.Domain.Enums;
+using Microsoft.AspNetCore.Http;
 using ModelContextProtocol.Server;
 
 namespace Andy.Policies.Api.Mcp;
@@ -69,9 +71,11 @@ public static class BindingTools
         "one of: Template, Repo, ScopeNode, Tenant, Org (case-insensitive). " +
         "bindStrength is Mandatory or Recommended. Refuses bindings to Retired " +
         "versions with policy.binding.retired_target.")]
+    [RbacGuard("andy-policies:binding:manage")]
     public static async Task<string> Create(
         IBindingService service,
         IHttpContextAccessor httpContext,
+        IRbacChecker rbac,
         [Description("Target policy version id (GUID)")] string policyVersionId,
         [Description("One of: Template, Repo, ScopeNode, Tenant, Org")] string targetType,
         [Description("Target reference (e.g. 'template:abc', 'repo:org/name')")] string targetRef,
@@ -99,6 +103,16 @@ public static class BindingTools
 
         try
         {
+            await McpRbacGuard.EnsureAsync(rbac, httpContext,
+                "andy-policies:binding:manage", $"version:{vid}", ct);
+        }
+        catch (McpAuthorizationException ex)
+        {
+            return $"policy.binding.forbidden: {ex.Reason}";
+        }
+
+        try
+        {
             var dto = await service.CreateAsync(
                 new CreateBindingRequest(vid, tt, targetRef, bs), actor, ct);
             return FormatBindingDetail(dto);
@@ -122,9 +136,11 @@ public static class BindingTools
         "row; the binding remains for the audit chain. Optional rationale is " +
         "recorded against the audit event. Returns policy.binding.not_found " +
         "if the binding does not exist or is already tombstoned.")]
+    [RbacGuard("andy-policies:binding:manage")]
     public static async Task<string> Delete(
         IBindingService service,
         IHttpContextAccessor httpContext,
+        IRbacChecker rbac,
         [Description("Binding id (GUID)")] string bindingId,
         [Description("Optional rationale recorded against the audit event")] string? rationale = null,
         CancellationToken ct = default)
@@ -138,6 +154,16 @@ public static class BindingTools
         if (actor is null)
         {
             return "Authentication required: no subject id present on the caller's claims principal.";
+        }
+
+        try
+        {
+            await McpRbacGuard.EnsureAsync(rbac, httpContext,
+                "andy-policies:binding:manage", $"binding:{id}", ct);
+        }
+        catch (McpAuthorizationException ex)
+        {
+            return $"policy.binding.forbidden: {ex.Reason}";
         }
 
         try

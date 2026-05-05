@@ -5,10 +5,12 @@ using System.Security.Claims;
 using System.Text.Json;
 using Andy.Policies.Api.Mcp;
 using Andy.Policies.Application.Dtos;
+using Andy.Policies.Application.Interfaces;
 using Andy.Policies.Domain.Entities;
 using Andy.Policies.Domain.Enums;
 using Andy.Policies.Infrastructure.Data;
 using Andy.Policies.Infrastructure.Services;
+using Andy.Policies.Tests.Integration.Fixtures;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -63,6 +65,13 @@ public class BindingToolsTests
         return new HttpContextAccessor { HttpContext = ctx };
     }
 
+    /// <summary>
+    /// P7.6 (#64) added <see cref="IRbacChecker"/> to every mutating MCP
+    /// tool. Tests below thread this through; authorization-specific
+    /// behaviour lives in <c>OverrideToolsRbacTests</c>.
+    /// </summary>
+    private static readonly IRbacChecker AllowRbac = McpToolStubs.AllowAllRbac;
+
     private static CreatePolicyRequest MinimalCreate(string name) => new(
         Name: name,
         Description: null,
@@ -79,7 +88,7 @@ public class BindingToolsTests
         var draft = await policies.CreateDraftAsync(MinimalCreate("bind-create"), "sam");
 
         var output = await BindingTools.Create(
-            svc, AccessorFor("agent-1"),
+            svc, AccessorFor("agent-1"), AllowRbac,
             draft.Id.ToString(), "Repo", "repo:rivoli-ai/policy-x", "Mandatory");
 
         output.Should().Contain("Binding ");
@@ -100,7 +109,7 @@ public class BindingToolsTests
         await db.SaveChangesAsync();
 
         var output = await BindingTools.Create(
-            svc, AccessorFor("agent-1"),
+            svc, AccessorFor("agent-1"), AllowRbac,
             draft.Id.ToString(), "Repo", "repo:any/repo", "Recommended");
 
         output.Should().StartWith("policy.binding.retired_target:");
@@ -112,7 +121,7 @@ public class BindingToolsTests
         var (svc, _, _, _) = NewServices();
 
         var output = await BindingTools.Create(
-            svc, AccessorFor("agent-1"),
+            svc, AccessorFor("agent-1"), AllowRbac,
             Guid.NewGuid().ToString(), "Repo", "repo:rivoli-ai/policy-x", "Mandatory");
 
         output.Should().StartWith("policy.binding.not_found:");
@@ -125,7 +134,7 @@ public class BindingToolsTests
         var draft = await policies.CreateDraftAsync(MinimalCreate("bind-invalid"), "sam");
 
         var output = await BindingTools.Create(
-            svc, AccessorFor("agent-1"),
+            svc, AccessorFor("agent-1"), AllowRbac,
             draft.Id.ToString(), "Unicorn", "ref", "Recommended");
 
         output.Should().StartWith("policy.binding.invalid_target:");
@@ -138,7 +147,7 @@ public class BindingToolsTests
         var draft = await policies.CreateDraftAsync(MinimalCreate("bind-empty"), "sam");
 
         var output = await BindingTools.Create(
-            svc, AccessorFor("agent-1"),
+            svc, AccessorFor("agent-1"), AllowRbac,
             draft.Id.ToString(), "Repo", "  ", "Recommended");
 
         output.Should().StartWith("policy.binding.invalid_target:");
@@ -151,7 +160,7 @@ public class BindingToolsTests
         var draft = await policies.CreateDraftAsync(MinimalCreate("bind-noauth"), "sam");
 
         var output = await BindingTools.Create(
-            svc, AccessorFor(subjectId: null),
+            svc, AccessorFor(subjectId: null), AllowRbac,
             draft.Id.ToString(), "Repo", "repo:any/repo", "Mandatory");
 
         output.Should().Contain("Authentication required");
@@ -164,7 +173,7 @@ public class BindingToolsTests
     {
         var (svc, _, policies, _) = NewServices();
         var draft = await policies.CreateDraftAsync(MinimalCreate("bind-list"), "sam");
-        await BindingTools.Create(svc, AccessorFor("agent-1"),
+        await BindingTools.Create(svc, AccessorFor("agent-1"), AllowRbac,
             draft.Id.ToString(), "Repo", "repo:a/x", "Mandatory");
 
         var output = await BindingTools.List(svc, draft.Id.ToString());
@@ -189,14 +198,14 @@ public class BindingToolsTests
     {
         var (svc, _, policies, _) = NewServices();
         var draft = await policies.CreateDraftAsync(MinimalCreate("bind-del"), "sam");
-        var createOutput = await BindingTools.Create(svc, AccessorFor("agent-1"),
+        var createOutput = await BindingTools.Create(svc, AccessorFor("agent-1"), AllowRbac,
             draft.Id.ToString(), "Repo", "repo:a/del", "Mandatory");
         var bindingId = createOutput.Split('\n')[0].Replace("Binding ", "").Trim();
 
-        var first = await BindingTools.Delete(svc, AccessorFor("agent-1"), bindingId, "no longer needed");
+        var first = await BindingTools.Delete(svc, AccessorFor("agent-1"), AllowRbac, bindingId, "no longer needed");
         first.Should().Contain("soft-deleted");
 
-        var second = await BindingTools.Delete(svc, AccessorFor("agent-1"), bindingId);
+        var second = await BindingTools.Delete(svc, AccessorFor("agent-1"), AllowRbac, bindingId);
         second.Should().StartWith("policy.binding.not_found:");
     }
 
@@ -205,7 +214,7 @@ public class BindingToolsTests
     {
         var (svc, _, _, _) = NewServices();
 
-        var output = await BindingTools.Delete(svc, AccessorFor(subjectId: null), Guid.NewGuid().ToString());
+        var output = await BindingTools.Delete(svc, AccessorFor(subjectId: null), AllowRbac, Guid.NewGuid().ToString());
 
         output.Should().Contain("Authentication required");
     }
@@ -218,7 +227,7 @@ public class BindingToolsTests
         var entity = await db.PolicyVersions.FirstAsync(v => v.Id == draft.Id);
         entity.State = LifecycleState.Active;
         await db.SaveChangesAsync();
-        await BindingTools.Create(svc, AccessorFor("agent-1"),
+        await BindingTools.Create(svc, AccessorFor("agent-1"), AllowRbac,
             draft.Id.ToString(), "Template", "template:abc", "Mandatory");
 
         var output = await BindingTools.Resolve(resolver, "Template", "template:abc");

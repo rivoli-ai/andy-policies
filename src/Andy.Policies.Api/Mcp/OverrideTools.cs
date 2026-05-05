@@ -9,8 +9,10 @@ using System.Text.Json.Serialization;
 using Andy.Policies.Application.Dtos;
 using Andy.Policies.Application.Exceptions;
 using Andy.Policies.Application.Interfaces;
+using Andy.Policies.Api.Mcp.Authorization;
 using Andy.Policies.Application.Settings;
 using Andy.Policies.Domain.Enums;
+using Microsoft.AspNetCore.Http;
 using ModelContextProtocol.Server;
 
 namespace Andy.Policies.Api.Mcp;
@@ -68,10 +70,12 @@ public static class OverrideTools
         "Effect is Exempt (no replacement) or Replace (requires " +
         "replacementPolicyVersionId). Returns policy.override.disabled " +
         "when andy.policies.experimentalOverridesEnabled is off.")]
+    [RbacGuard("andy-policies:override:propose")]
     public static async Task<string> Propose(
         IOverrideService service,
         IExperimentalOverridesGate gate,
         IHttpContextAccessor httpContext,
+        IRbacChecker rbac,
         [Description("Target policy version id (GUID)")] string policyVersionId,
         [Description("Principal or Cohort")] string scopeKind,
         [Description("Opaque scope ref (e.g. 'user:42', 'cohort:beta-testers'); ≤256 chars")] string scopeRef,
@@ -119,6 +123,16 @@ public static class OverrideTools
 
         try
         {
+            await McpRbacGuard.EnsureAsync(rbac, httpContext,
+                "andy-policies:override:propose", scopeRef, ct);
+        }
+        catch (McpAuthorizationException ex)
+        {
+            return $"policy.override.forbidden: {ex.Reason}";
+        }
+
+        try
+        {
             var dto = await service.ProposeAsync(
                 new ProposeOverrideRequest(pvid, sk, scopeRef, ef, replacementId, exp, rationale),
                 actor, ct);
@@ -138,10 +152,12 @@ public static class OverrideTools
         "Approve a proposed override. Approver must differ from proposer " +
         "(returns policy.override.self_approval_forbidden otherwise). " +
         "Returns policy.override.invalid_state if the row is past Proposed.")]
+    [RbacGuard("andy-policies:override:approve")]
     public static async Task<string> Approve(
         IOverrideService service,
         IExperimentalOverridesGate gate,
         IHttpContextAccessor httpContext,
+        IRbacChecker rbac,
         [Description("Override id (GUID)")] string id,
         CancellationToken ct = default)
     {
@@ -158,6 +174,16 @@ public static class OverrideTools
         if (actor is null)
         {
             return "Authentication required: no subject id present on the caller's claims principal.";
+        }
+
+        try
+        {
+            await McpRbacGuard.EnsureAsync(rbac, httpContext,
+                "andy-policies:override:approve", $"override:{oid}", ct);
+        }
+        catch (McpAuthorizationException ex)
+        {
+            return $"policy.override.forbidden: {ex.Reason}";
         }
 
         try
@@ -187,10 +213,12 @@ public static class OverrideTools
         "Revoke an override (Proposed or Approved). Requires a non-empty " +
         "revocationReason. Reaper-driven Expired transitions go through " +
         "P5.3 instead.")]
+    [RbacGuard("andy-policies:override:revoke")]
     public static async Task<string> Revoke(
         IOverrideService service,
         IExperimentalOverridesGate gate,
         IHttpContextAccessor httpContext,
+        IRbacChecker rbac,
         [Description("Override id (GUID)")] string id,
         [Description("Required non-empty revocation reason; ≤2000 chars")] string revocationReason,
         CancellationToken ct = default)
@@ -208,6 +236,16 @@ public static class OverrideTools
         if (actor is null)
         {
             return "Authentication required: no subject id present on the caller's claims principal.";
+        }
+
+        try
+        {
+            await McpRbacGuard.EnsureAsync(rbac, httpContext,
+                "andy-policies:override:revoke", $"override:{oid}", ct);
+        }
+        catch (McpAuthorizationException ex)
+        {
+            return $"policy.override.forbidden: {ex.Reason}";
         }
 
         try

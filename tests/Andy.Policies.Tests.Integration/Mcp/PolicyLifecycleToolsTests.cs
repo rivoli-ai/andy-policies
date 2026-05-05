@@ -8,6 +8,7 @@ using Andy.Policies.Application.Interfaces;
 using Andy.Policies.Domain.Enums;
 using Andy.Policies.Infrastructure.Data;
 using Andy.Policies.Infrastructure.Services;
+using Andy.Policies.Tests.Integration.Fixtures;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -42,6 +43,15 @@ public class PolicyLifecycleToolsTests
         public Task DispatchAsync<TEvent>(TEvent e, CancellationToken ct = default)
             where TEvent : notnull => Task.CompletedTask;
     }
+
+    /// <summary>
+    /// Default-allow RBAC for tests not exercising the authorization
+    /// path itself; P7.6 (#64) added <see cref="IRbacChecker"/> to every
+    /// mutating MCP-tool signature, so every call site below threads
+    /// this through. Authorization-specific behaviour is covered by
+    /// <c>OverrideToolsRbacTests</c>.
+    /// </summary>
+    private static readonly IRbacChecker AllowRbac = McpToolStubs.AllowAllRbac;
 
     private static (PolicyService policies, LifecycleTransitionService lifecycle, AppDbContext db)
         NewServices()
@@ -84,7 +94,7 @@ public class PolicyLifecycleToolsTests
         var draft = await policies.CreateDraftAsync(MinimalCreate("publish-tool"), "sam");
 
         var output = await PolicyLifecycleTools.Publish(
-            lifecycle, AccessorFor("agent-1"),
+            lifecycle, AccessorFor("agent-1"), AllowRbac,
             draft.PolicyId.ToString(), draft.Id.ToString(), "promote v1");
 
         output.Should().Contain("State: Active");
@@ -100,11 +110,11 @@ public class PolicyLifecycleToolsTests
     {
         var (policies, lifecycle, _) = NewServices();
         var draft = await policies.CreateDraftAsync(MinimalCreate("transition-tool"), "sam");
-        await PolicyLifecycleTools.Publish(lifecycle, AccessorFor("agent-1"),
+        await PolicyLifecycleTools.Publish(lifecycle, AccessorFor("agent-1"), AllowRbac,
             draft.PolicyId.ToString(), draft.Id.ToString(), "live");
 
         var output = await PolicyLifecycleTools.Transition(
-            lifecycle, AccessorFor("agent-1"),
+            lifecycle, AccessorFor("agent-1"), AllowRbac,
             draft.PolicyId.ToString(), draft.Id.ToString(), "Retired", "tomb");
 
         output.Should().Contain("State: Retired");
@@ -117,7 +127,7 @@ public class PolicyLifecycleToolsTests
         var draft = await policies.CreateDraftAsync(MinimalCreate("case-insensitive"), "sam");
 
         var output = await PolicyLifecycleTools.Transition(
-            lifecycle, AccessorFor("agent-1"),
+            lifecycle, AccessorFor("agent-1"), AllowRbac,
             draft.PolicyId.ToString(), draft.Id.ToString(), "active", "go");
 
         output.Should().Contain("State: Active");
@@ -130,7 +140,7 @@ public class PolicyLifecycleToolsTests
         var draft = await policies.CreateDraftAsync(MinimalCreate("reject-draft"), "sam");
 
         var output = await PolicyLifecycleTools.Transition(
-            lifecycle, AccessorFor("agent-1"),
+            lifecycle, AccessorFor("agent-1"), AllowRbac,
             draft.PolicyId.ToString(), draft.Id.ToString(), "Draft", "no");
 
         output.Should().Contain("Invalid target state");
@@ -143,7 +153,7 @@ public class PolicyLifecycleToolsTests
         var draft = await policies.CreateDraftAsync(MinimalCreate("unknown-target"), "sam");
 
         var output = await PolicyLifecycleTools.Transition(
-            lifecycle, AccessorFor("agent-1"),
+            lifecycle, AccessorFor("agent-1"), AllowRbac,
             draft.PolicyId.ToString(), draft.Id.ToString(), "Unicorn", "?");
 
         output.Should().Contain("Invalid target state");
@@ -157,7 +167,7 @@ public class PolicyLifecycleToolsTests
         var draft = await policies.CreateDraftAsync(MinimalCreate("draft-to-retired"), "sam");
 
         var output = await PolicyLifecycleTools.Transition(
-            lifecycle, AccessorFor("agent-1"),
+            lifecycle, AccessorFor("agent-1"), AllowRbac,
             draft.PolicyId.ToString(), draft.Id.ToString(), "Retired", "skip");
 
         output.Should().StartWith("INVALID_TRANSITION:");
@@ -170,7 +180,7 @@ public class PolicyLifecycleToolsTests
         var draft = await policies.CreateDraftAsync(MinimalCreate("rationale-required"), "sam");
 
         var output = await PolicyLifecycleTools.Publish(
-            lifecycle, AccessorFor("agent-1"),
+            lifecycle, AccessorFor("agent-1"), AllowRbac,
             draft.PolicyId.ToString(), draft.Id.ToString(), "  ");
 
         output.Should().StartWith("RATIONALE_REQUIRED:");
@@ -183,7 +193,7 @@ public class PolicyLifecycleToolsTests
         var draft = await policies.CreateDraftAsync(MinimalCreate("no-subject"), "sam");
 
         var output = await PolicyLifecycleTools.Publish(
-            lifecycle, AccessorFor(subjectId: null),
+            lifecycle, AccessorFor(subjectId: null), AllowRbac,
             draft.PolicyId.ToString(), draft.Id.ToString(), "publish");
 
         output.Should().Contain("Authentication required");
@@ -197,7 +207,7 @@ public class PolicyLifecycleToolsTests
         var (_, lifecycle, _) = NewServices();
 
         var output = await PolicyLifecycleTools.Publish(
-            lifecycle, AccessorFor("agent-1"),
+            lifecycle, AccessorFor("agent-1"), AllowRbac,
             "not-a-guid", Guid.NewGuid().ToString(), "go");
 
         output.Should().StartWith("Invalid policy id:");
@@ -209,7 +219,7 @@ public class PolicyLifecycleToolsTests
         var (_, lifecycle, _) = NewServices();
 
         var output = await PolicyLifecycleTools.Publish(
-            lifecycle, AccessorFor("agent-1"),
+            lifecycle, AccessorFor("agent-1"), AllowRbac,
             Guid.NewGuid().ToString(), Guid.NewGuid().ToString(), "go");
 
         output.Should().StartWith("NOT_FOUND:");
