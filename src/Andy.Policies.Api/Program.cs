@@ -173,6 +173,10 @@ builder.Services.AddScoped<Andy.Policies.Application.Interfaces.IOverrideService
 // the per-request DbContext.
 builder.Services.AddScoped<Andy.Policies.Application.Interfaces.IBundleSnapshotBuilder, Andy.Policies.Infrastructure.Services.BundleSnapshotBuilder>();
 builder.Services.AddScoped<Andy.Policies.Application.Interfaces.IBundleService, Andy.Policies.Infrastructure.Services.BundleService>();
+// P8.3 (#83): in-memory resolver over the bundle snapshot. Scoped
+// because it depends on the per-request DbContext; the cached
+// parsed-snapshot lives in the singleton IMemoryCache below.
+builder.Services.AddScoped<Andy.Policies.Application.Interfaces.IBundleResolver, Andy.Policies.Infrastructure.Services.BundleResolver>();
 
 // P7.2 (#51): IRbacChecker delegates POST /api/check to andy-rbac.
 // AndyRbac:BaseUrl is required (no auth-bypass — same posture as

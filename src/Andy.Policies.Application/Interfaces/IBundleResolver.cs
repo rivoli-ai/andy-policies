@@ -1,0 +1,102 @@
+// Copyright (c) Rivoli AI 2026. All rights reserved.
+// Licensed under the Apache License, Version 2.0.
+
+using Andy.Policies.Domain.Enums;
+
+namespace Andy.Policies.Application.Interfaces;
+
+/// <summary>
+/// Resolution-shaped read against a frozen <c>Bundle</c> snapshot
+/// (P8.3, story rivoli-ai/andy-policies#83). Mirrors
+/// <see cref="IBindingResolver"/>'s exact-match contract — same
+/// dedup rule, same ordering — but reads from the bundle's
+/// pre-materialised <c>SnapshotJson</c> instead of live tables, so
+/// answers are reproducible across catalog mutations.
+/// </summary>
+/// <remarks>
+/// <para>
+/// <b>Override application is intentionally out of scope</b> for
+/// P8.3. The live <see cref="IBindingResolver"/> doesn't apply
+/// override effects either — that lives in P5's flow. Bundle-time
+/// override semantics will be pinned by ADR 0008 (P8.8) and wired
+/// in a follow-up.
+/// </para>
+/// </remarks>
+public interface IBundleResolver
+{
+    /// <summary>
+    /// Resolve bindings for an exact <c>(targetType, targetRef)</c>
+    /// pair against the bundle's snapshot. Returns <c>null</c> when
+    /// the bundle does not exist or is soft-deleted; returns an
+    /// empty <see cref="BundleResolveResult.Bindings"/> when the
+    /// bundle exists but has no bindings for the target.
+    /// </summary>
+    Task<BundleResolveResult?> ResolveAsync(
+        Guid bundleId,
+        BindingTargetType targetType,
+        string targetRef,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Look up a single pinned policy in a bundle by its
+    /// <c>PolicyId</c>. Returns <c>null</c> when the bundle is
+    /// missing/deleted or the policy is not in the snapshot.
+    /// </summary>
+    Task<BundlePinnedPolicyDto?> GetPinnedPolicyAsync(
+        Guid bundleId,
+        Guid policyId,
+        CancellationToken ct = default);
+}
+
+/// <summary>
+/// Envelope for <see cref="IBundleResolver.ResolveAsync"/>. Carries
+/// the bundle identity + snapshot coordinate (<see cref="SnapshotHash"/>,
+/// <see cref="CapturedAt"/>) so callers caching the response have
+/// everything they need to validate it against a re-fetched bundle.
+/// </summary>
+public sealed record BundleResolveResult(
+    Guid BundleId,
+    string BundleName,
+    string SnapshotHash,
+    DateTimeOffset CapturedAt,
+    BindingTargetType TargetType,
+    string TargetRef,
+    IReadOnlyList<BundleResolvedBindingDto> Bindings,
+    int Count);
+
+/// <summary>
+/// Per-binding row in <see cref="BundleResolveResult.Bindings"/>.
+/// Mirrors <see cref="Andy.Policies.Application.Dtos.ResolvedBindingDto"/>
+/// from P3.4: same wire-format casing, same fields. The only
+/// difference is the data source (frozen snapshot vs. live tables).
+/// </summary>
+public sealed record BundleResolvedBindingDto(
+    Guid BindingId,
+    Guid PolicyId,
+    string PolicyName,
+    Guid PolicyVersionId,
+    int VersionNumber,
+    string Enforcement,
+    string Severity,
+    IReadOnlyList<string> Scopes,
+    BindStrength BindStrength);
+
+/// <summary>
+/// Single-policy projection from a bundle snapshot. Returned by
+/// <see cref="IBundleResolver.GetPinnedPolicyAsync"/>; carries the
+/// snapshot coordinates so callers can stamp ETags / cache keys.
+/// </summary>
+public sealed record BundlePinnedPolicyDto(
+    Guid BundleId,
+    string BundleName,
+    string SnapshotHash,
+    DateTimeOffset CapturedAt,
+    Guid PolicyId,
+    string PolicyName,
+    Guid PolicyVersionId,
+    int VersionNumber,
+    string Enforcement,
+    string Severity,
+    IReadOnlyList<string> Scopes,
+    string RulesJson,
+    string Summary);
