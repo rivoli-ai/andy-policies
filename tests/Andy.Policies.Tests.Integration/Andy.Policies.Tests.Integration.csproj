@@ -20,6 +20,8 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.11" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
     <PackageReference Include="Testcontainers.PostgreSql" Version="3.10.0" />
+    <!-- P7.2 (#51): WireMock-backed andy-rbac stub for HttpRbacCheckerContractTests. -->
+    <PackageReference Include="WireMock.Net" Version="1.6.7" />
     <PackageReference Include="xunit" Version="2.9.2" />
     <PackageReference Include="Xunit.SkippableFact" Version="1.4.13" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">

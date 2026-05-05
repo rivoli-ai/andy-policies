@@ -1,6 +1,7 @@
 // Copyright (c) Rivoli AI 2026. All rights reserved.
 // Licensed under the Apache License, Version 2.0.
 
+using Andy.Policies.Application.Interfaces;
 using Andy.Policies.Infrastructure.Data;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
@@ -53,6 +54,12 @@ public sealed class PoliciesApiFactory : WebApplicationFactory<Program>
                 // client never gets called because nothing in the controller
                 // tests reads settings yet (consumers land in P2.4/P5.4/etc.).
                 ["AndySettings:ApiBaseUrl"] = "https://test-settings.invalid",
+                // Same posture for AndyRbac:BaseUrl: Program.cs throws if it's
+                // missing (P7.2 #51 — no production fail-closed bypass). The
+                // typed HttpClient is never actually called because the
+                // ConfigureServices block below installs an inline allow-all
+                // stub for IRbacChecker.
+                ["AndyRbac:BaseUrl"] = "https://test-rbac.invalid",
             });
         });
 
@@ -78,6 +85,17 @@ public sealed class PoliciesApiFactory : WebApplicationFactory<Program>
                     .Build();
             });
 
+            // Replace the production HttpRbacChecker (which would attempt a
+            // 3s call to https://test-rbac.invalid and fail-closed deny on
+            // every RBAC-gated path) with an inline allow-all. P7.4 (#57)
+            // adds a separate WireMock-backed harness that exercises the
+            // real adapter against stubbed andy-rbac responses.
+            var rbacDescriptors = services
+                .Where(d => d.ServiceType == typeof(IRbacChecker))
+                .ToList();
+            foreach (var d in rbacDescriptors) services.Remove(d);
+            services.AddSingleton<IRbacChecker>(new AllowAllStubRbacChecker());
+
             // Build the schema once on the shared connection.
             using var sp = services.BuildServiceProvider();
             using var scope = sp.CreateScope();
@@ -90,5 +108,16 @@ public sealed class PoliciesApiFactory : WebApplicationFactory<Program>
     {
         if (disposing) _connection.Dispose();
         base.Dispose(disposing);
+    }
+
+    private sealed class AllowAllStubRbacChecker : IRbacChecker
+    {
+        public Task<RbacDecision> CheckAsync(
+            string subjectId,
+            string permissionCode,
+            IReadOnlyList<string> groups,
+            string? resourceInstanceId,
+            CancellationToken ct)
+            => Task.FromResult(new RbacDecision(true, "test-allow"));
     }
 }

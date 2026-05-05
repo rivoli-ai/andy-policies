@@ -6,6 +6,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Andy.Policies.Application.Dtos;
+using Andy.Policies.Application.Interfaces;
 using Andy.Policies.Application.Settings;
 using Andy.Policies.Domain.Enums;
 using Andy.Policies.Tests.Integration.Controllers;
@@ -79,6 +80,15 @@ public class OverridesControllerTests : IDisposable
                 if (gateDescriptor is not null) services.Remove(gateDescriptor);
                 services.AddSingleton<IExperimentalOverridesGate>(Gate);
 
+                // P7.2 (#51): swap the production HttpRbacChecker for an
+                // allow-all stub so RBAC-gated endpoints (approve / revoke)
+                // don't fail-closed deny on unreachable test-rbac.invalid.
+                var rbacDescriptors = services
+                    .Where(d => d.ServiceType == typeof(IRbacChecker))
+                    .ToList();
+                foreach (var d in rbacDescriptors) services.Remove(d);
+                services.AddSingleton<IRbacChecker>(new AllowAllStubRbacChecker());
+
                 services.AddAuthentication(TestAuthHandler.SchemeName)
                     .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(
                         TestAuthHandler.SchemeName, _ => { });
@@ -100,6 +110,14 @@ public class OverridesControllerTests : IDisposable
         {
             if (disposing) _connection.Dispose();
             base.Dispose(disposing);
+        }
+
+        private sealed class AllowAllStubRbacChecker : IRbacChecker
+        {
+            public Task<RbacDecision> CheckAsync(
+                string subjectId, string permissionCode, IReadOnlyList<string> groups,
+                string? resourceInstanceId, CancellationToken ct)
+                => Task.FromResult(new RbacDecision(true, "test-allow"));
         }
     }
 

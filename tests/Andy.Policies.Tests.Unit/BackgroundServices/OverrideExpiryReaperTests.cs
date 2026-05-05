@@ -241,8 +241,9 @@ public class OverrideExpiryReaperTests
 
     private sealed class AllowRbac : IRbacChecker
     {
-        public Task<RbacCheckResult> CheckAsync(
-            string subjectId, string permission, string? resourceInstanceId, CancellationToken ct = default)
-            => Task.FromResult(RbacCheckResult.AllowedResult);
+        public Task<RbacDecision> CheckAsync(
+            string subjectId, string permissionCode, IReadOnlyList<string> groups,
+            string? resourceInstanceId, CancellationToken ct)
+            => Task.FromResult(new RbacDecision(true, "test-allow"));
     }
 }

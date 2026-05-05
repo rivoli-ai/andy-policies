@@ -162,7 +162,7 @@ dotnet ef database update --project src/Andy.Policies.Infrastructure --startup-p
 | Service | Port | Purpose | Wiring |
 |---------|------|---------|--------|
 | Andy Auth | 5001 | OAuth2/OIDC identity provider | JWT Bearer in `Program.cs`; `AndyAuth:Authority` required (no bypass — see #103) |
-| Andy RBAC | 5003 | Role-based access control | Not wired yet — Epic P7 (#7) |
+| Andy RBAC | 5003 | Role-based access control | `IRbacChecker` wired to `HttpRbacChecker` via typed `HttpClient` in `Program.cs` (P7.2 #51); `AndyRbac:BaseUrl` required (no bypass). Fail-closed on transport / timeout / non-2xx; 60s in-memory cache for successful decisions. |
 | Andy Settings | 5300 | Centralized configuration | `Andy.Settings.Client` registered in `Program.cs` via `AddAndySettingsClient` (#108); `AndySettings:ApiBaseUrl` required (no bypass). Resolves `IAndySettingsClient`, `ISettingsSnapshot`, and a hosted refresh service. The package is pulled from nuget.org (pre-release `2026.4.25-rc.1`); bump the version in `Andy.Policies.Infrastructure.csproj` when andy-settings cuts a new release. |
 
 ## Database

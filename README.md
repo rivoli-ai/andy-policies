@@ -460,6 +460,8 @@ andy-policies-cli audit export --out audit.ndjson
 
 Subject→permission evaluation delegates to [Andy RBAC](https://github.com/rivoli-ai/andy-rbac); the permission *vocabulary* lives here in [`config/registration.json`](config/registration.json) (`rbac` block) and is mirrored in [`config/rbac-seed.json`](config/rbac-seed.json) for direct seeding. andy-rbac upserts the application, resource types, permissions, and role↔permission edges from this manifest on first boot.
 
+The runtime adapter is `HttpRbacChecker` (P7.2, [#51](https://github.com/rivoli-ai/andy-policies/issues/51)) — a typed `HttpClient` that calls `POST {AndyRbac:BaseUrl}/api/check` with a 3-second timeout and a 60-second in-memory cache for successful decisions. **Fail-closed by default**: transport errors, timeouts, and non-2xx responses all collapse to `Allowed=false` so a governance catalog never opens up under adversity. The fail-closed branch is *not* cached, so a recovered andy-rbac is picked up on the very next call.
+
 ### Permission catalog
 
 | Code | Resource | Held by |
