@@ -157,7 +157,7 @@ public class OverridesGrpcServiceTests : IDisposable
         });
         resp.EnsureSuccessStatusCode();
         var draft = await resp.Content.ReadFromJsonAsync<DraftPayload>();
-        var publishResp = await _http.PostAsJsonAsync(
+        var publishResp = await _http.PostAsJsonAsApproverAsync(
             $"/api/policies/{draft!.PolicyId}/versions/{draft.Id}/publish",
             new { Rationale = "go-live" });
         publishResp.EnsureSuccessStatusCode();

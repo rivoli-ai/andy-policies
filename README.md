@@ -462,6 +462,8 @@ Subject→permission evaluation delegates to [Andy RBAC](https://github.com/rivo
 
 The runtime adapter is `HttpRbacChecker` (P7.2, [#51](https://github.com/rivoli-ai/andy-policies/issues/51)) — a typed `HttpClient` that calls `POST {AndyRbac:BaseUrl}/api/check` with a 3-second timeout and a 60-second in-memory cache for successful decisions. **Fail-closed by default**: transport errors, timeouts, and non-2xx responses all collapse to `Allowed=false` so a governance catalog never opens up under adversity. The fail-closed branch is *not* cached, so a recovered andy-rbac is picked up on the very next call.
 
+**Author cannot self-approve** (P7.3, [#55](https://github.com/rivoli-ai/andy-policies/issues/55)). The publish endpoint rejects when the actor matches the version's `ProposerSubjectId` — even when andy-rbac would say *yes* to both `:author` and `:publish`. Domain invariant; admin override is deliberately absent. Returns **HTTP 403** with ProblemDetails `errorCode = "policy.publish_self_approval_forbidden"`, no state mutation. `WindingDown` and `Retire` are administrative hygiene transitions and do not apply this check.
+
 ### Permission catalog
 
 | Code | Resource | Held by |

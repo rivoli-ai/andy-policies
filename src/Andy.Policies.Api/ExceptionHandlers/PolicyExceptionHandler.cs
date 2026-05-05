@@ -137,6 +137,30 @@ public sealed class PolicyExceptionHandler : IExceptionHandler
             return true;
         }
 
+        // P7.3 (#55): publish-time self-approval is a separate domain
+        // invariant from the override path above — admin override is
+        // deliberately absent, so the errorCode is distinct.
+        if (exception is PublishSelfApprovalException pax)
+        {
+            var problem403 = new ProblemDetails
+            {
+                Status = StatusCodes.Status403Forbidden,
+                Title = "Self-approval forbidden",
+                Detail = pax.Message,
+                Type = "/problems/publish-self-approval",
+                Instance = httpContext.Request.Path,
+                Extensions =
+                {
+                    ["errorCode"] = "policy.publish_self_approval_forbidden",
+                    ["policyVersionId"] = pax.PolicyVersionId,
+                    ["subjectId"] = pax.SubjectId,
+                },
+            };
+            httpContext.Response.StatusCode = StatusCodes.Status403Forbidden;
+            await httpContext.Response.WriteAsJsonAsync(problem403, cancellationToken);
+            return true;
+        }
+
         if (exception is RbacDeniedException rdex)
         {
             var problem403 = new ProblemDetails

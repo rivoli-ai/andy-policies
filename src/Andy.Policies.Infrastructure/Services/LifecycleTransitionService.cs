@@ -107,6 +107,17 @@ public sealed class LifecycleTransitionService : ILifecycleTransitionService
             throw new InvalidLifecycleTransitionException(version.State, target);
         }
 
+        // P7.3 (#55): an author cannot publish their own draft, even when
+        // they hold both andy-policies:policy:author and :publish. This
+        // is a domain invariant — admin override is deliberately absent.
+        // Wind-down and retire are administrative hygiene transitions and
+        // are not gated on proposer identity.
+        if (target == LifecycleState.Active
+            && string.Equals(version.ProposerSubjectId, actorSubjectId, StringComparison.Ordinal))
+        {
+            throw new PublishSelfApprovalException(version.Id, actorSubjectId);
+        }
+
         var now = _clock.GetUtcNow();
 
         switch (target)

@@ -50,7 +50,12 @@ public class LifecycleGrpcServiceTests : IClassFixture<PoliciesApiFactory>, IDis
 
     private async Task<PolicyVersionMessage> CreateDraftAsync(string slug)
     {
-        var draft = await _policies.CreateDraftAsync(MinimalCreate(slug));
+        // P7.3 (#55): pin the proposer subject to "test-creator" so the
+        // default test subject "test-user" can act as the publisher
+        // without tripping the publish-time self-approval guard. The
+        // header is consumed by TestAuthHandler.
+        var metadata = new Metadata { { TestAuthHandler.SubjectHeader, "test-creator" } };
+        var draft = await _policies.CreateDraftAsync(MinimalCreate(slug), metadata);
         return draft.Version;
     }
 
@@ -84,12 +89,16 @@ public class LifecycleGrpcServiceTests : IClassFixture<PoliciesApiFactory>, IDis
             Rationale = "v1-live",
         });
 
-        // Bump v1 to mint v2 Draft under the same policy.
+        // Bump v1 to mint v2 Draft under the same policy. Same approver
+        // metadata as the create helper — keeps v2's proposer distinct
+        // from the default test subject so the v2 publish below is not
+        // self-approval.
+        var bumpMetadata = new Metadata { { TestAuthHandler.SubjectHeader, "test-creator" } };
         var v2Resp = await _policies.BumpDraftAsync(new BumpDraftRequest
         {
             PolicyId = v1.PolicyId,
             SourceVersionId = v1.Id,
-        });
+        }, bumpMetadata);
         var v2 = v2Resp.Version;
 
         await _lifecycle.PublishVersionAsync(new PublishVersionRequest

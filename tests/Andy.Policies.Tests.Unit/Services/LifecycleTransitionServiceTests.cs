@@ -170,6 +170,87 @@ public class LifecycleTransitionServiceTests
         await act.Should().ThrowAsync<NotFoundException>();
     }
 
+    // P7.3 (#55) — author-cannot-self-approve invariant on publish.
+
+    [Fact]
+    public async Task TransitionAsync_PublishWithActorMatchingProposer_ThrowsPublishSelfApprovalException()
+    {
+        var (svc, db, events) = NewService();
+        var (policy, draft) = await SeedDraftAsync(db, "pub-self-blocked");
+        draft.ProposerSubjectId = "user:alice";
+        await db.SaveChangesAsync();
+
+        var act = async () => await svc.TransitionAsync(
+            policy.Id, draft.Id, LifecycleState.Active, "self-publish", "user:alice");
+
+        var assertion = await act.Should().ThrowAsync<PublishSelfApprovalException>();
+        assertion.Which.PolicyVersionId.Should().Be(draft.Id);
+        assertion.Which.SubjectId.Should().Be("user:alice");
+
+        // No state mutation, no events dispatched.
+        var reloaded = await db.PolicyVersions.AsNoTracking().FirstAsync(v => v.Id == draft.Id);
+        reloaded.State.Should().Be(LifecycleState.Draft);
+        reloaded.PublishedAt.Should().BeNull();
+        events.Events.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task TransitionAsync_PublishWithDifferentActor_FlipsToActive()
+    {
+        var (svc, db, _) = NewService();
+        var (policy, draft) = await SeedDraftAsync(db, "pub-distinct-actor");
+        draft.ProposerSubjectId = "user:alice";
+        await db.SaveChangesAsync();
+
+        var dto = await svc.TransitionAsync(
+            policy.Id, draft.Id, LifecycleState.Active, "go-live", "user:bob");
+
+        dto.State.Should().Be("Active");
+        var reloaded = await db.PolicyVersions.AsNoTracking().FirstAsync(v => v.Id == draft.Id);
+        reloaded.State.Should().Be(LifecycleState.Active);
+        reloaded.PublishedBySubjectId.Should().Be("user:bob");
+    }
+
+    [Fact]
+    public async Task TransitionAsync_PublishOnNonDraft_ThrowsInvalidLifecycleBeforeSelfApproval()
+    {
+        // Publish-on-non-Draft must surface the matrix error first, not
+        // the self-approval one — the lifecycle gate runs before the
+        // domain invariant. Use a Retired version with proposer == actor;
+        // the matrix-only result keeps the error contract stable for
+        // upstream callers (P7.4 handler tests rely on this ordering).
+        var (svc, db, _) = NewService();
+        var (policy, _) = await SeedDraftAsync(db, "pub-on-retired");
+        var retired = PolicyBuilders.AVersion(policy.Id, number: 2, state: LifecycleState.Retired);
+        retired.ProposerSubjectId = "user:alice";
+        db.PolicyVersions.Add(retired);
+        await db.SaveChangesAsync();
+
+        var act = async () => await svc.TransitionAsync(
+            policy.Id, retired.Id, LifecycleState.Active, "rezz", "user:alice");
+
+        await act.Should().ThrowAsync<InvalidLifecycleTransitionException>();
+    }
+
+    [Fact]
+    public async Task TransitionAsync_WindDownByProposer_DoesNotApplySelfApprovalCheck()
+    {
+        // The self-approval guard is publish-specific. WindingDown and
+        // Retire are administrative hygiene transitions and run even
+        // when actor == proposer.
+        var (svc, db, _) = NewService();
+        var (policy, draft) = await SeedDraftAsync(db, "winddown-by-proposer");
+        draft.ProposerSubjectId = "user:alice";
+        await db.SaveChangesAsync();
+        await svc.TransitionAsync(
+            policy.Id, draft.Id, LifecycleState.Active, "go-live", "user:bob");
+
+        var dto = await svc.TransitionAsync(
+            policy.Id, draft.Id, LifecycleState.WindingDown, "sunset", "user:alice");
+
+        dto.State.Should().Be("WindingDown");
+    }
+
     private sealed class RecordingDispatcher : IDomainEventDispatcher
     {
         public List<object> Events { get; } = new();
