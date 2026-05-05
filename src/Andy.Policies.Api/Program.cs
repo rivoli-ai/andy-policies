@@ -168,6 +168,11 @@ builder.Services.AddSingleton<Andy.Policies.Application.Interfaces.IAuditDiffGen
 builder.Services.AddScoped<Andy.Policies.Application.Interfaces.ILifecycleTransitionService, Andy.Policies.Infrastructure.Services.LifecycleTransitionService>();
 // P5.2 (#52): override propose/approve/revoke service.
 builder.Services.AddScoped<Andy.Policies.Application.Interfaces.IOverrideService, Andy.Policies.Infrastructure.Services.OverrideService>();
+// P8.2 (#82): bundle pinning. Snapshot builder is split off the
+// service for unit-testability; both are scoped because they take
+// the per-request DbContext.
+builder.Services.AddScoped<Andy.Policies.Application.Interfaces.IBundleSnapshotBuilder, Andy.Policies.Infrastructure.Services.BundleSnapshotBuilder>();
+builder.Services.AddScoped<Andy.Policies.Application.Interfaces.IBundleService, Andy.Policies.Infrastructure.Services.BundleService>();
 
 // P7.2 (#51): IRbacChecker delegates POST /api/check to andy-rbac.
 // AndyRbac:BaseUrl is required (no auth-bypass — same posture as
