@@ -9,6 +9,9 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Andy.Policies.Infrastructure\Andy.Policies.Infrastructure.csproj" />
     <ProjectReference Include="..\..\tools\Andy.Policies.Cli\Andy.Policies.Cli.csproj" />
+    <!-- P7.7 (#65): RbacDocsGeneratorTests pin the generator's parsing,
+         idempotency, and admin "*" rendering. -->
+    <ProjectReference Include="..\..\tools\GenerateRbacDocs\GenerateRbacDocs.csproj" />
   </ItemGroup>
 
   <ItemGroup>

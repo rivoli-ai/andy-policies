@@ -57,6 +57,24 @@ jobs:
           name: coverage-backend
           path: '**/coverage.cobertura.xml'
 
+  rbac-docs-drift:
+    # P7.7 (#65): docs/reference/permission-catalog.md is generated from
+    # config/registration.json by tools/GenerateRbacDocs. Regenerating
+    # must produce a byte-identical file; otherwise the PR changed the
+    # manifest without regenerating the doc and the published catalog
+    # has drifted from the source of truth.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Check permission catalog drift
+        run: dotnet run --project tools/GenerateRbacDocs --configuration Release -- --check
+
   openapi-drift:
     # P1.9 (#79): the committed docs/openapi/andy-policies-v1.yaml is the
     # source of truth REST clients consume. Regenerating it from the live

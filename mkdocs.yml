@@ -25,6 +25,9 @@ nav:
     - Bindings: design/bindings.md
     - Scope hierarchy: design/scope-hierarchy.md
     - Resolution algorithm: design/resolution-algorithm.md
+    - Edit matrix: design/edit-matrix.md
+  - Reference:
+    - Permission catalog: reference/permission-catalog.md
   - Guides:
     - Consumer integration — bindings: guides/consumer-integration-bindings.md
   - Runbooks:
