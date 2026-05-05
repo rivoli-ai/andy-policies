@@ -27,6 +27,8 @@ public class AppDbContext : DbContext
 
     public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
 
+    public DbSet<Bundle> Bundles => Set<Bundle>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -395,6 +397,71 @@ public class AppDbContext : DbContext
                     .Metadata.SetValueComparer(rolesComparer);
             }
         });
+
+        // P8.1 (rivoli-ai/andy-policies#81) — Bundle: immutable
+        // materialized snapshots of the catalog for reproducibility.
+        // Storage notes:
+        //   - SnapshotJson is the entire frozen graph (canonical-JSON
+        //     bytes). Postgres maps it to jsonb so future P8 ops can
+        //     index into it; SQLite (embedded mode) takes TEXT.
+        //   - SnapshotHash is fixed-length SHA-256 hex. Pinning to
+        //     CHAR(64) on Postgres lets the optimizer skip varchar
+        //     size probes on the lookup-by-hash path; SQLite has no
+        //     CHAR distinction so it stays TEXT.
+        //   - State is stored as a string (mirrors LifecycleState +
+        //     OverrideState) so the filtered unique index on Name
+        //     can use a literal compare without an int-to-string
+        //     cast.
+        // Indexes:
+        //   - ux_bundles_name_active: filtered unique index on Name
+        //     (filter `"State" = 'Active'`) — Postgres + SQLite both
+        //     honour the identical syntax, so a soft-deleted slug
+        //     releases the name on both providers.
+        //   - ix_bundles_state_created_at: list-view sort key
+        //     (newest active first).
+        //   - ix_bundles_snapshot_hash: lookup-by-hash for the audit
+        //     cross-reference (the bundle.create event payload is
+        //     this hash).
+        modelBuilder.Entity<Bundle>(entity =>
+        {
+            entity.ToTable("bundles");
+            entity.HasKey(b => b.Id);
+
+            entity.Property(b => b.Name).IsRequired().HasMaxLength(64);
+            entity.Property(b => b.Description).HasMaxLength(2048);
+            entity.Property(b => b.CreatedBySubjectId).IsRequired().HasMaxLength(256);
+            entity.Property(b => b.DeletedBySubjectId).HasMaxLength(256);
+
+            entity.Property(b => b.State)
+                .HasConversion<string>()
+                .HasMaxLength(16)
+                .IsRequired();
+
+            entity.Property(b => b.SnapshotJson)
+                .IsRequired()
+                .HasColumnType(isNpgsql ? "jsonb" : "TEXT");
+
+            entity.Property(b => b.SnapshotHash)
+                .IsRequired()
+                .HasColumnType(isNpgsql ? "char(64)" : "TEXT")
+                .HasMaxLength(64);
+
+            entity.HasIndex(b => new { b.State, b.CreatedAt })
+                .HasDatabaseName("ix_bundles_state_created_at");
+
+            entity.HasIndex(b => b.SnapshotHash)
+                .HasDatabaseName("ix_bundles_snapshot_hash");
+
+            // Filtered unique index — Postgres + SQLite (≥ 3.8) honour the
+            // identical literal-compare filter, so a soft-deleted slug
+            // releases the name for a new active bundle on both providers.
+            // Same pattern as ix_policy_versions_one_draft_per_policy
+            // above; see the comment block over PolicyVersion for the
+            // string-storage rationale that makes this portable.
+            entity.HasIndex(b => b.Name, "ux_bundles_name_active")
+                .IsUnique()
+                .HasFilter("\"State\" = 'Active'");
+        });
     }
 
     // Override only the `bool`-flavoured routing entry points. EF routes `SaveChanges()` →
@@ -404,6 +471,7 @@ public class AppDbContext : DbContext
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
         EnforcePolicyVersionImmutability();
+        EnforceBundleImmutability();
         BumpRevisions();
         return base.SaveChanges(acceptAllChangesOnSuccess);
     }
@@ -411,6 +479,7 @@ public class AppDbContext : DbContext
     public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
     {
         EnforcePolicyVersionImmutability();
+        EnforceBundleImmutability();
         BumpRevisions();
         return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
     }
@@ -455,6 +524,57 @@ public class AppDbContext : DbContext
                 throw new InvalidOperationException(
                     $"PolicyVersion {entry.Entity.Id} is in state {originalState}; " +
                     $"only Draft versions are mutable. Attempted change on '{prop.Metadata.Name}'.");
+            }
+        }
+    }
+
+    /// <summary>
+    /// P8.1 (#81): a <see cref="Bundle"/> in <see cref="BundleState.Active"/>
+    /// must not have any modified scalar property other than the soft-delete
+    /// trio (<c>State</c>, <c>DeletedAt</c>, <c>DeletedBySubjectId</c>). The
+    /// reproducibility contract — pinning a bundle id returns the same
+    /// snapshot across all reads — depends on this; flipping a single byte
+    /// of <c>SnapshotJson</c> after insert would invalidate
+    /// <c>SnapshotHash</c> and silently change consumer answers.
+    /// </summary>
+    /// <remarks>
+    /// We compare against the original <see cref="Bundle.State"/>: an
+    /// already-tombstoned (<see cref="BundleState.Deleted"/>) row is
+    /// frozen entirely — even the soft-delete columns can no longer
+    /// change, since "delete a deletion" is not a state machine edge.
+    /// </remarks>
+    private void EnforceBundleImmutability()
+    {
+        var allowListedOnActive = new HashSet<string>(StringComparer.Ordinal)
+        {
+            nameof(Bundle.State),
+            nameof(Bundle.DeletedAt),
+            nameof(Bundle.DeletedBySubjectId),
+        };
+
+        foreach (var entry in ChangeTracker.Entries<Bundle>())
+        {
+            if (entry.State != EntityState.Modified) continue;
+
+            var originalState = (BundleState)entry.OriginalValues[nameof(Bundle.State)]!;
+
+            foreach (var prop in entry.Properties)
+            {
+                if (!prop.IsModified) continue;
+
+                // Soft-delete trio is the only legal mutation, and only on
+                // an originally-Active bundle.
+                if (originalState == BundleState.Active &&
+                    allowListedOnActive.Contains(prop.Metadata.Name))
+                {
+                    continue;
+                }
+
+                throw new InvalidOperationException(
+                    $"Bundle {entry.Entity.Id} is in state {originalState}; the snapshot is " +
+                    $"immutable. Attempted change on '{prop.Metadata.Name}'. " +
+                    $"Only the soft-delete flip (State/DeletedAt/DeletedBySubjectId on an " +
+                    $"Active bundle) is permitted.");
             }
         }
     }
