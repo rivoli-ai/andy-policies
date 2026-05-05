@@ -5,40 +5,41 @@ namespace Andy.Policies.Application.Interfaces;
 
 /// <summary>
 /// Subject→permission check delegated to andy-rbac (P7.2, story
-/// rivoli-ai/andy-policies#51). The service-layer abstraction lets
-/// P5.2 (override approval) and future RBAC-gated paths take a
-/// dependency on the contract before P7.2 ships the real andy-rbac
-/// HTTP client. Until P7.2, the only registered implementation is
-/// <c>AllowAllRbacChecker</c>, which logs at Debug and returns
-/// <see cref="RbacCheckResult.AllowedResult"/>; this preserves the
-/// "no production auth-bypass" posture from #103 because the placeholder
-/// only ships in development DI registrations.
+/// rivoli-ai/andy-policies#51). Service-layer call sites and ASP.NET
+/// authorization handlers (P7.4) take a dependency on this contract;
+/// the production implementation
+/// (<c>HttpRbacChecker</c>) calls <c>POST /api/check</c> on andy-rbac
+/// with a 60s in-memory cache and a fail-closed default on transport
+/// or timeout errors. Tests substitute their own stubs via DI.
 /// </summary>
 public interface IRbacChecker
 {
     /// <summary>
     /// Ask andy-rbac whether <paramref name="subjectId"/> may exercise
-    /// <paramref name="permission"/> on the optional resource instance
-    /// <paramref name="resourceInstanceId"/> (e.g. a scope ref). The
-    /// real implementation calls <c>POST /api/check</c> on andy-rbac
-    /// and returns its <c>{ allowed, reason }</c> envelope.
+    /// <paramref name="permissionCode"/> on the optional resource
+    /// instance <paramref name="resourceInstanceId"/> (e.g. a scope ref).
+    /// <paramref name="groups"/> is the JWT <c>groups</c> claim lifted
+    /// by the caller — this service does not perform identity
+    /// extraction or group resolution.
     /// </summary>
-    Task<RbacCheckResult> CheckAsync(
+    Task<RbacDecision> CheckAsync(
         string subjectId,
-        string permission,
+        string permissionCode,
+        IReadOnlyList<string> groups,
         string? resourceInstanceId,
-        CancellationToken ct = default);
+        CancellationToken ct);
 }
 
 /// <summary>
 /// Result of an <see cref="IRbacChecker.CheckAsync"/> call.
 /// <see cref="Reason"/> is populated on denial so the API layer can
 /// echo the structured rationale into ProblemDetails extensions for
-/// admin triage.
+/// admin triage; on allow it carries the matched role / permission
+/// code from andy-rbac (e.g. <c>"role:approver"</c>).
 /// </summary>
-public sealed record RbacCheckResult(bool Allowed, string? Reason)
+public sealed record RbacDecision(bool Allowed, string Reason)
 {
-    public static RbacCheckResult AllowedResult { get; } = new(true, null);
+    public static RbacDecision Allow(string reason) => new(true, reason);
 
-    public static RbacCheckResult Denied(string reason) => new(false, reason);
+    public static RbacDecision Deny(string reason) => new(false, reason);
 }

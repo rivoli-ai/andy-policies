@@ -525,13 +525,14 @@ public class OverrideServiceTests
 
         public List<(string SubjectId, string Permission, string? ResourceInstanceId)> Calls { get; } = new();
 
-        public Task<RbacCheckResult> CheckAsync(
-            string subjectId, string permission, string? resourceInstanceId, CancellationToken ct = default)
+        public Task<RbacDecision> CheckAsync(
+            string subjectId, string permissionCode, IReadOnlyList<string> groups,
+            string? resourceInstanceId, CancellationToken ct)
         {
-            Calls.Add((subjectId, permission, resourceInstanceId));
+            Calls.Add((subjectId, permissionCode, resourceInstanceId));
             return Task.FromResult(Allow
-                ? RbacCheckResult.AllowedResult
-                : RbacCheckResult.Denied("stub denied"));
+                ? RbacDecision.Allow("stub allowed")
+                : RbacDecision.Deny("stub denied"));
         }
     }
 }

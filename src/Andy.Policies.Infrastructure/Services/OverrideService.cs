@@ -202,10 +202,13 @@ public sealed class OverrideService : IOverrideService
 
         // RBAC: the ScopeRef doubles as the resource-instance id so
         // operators can grant per-cohort or per-principal approval
-        // rights via andy-rbac scoping (P7.2 #51).
+        // rights via andy-rbac scoping (P7.2 #51). Empty groups list
+        // until P7.4 (#57) plumbs the JWT groups claim through the
+        // controller → service call chain.
         var rbacResult = await _rbac.CheckAsync(
             approverSubjectId,
-            permission: "andy-policies:override:approve",
+            permissionCode: "andy-policies:override:approve",
+            groups: Array.Empty<string>(),
             resourceInstanceId: ovr.ScopeRef,
             ct).ConfigureAwait(false);
         if (!rbacResult.Allowed)
@@ -268,10 +271,13 @@ public sealed class OverrideService : IOverrideService
 
         // RBAC: revoke is a separate permission so admins can grant
         // approve + revoke independently (e.g. to a security on-call
-        // role that should be able to revoke but not approve).
+        // role that should be able to revoke but not approve). Empty
+        // groups list until P7.4 (#57) plumbs the JWT groups claim
+        // through the controller → service call chain.
         var rbacResult = await _rbac.CheckAsync(
             actorSubjectId,
-            permission: "andy-policies:override:revoke",
+            permissionCode: "andy-policies:override:revoke",
+            groups: Array.Empty<string>(),
             resourceInstanceId: ovr.ScopeRef,
             ct).ConfigureAwait(false);
         if (!rbacResult.Allowed)

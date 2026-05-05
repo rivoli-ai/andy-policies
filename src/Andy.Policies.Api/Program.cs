@@ -53,9 +53,12 @@ builder.Services.AddAuthentication("Bearer")
     });
 builder.Services.AddAuthorization();
 
-// --- RBAC (Andy.Rbac.Client) ---
-var rbacBaseUrl = builder.Configuration["Rbac:ApiBaseUrl"];
-if (!string.IsNullOrEmpty(rbacBaseUrl) && builder.Environment.IsDevelopment())
+// --- HttpClient defaults ---
+// Dev-only: accept self-signed certs from local andy-* services so
+// HttpClientFactory-issued clients (RBAC, settings) don't reject the
+// localhost:500x stack. Production hosts must present a valid CA-signed
+// cert; this branch never runs outside Development.
+if (builder.Environment.IsDevelopment())
 {
     builder.Services.ConfigureHttpClientDefaults(b =>
     {
@@ -133,12 +136,29 @@ builder.Services.AddScoped<Andy.Policies.Application.Interfaces.IAuditExporter, 
 // audit envelope diffs are produced uniformly.
 builder.Services.AddSingleton<Andy.Policies.Application.Interfaces.IAuditDiffGenerator, Andy.Policies.Infrastructure.Audit.JsonPatchDiffGenerator>();
 builder.Services.AddScoped<Andy.Policies.Application.Interfaces.ILifecycleTransitionService, Andy.Policies.Infrastructure.Services.LifecycleTransitionService>();
-// P5.2 (#52): override propose/approve/revoke service. AllowAllRbacChecker
-// is a placeholder until P7.2 (#51) wires the real andy-rbac client; the
-// JWT layer at the API edge still enforces authentication, so the
-// "allow-all" semantics apply only to the subject→permission check.
+// P5.2 (#52): override propose/approve/revoke service.
 builder.Services.AddScoped<Andy.Policies.Application.Interfaces.IOverrideService, Andy.Policies.Infrastructure.Services.OverrideService>();
-builder.Services.AddScoped<Andy.Policies.Application.Interfaces.IRbacChecker, Andy.Policies.Infrastructure.Services.AllowAllRbacChecker>();
+
+// P7.2 (#51): IRbacChecker delegates POST /api/check to andy-rbac.
+// AndyRbac:BaseUrl is required (no auth-bypass — same posture as
+// AndyAuth:Authority and AndySettings:ApiBaseUrl). Fail-closed on
+// transport errors; 60s in-memory cache for successful decisions.
+var rbacBaseUrl = builder.Configuration["AndyRbac:BaseUrl"];
+if (string.IsNullOrWhiteSpace(rbacBaseUrl))
+{
+    throw new InvalidOperationException(
+        "AndyRbac:BaseUrl is not configured. Set it via appsettings, " +
+        "environment (AndyRbac__BaseUrl=https://...), or Andy Settings " +
+        "before starting the API. There is no production fallback.");
+}
+builder.Services.AddMemoryCache();
+builder.Services.AddHttpClient<
+    Andy.Policies.Application.Interfaces.IRbacChecker,
+    Andy.Policies.Infrastructure.Services.Rbac.HttpRbacChecker>(client =>
+{
+    client.BaseAddress = new Uri(rbacBaseUrl);
+    client.Timeout = TimeSpan.FromSeconds(3);
+});
 // P5.3 (#53): periodic sweep that transitions Approved overrides past
 // ExpiresAt into Expired. Runs even when the experimental-overrides
 // gate is off — turning the feature off must not strand previously
@@ -184,7 +204,8 @@ builder.Services.AddOpenTelemetry()
                .AddRuntimeInstrumentation()
                .AddMeter(Andy.Policies.Infrastructure.Services.AndySettingsRationalePolicy.MeterName)
                .AddMeter(Andy.Policies.Infrastructure.BackgroundServices.OverrideExpiryReaper.MeterName)
-               .AddMeter(Andy.Policies.Infrastructure.Settings.ExperimentalOverridesGate.MeterName);
+               .AddMeter(Andy.Policies.Infrastructure.Settings.ExperimentalOverridesGate.MeterName)
+               .AddMeter(Andy.Policies.Infrastructure.Services.Rbac.HttpRbacChecker.MeterName);
         if (!string.IsNullOrEmpty(otlpEndpoint))
             metrics.AddOtlpExporter(o => o.Endpoint = new Uri(otlpEndpoint));
     });
