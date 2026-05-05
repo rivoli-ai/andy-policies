@@ -173,8 +173,13 @@ builder.Services.AddScoped<Andy.Policies.Application.Interfaces.IOverrideService
 // AndyRbac:BaseUrl is required (no auth-bypass — same posture as
 // AndyAuth:Authority and AndySettings:ApiBaseUrl). Fail-closed on
 // transport errors; 60s in-memory cache for successful decisions.
-var rbacBaseUrl = builder.Configuration["AndyRbac:BaseUrl"];
-if (string.IsNullOrWhiteSpace(rbacBaseUrl))
+//
+// Eager startup check below catches a missing key. The typed
+// HttpClient resolves the URL lazily via IConfiguration so test
+// hosts can override AndyRbac:BaseUrl via WebApplicationFactory's
+// ConfigureAppConfiguration (the in-memory provider is only added
+// during Build(), which is *after* the top-level local-variable read).
+if (string.IsNullOrWhiteSpace(builder.Configuration["AndyRbac:BaseUrl"]))
 {
     throw new InvalidOperationException(
         "AndyRbac:BaseUrl is not configured. Set it via appsettings, " +
@@ -184,9 +189,13 @@ if (string.IsNullOrWhiteSpace(rbacBaseUrl))
 builder.Services.AddMemoryCache();
 builder.Services.AddHttpClient<
     Andy.Policies.Application.Interfaces.IRbacChecker,
-    Andy.Policies.Infrastructure.Services.Rbac.HttpRbacChecker>(client =>
+    Andy.Policies.Infrastructure.Services.Rbac.HttpRbacChecker>((sp, client) =>
 {
-    client.BaseAddress = new Uri(rbacBaseUrl);
+    var cfg = sp.GetRequiredService<Microsoft.Extensions.Configuration.IConfiguration>();
+    var url = cfg["AndyRbac:BaseUrl"]
+        ?? throw new InvalidOperationException(
+            "AndyRbac:BaseUrl is not configured at HttpClient build time.");
+    client.BaseAddress = new Uri(url);
     client.Timeout = TimeSpan.FromSeconds(3);
 });
 // P5.3 (#53): periodic sweep that transitions Approved overrides past
