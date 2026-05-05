@@ -135,7 +135,7 @@ public class RationaleEnforcementTests
         var client = factory.CreateClient();
         var draft = await CreateDraftAsync(client, "rationale-on");
 
-        var response = await client.PostAsJsonAsync(
+        var response = await client.PostAsJsonAsApproverAsync(
             $"/api/policies/{draft.PolicyId}/versions/{draft.Id}/publish",
             new LifecycleTransitionRequest(""));
 
@@ -155,7 +155,7 @@ public class RationaleEnforcementTests
         var client = factory.CreateClient();
         var draft = await CreateDraftAsync(client, "rationale-off");
 
-        var response = await client.PostAsJsonAsync(
+        var response = await client.PostAsJsonAsApproverAsync(
             $"/api/policies/{draft.PolicyId}/versions/{draft.Id}/publish",
             new LifecycleTransitionRequest(""));
 
@@ -172,7 +172,7 @@ public class RationaleEnforcementTests
         var draft = await CreateDraftAsync(client, "rationale-flip");
 
         // First attempt with toggle on + empty rationale → 400.
-        var first = await client.PostAsJsonAsync(
+        var first = await client.PostAsJsonAsApproverAsync(
             $"/api/policies/{draft.PolicyId}/versions/{draft.Id}/publish",
             new LifecycleTransitionRequest(""));
         first.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -182,7 +182,7 @@ public class RationaleEnforcementTests
         // on every check, so the same client request now succeeds without a
         // restart.
         factory.Snapshot.RationaleRequired = false;
-        var second = await client.PostAsJsonAsync(
+        var second = await client.PostAsJsonAsApproverAsync(
             $"/api/policies/{draft.PolicyId}/versions/{draft.Id}/publish",
             new LifecycleTransitionRequest(""));
         second.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -195,7 +195,7 @@ public class RationaleEnforcementTests
         var client = factory.CreateClient();
         var draft = await CreateDraftAsync(client, "rationale-coldstart");
 
-        var response = await client.PostAsJsonAsync(
+        var response = await client.PostAsJsonAsApproverAsync(
             $"/api/policies/{draft.PolicyId}/versions/{draft.Id}/publish",
             new LifecycleTransitionRequest(""));
 

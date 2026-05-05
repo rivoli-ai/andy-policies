@@ -48,8 +48,12 @@ public class CliLifecycleEndToEndTests : IClassFixture<PoliciesApiFactory>
 
     private async Task<PolicyVersionDto> CreateDraftAsync(string slug)
     {
+        // P7.3 (#55): pin the proposer to "test-creator" so the CLI's
+        // publish call (which goes through TestAuthHandler with the
+        // default subject "test-user") doesn't trip the self-approval
+        // guard.
         var client = _factory.CreateClient();
-        var resp = await client.PostAsJsonAsync("/api/policies", new
+        var resp = await client.PostAsJsonAsSubjectAsync("/api/policies", new
         {
             name = slug,
             description = (string?)null,
@@ -58,7 +62,7 @@ public class CliLifecycleEndToEndTests : IClassFixture<PoliciesApiFactory>
             severity = "Critical",
             scopes = Array.Empty<string>(),
             rulesJson = "{}",
-        });
+        }, "test-creator");
         resp.EnsureSuccessStatusCode();
         return (await resp.Content.ReadFromJsonAsync<PolicyVersionDto>())!;
     }

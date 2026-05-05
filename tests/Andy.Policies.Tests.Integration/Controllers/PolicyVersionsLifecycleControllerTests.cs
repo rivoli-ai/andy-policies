@@ -60,7 +60,7 @@ public class PolicyVersionsLifecycleControllerTests : IClassFixture<PoliciesApiF
     {
         var draft = await CreateDraftAsync("publish-happy");
 
-        var response = await _client.PostAsJsonAsync(
+        var response = await _client.PostAsJsonAsApproverAsync(
             $"/api/policies/{draft.PolicyId}/versions/{draft.Id}/publish",
             WithRationale());
 
@@ -74,14 +74,14 @@ public class PolicyVersionsLifecycleControllerTests : IClassFixture<PoliciesApiF
     public async Task Publish_NewerDraft_AutoSupersedesPreviousActive()
     {
         var v1 = await CreateDraftAsync("auto-supersede");
-        await _client.PostAsJsonAsync(
+        await _client.PostAsJsonAsApproverAsync(
             $"/api/policies/{v1.PolicyId}/versions/{v1.Id}/publish",
             WithRationale("v1-go-live"));
 
         // Bumping the published v1 mints a fresh Draft (v2) under the same policy.
         var v2 = await BumpDraftAsync(v1.PolicyId, v1.Id);
 
-        var response = await _client.PostAsJsonAsync(
+        var response = await _client.PostAsJsonAsApproverAsync(
             $"/api/policies/{v2.PolicyId}/versions/{v2.Id}/publish",
             WithRationale("v2-go-live"));
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -104,7 +104,7 @@ public class PolicyVersionsLifecycleControllerTests : IClassFixture<PoliciesApiF
     {
         var draft = await CreateDraftAsync("publish-no-rationale");
 
-        var response = await _client.PostAsJsonAsync(
+        var response = await _client.PostAsJsonAsApproverAsync(
             $"/api/policies/{draft.PolicyId}/versions/{draft.Id}/publish",
             new LifecycleTransitionRequest(Rationale: "   "));
 
@@ -120,7 +120,7 @@ public class PolicyVersionsLifecycleControllerTests : IClassFixture<PoliciesApiF
     [Fact]
     public async Task Publish_OnUnknownPolicy_Returns404()
     {
-        var response = await _client.PostAsJsonAsync(
+        var response = await _client.PostAsJsonAsApproverAsync(
             $"/api/policies/{Guid.NewGuid()}/versions/{Guid.NewGuid()}/publish",
             WithRationale());
 
@@ -131,7 +131,7 @@ public class PolicyVersionsLifecycleControllerTests : IClassFixture<PoliciesApiF
     public async Task Publish_OnRetiredVersion_Returns409()
     {
         var draft = await CreateDraftAsync("publish-retired-blocked");
-        await _client.PostAsJsonAsync(
+        await _client.PostAsJsonAsApproverAsync(
             $"/api/policies/{draft.PolicyId}/versions/{draft.Id}/publish",
             WithRationale("live"));
         // Active -> Retired is allowed and tombstones the version.
@@ -139,7 +139,7 @@ public class PolicyVersionsLifecycleControllerTests : IClassFixture<PoliciesApiF
             $"/api/policies/{draft.PolicyId}/versions/{draft.Id}/retire",
             WithRationale("tomb"));
 
-        var response = await _client.PostAsJsonAsync(
+        var response = await _client.PostAsJsonAsApproverAsync(
             $"/api/policies/{draft.PolicyId}/versions/{draft.Id}/publish",
             WithRationale("rezz"));
 
@@ -152,7 +152,7 @@ public class PolicyVersionsLifecycleControllerTests : IClassFixture<PoliciesApiF
     public async Task WindDown_OnActive_Returns200_AndState()
     {
         var draft = await CreateDraftAsync("wind-down-happy");
-        await _client.PostAsJsonAsync(
+        await _client.PostAsJsonAsApproverAsync(
             $"/api/policies/{draft.PolicyId}/versions/{draft.Id}/publish",
             WithRationale("live"));
 
@@ -182,7 +182,7 @@ public class PolicyVersionsLifecycleControllerTests : IClassFixture<PoliciesApiF
     public async Task Retire_FromWindingDown_Returns200_AndStampsState()
     {
         var draft = await CreateDraftAsync("retire-from-winding");
-        await _client.PostAsJsonAsync(
+        await _client.PostAsJsonAsApproverAsync(
             $"/api/policies/{draft.PolicyId}/versions/{draft.Id}/publish",
             WithRationale("live"));
         await _client.PostAsJsonAsync(

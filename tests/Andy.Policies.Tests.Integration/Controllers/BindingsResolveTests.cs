@@ -48,7 +48,7 @@ public class BindingsResolveTests : IClassFixture<PoliciesApiFactory>
         var draft = await _client.PostAsJsonAsync("/api/policies", MinimalCreatePolicy(slug));
         draft.EnsureSuccessStatusCode();
         var created = (await draft.Content.ReadFromJsonAsync<PolicyVersionDto>())!;
-        var publish = await _client.PostAsJsonAsync(
+        var publish = await _client.PostAsJsonAsApproverAsync(
             $"/api/policies/{created.PolicyId}/versions/{created.Id}/publish",
             new LifecycleTransitionRequest("ship"));
         publish.EnsureSuccessStatusCode();

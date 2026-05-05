@@ -140,7 +140,7 @@ public class OverridesControllerTests : IDisposable
         draftResp.EnsureSuccessStatusCode();
         var draft = (await draftResp.Content.ReadFromJsonAsync<PolicyVersionDto>(JsonOptions))!;
 
-        var publishResp = await client.PostAsJsonAsync(
+        var publishResp = await client.PostAsJsonAsApproverAsync(
             $"/api/policies/{draft.PolicyId}/versions/{draft.Id}/publish",
             new LifecycleTransitionRequest("go-live"));
         publishResp.EnsureSuccessStatusCode();

@@ -80,7 +80,7 @@ public class BindingCrossSurfaceParityTests : IClassFixture<PoliciesApiFactory>,
         draft.EnsureSuccessStatusCode();
         var version = (await draft.Content.ReadFromJsonAsync<PolicyVersionDto>())!;
 
-        var publish = await _restClient.PostAsJsonAsync(
+        var publish = await _restClient.PostAsJsonAsApproverAsync(
             $"/api/policies/{version.PolicyId}/versions/{version.Id}/publish",
             new LifecycleTransitionRequest("parity"));
         publish.EnsureSuccessStatusCode();

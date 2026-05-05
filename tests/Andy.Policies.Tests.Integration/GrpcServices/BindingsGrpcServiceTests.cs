@@ -57,7 +57,11 @@ public class BindingsGrpcServiceTests : IClassFixture<PoliciesApiFactory>, IDisp
 
     private async Task<PolicyVersionMessage> CreateDraftAsync(string slug)
     {
-        var draft = await _policies.CreateDraftAsync(MinimalCreate(slug));
+        // P7.3 (#55): pin the proposer subject to "test-creator" so the
+        // default test subject "test-user" can act as the publisher
+        // without tripping the publish-time self-approval guard.
+        var metadata = new Metadata { { TestAuthHandler.SubjectHeader, "test-creator" } };
+        var draft = await _policies.CreateDraftAsync(MinimalCreate(slug), metadata);
         return draft.Version;
     }
 

@@ -121,7 +121,7 @@ public class OverridesGateToggleTests : IDisposable
         resp.EnsureSuccessStatusCode();
         var draft = (await resp.Content.ReadFromJsonAsync<PolicyVersionDto>(JsonOptions))!;
 
-        var publishResp = await client.PostAsJsonAsync(
+        var publishResp = await client.PostAsJsonAsApproverAsync(
             $"/api/policies/{draft.PolicyId}/versions/{draft.Id}/publish",
             new LifecycleTransitionRequest("go-live"));
         publishResp.EnsureSuccessStatusCode();

@@ -50,7 +50,7 @@ public class BindingsTightenOnlyTests : IClassFixture<PoliciesApiFactory>
         var draft = await _client.PostAsJsonAsync("/api/policies", MinimalCreatePolicy(slug));
         draft.EnsureSuccessStatusCode();
         var version = (await draft.Content.ReadFromJsonAsync<PolicyVersionDto>())!;
-        var publish = await _client.PostAsJsonAsync(
+        var publish = await _client.PostAsJsonAsApproverAsync(
             $"/api/policies/{version.PolicyId}/versions/{version.Id}/publish",
             new LifecycleTransitionRequest("ship"));
         publish.EnsureSuccessStatusCode();

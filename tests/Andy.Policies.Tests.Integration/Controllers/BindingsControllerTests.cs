@@ -57,7 +57,7 @@ public class BindingsControllerTests : IClassFixture<PoliciesApiFactory>
 
     private async Task<PolicyVersionDto> PublishAsync(PolicyVersionDto draft)
     {
-        var resp = await _client.PostAsJsonAsync(
+        var resp = await _client.PostAsJsonAsApproverAsync(
             $"/api/policies/{draft.PolicyId}/versions/{draft.Id}/publish",
             new LifecycleTransitionRequest("ship-it"));
         resp.EnsureSuccessStatusCode();

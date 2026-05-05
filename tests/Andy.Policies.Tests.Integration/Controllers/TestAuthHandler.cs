@@ -21,6 +21,13 @@ public sealed class TestAuthHandler : AuthenticationHandler<AuthenticationScheme
     public const string TestSubjectId = "test-user";
 
     /// <summary>
+    /// Convenience constant for tests that need a second subject distinct
+    /// from <see cref="TestSubjectId"/> — typically the publish actor in
+    /// P7.3's "author cannot self-approve" flow ([#55]).
+    /// </summary>
+    public const string TestApproverSubjectId = "test-approver";
+
+    /// <summary>
     /// Optional request header that overrides <see cref="TestSubjectId"/>
     /// for a single request. P5.5 (#58) needs multi-actor scenarios
     /// (self-approval, propose-as-A + approve-as-B); the header lets
