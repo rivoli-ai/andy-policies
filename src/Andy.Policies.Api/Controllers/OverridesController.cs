@@ -65,6 +65,7 @@ public sealed class OverridesController : ControllerBase
     /// <c>POST /api/overrides/{id}/approve</c>.
     /// </summary>
     [HttpPost]
+    [Authorize(Policy = "andy-policies:override:propose")]
     [OverrideWriteGate]
     [ProducesResponseType(typeof(OverrideDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
@@ -89,6 +90,7 @@ public sealed class OverridesController : ControllerBase
     /// <c>Proposed</c>.
     /// </summary>
     [HttpPost("{id:guid}/approve")]
+    [Authorize(Policy = "andy-policies:override:approve")]
     [OverrideWriteGate]
     [ProducesResponseType(typeof(OverrideDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -109,6 +111,7 @@ public sealed class OverridesController : ControllerBase
     /// <c>Expired</c> path goes through P5.3 instead.
     /// </summary>
     [HttpPost("{id:guid}/revoke")]
+    [Authorize(Policy = "andy-policies:override:revoke")]
     [OverrideWriteGate]
     [ProducesResponseType(typeof(OverrideDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
@@ -134,6 +137,7 @@ public sealed class OverridesController : ControllerBase
     /// scope-narrowed-and-non-expired projection.
     /// </summary>
     [HttpGet]
+    [Authorize(Policy = "andy-policies:override:read")]
     [ProducesResponseType(typeof(IReadOnlyList<OverrideDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -154,6 +158,7 @@ public sealed class OverridesController : ControllerBase
     /// row is still readable for audit).
     /// </summary>
     [HttpGet("{id:guid}", Name = nameof(Get))]
+    [Authorize(Policy = "andy-policies:override:read")]
     [ProducesResponseType(typeof(OverrideDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -171,6 +176,7 @@ public sealed class OverridesController : ControllerBase
     /// resolution and by Conductor at admission time.
     /// </summary>
     [HttpGet("active")]
+    [Authorize(Policy = "andy-policies:override:read")]
     [ProducesResponseType(typeof(IReadOnlyList<OverrideDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]

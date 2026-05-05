@@ -41,6 +41,7 @@ public sealed class PolicyVersionsLifecycleController : ControllerBase
     /// (if any) within the same DB transaction.
     /// </summary>
     [HttpPost("publish")]
+    [Authorize(Policy = "andy-policies:policy:publish")]
     [ProducesResponseType(typeof(PolicyVersionDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -57,6 +58,7 @@ public sealed class PolicyVersionsLifecycleController : ControllerBase
     /// Active continue to resolve until the version is retired.
     /// </summary>
     [HttpPost("winding-down")]
+    [Authorize(Policy = "andy-policies:policy:transition")]
     [ProducesResponseType(typeof(PolicyVersionDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -73,6 +75,7 @@ public sealed class PolicyVersionsLifecycleController : ControllerBase
     /// rejected by the matrix.
     /// </summary>
     [HttpPost("retire")]
+    [Authorize(Policy = "andy-policies:policy:transition")]
     [ProducesResponseType(typeof(PolicyVersionDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]

@@ -51,7 +51,37 @@ builder.Services.AddAuthentication("Bearer")
             };
         }
     });
-builder.Services.AddAuthorization();
+// P7.4 (#57): every permission code in the P7.1 manifest gets a
+// matching ASP.NET authorization policy whose RbacRequirement points
+// at IRbacChecker. Controllers attach via [Authorize(Policy = "code")].
+// Listed verbatim so the round-trip from manifest → policy registration
+// → controller attribute is grep-able. Adding a code requires a manifest
+// update + a new entry here + a [Authorize(Policy = ...)] at the call
+// site; the unit test in ManifestTests already pins the manifest side.
+string[] rbacPermissionCodes =
+{
+    "andy-policies:policy:read",        "andy-policies:policy:author",
+    "andy-policies:policy:publish",     "andy-policies:policy:transition",
+    "andy-policies:binding:read",       "andy-policies:binding:manage",
+    "andy-policies:scope:read",         "andy-policies:scope:manage",
+    "andy-policies:override:read",      "andy-policies:override:propose",
+    "andy-policies:override:approve",   "andy-policies:override:revoke",
+    "andy-policies:bundle:read",        "andy-policies:bundle:create",
+    "andy-policies:bundle:delete",      "andy-policies:audit:read",
+    "andy-policies:audit:export",       "andy-policies:audit:verify",
+};
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddSingleton<
+    Microsoft.AspNetCore.Authorization.IAuthorizationHandler,
+    Andy.Policies.Api.Authorization.RbacAuthorizationHandler>();
+builder.Services.AddAuthorization(options =>
+{
+    foreach (var code in rbacPermissionCodes)
+    {
+        options.AddPolicy(code, p =>
+            p.Requirements.Add(new Andy.Policies.Api.Authorization.RbacRequirement(code)));
+    }
+});
 
 // --- HttpClient defaults ---
 // Dev-only: accept self-signed certs from local andy-* services so

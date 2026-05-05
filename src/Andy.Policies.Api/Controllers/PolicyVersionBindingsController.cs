@@ -34,6 +34,7 @@ public sealed class PolicyVersionBindingsController : ControllerBase
     /// tombstoned rows; default <c>false</c> hides them.
     /// </summary>
     [HttpGet("")]
+    [Authorize(Policy = "andy-policies:binding:read")]
     [ProducesResponseType(typeof(IReadOnlyList<BindingDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<BindingDto>>> List(
         Guid policyId,

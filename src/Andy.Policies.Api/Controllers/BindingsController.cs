@@ -44,6 +44,7 @@ public sealed class BindingsController : ControllerBase
     /// <c>targetRef</c> returns 400.
     /// </summary>
     [HttpPost]
+    [Authorize(Policy = "andy-policies:binding:manage")]
     [ProducesResponseType(typeof(BindingDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -66,6 +67,7 @@ public sealed class BindingsController : ControllerBase
     /// investigators can inspect their <c>DeletedAt</c> stamp.
     /// </summary>
     [HttpGet("{id:guid}")]
+    [Authorize(Policy = "andy-policies:binding:read")]
     [ProducesResponseType(typeof(BindingDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<BindingDto>> Get(Guid id, CancellationToken ct)
@@ -81,6 +83,7 @@ public sealed class BindingsController : ControllerBase
     /// the audit record.
     /// </summary>
     [HttpDelete("{id:guid}")]
+    [Authorize(Policy = "andy-policies:binding:manage")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -104,6 +107,7 @@ public sealed class BindingsController : ControllerBase
     /// rows.
     /// </summary>
     [HttpGet("")]
+    [Authorize(Policy = "andy-policies:binding:read")]
     [ProducesResponseType(typeof(IReadOnlyList<BindingDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<IReadOnlyList<BindingDto>>> Query(
@@ -132,6 +136,7 @@ public sealed class BindingsController : ControllerBase
     /// unknown target returns 200 with <c>count = 0</c>, never 404.
     /// </summary>
     [HttpGet("resolve")]
+    [Authorize(Policy = "andy-policies:binding:read")]
     [ProducesResponseType(typeof(ResolveBindingsResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<ResolveBindingsResponse>> Resolve(

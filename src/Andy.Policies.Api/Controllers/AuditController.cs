@@ -73,6 +73,7 @@ public sealed class AuditController : ControllerBase
     /// <response code="403">Caller lacks the
     /// <c>andy-policies:audit:verify</c> permission (P7.2).</response>
     [HttpGet("verify")]
+    [Authorize(Policy = "andy-policies:audit:verify")]
     [ProducesResponseType(typeof(ChainVerificationDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -123,6 +124,7 @@ public sealed class AuditController : ControllerBase
     /// 500.</param>
     /// <param name="ct">Request cancellation token.</param>
     [HttpGet]
+    [Authorize(Policy = "andy-policies:audit:read")]
     [ProducesResponseType(typeof(AuditPageDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
