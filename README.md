@@ -491,7 +491,13 @@ The runtime adapter is `HttpRbacChecker` (P7.2, [#51](https://github.com/rivoli-
 | `andy-policies:audit:export`       | audit    | risk |
 | `andy-policies:audit:verify`       | audit    | risk |
 
-`admin` holds the `*` wildcard. Authoritative source: `config/registration.json`. ADR 0007 (P7.7, [#65](https://github.com/rivoli-ai/andy-policies/issues/65)) covers the delegation choice and the self-approval invariant.
+`admin` holds the `*` wildcard. Authoritative source: `config/registration.json`.
+
+**Reference docs** (P7.7, [#65](https://github.com/rivoli-ai/andy-policies/issues/65)):
+
+- [Permission catalog](docs/reference/permission-catalog.md) — auto-generated from `config/registration.json` via `dotnet run --project tools/GenerateRbacDocs`. CI runs the generator with `--check` to fail builds on drift between the manifest and the published page.
+- [Edit matrix](docs/design/edit-matrix.md) — one row per catalog mutation across P1–P8 with permission code, author/approver flags, and the self-approval column flagging where a single caller acting in both roles is forbidden.
+- [ADR 0007 — Edit RBAC](docs/adr/0007-edit-rbac.md) — delegation to andy-rbac, fail-closed default, the author-cannot-self-approve domain invariant, and the per-service `client_credentials` S2S contract.
 
 ## Ports
 

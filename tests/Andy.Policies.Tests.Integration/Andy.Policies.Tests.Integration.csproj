@@ -10,6 +10,9 @@
     <ProjectReference Include="..\..\src\Andy.Policies.Api\Andy.Policies.Api.csproj" />
     <!-- P2.7 (#17): CliLifecycleEndToEndTests drives the CLI in-process. -->
     <ProjectReference Include="..\..\tools\Andy.Policies.Cli\Andy.Policies.Cli.csproj" />
+    <!-- P7.7 (#65): DocsDriftTests run the live registration.json through
+         the generator and diff against the committed permission catalog. -->
+    <ProjectReference Include="..\..\tools\GenerateRbacDocs\GenerateRbacDocs.csproj" />
   </ItemGroup>
 
   <ItemGroup>
