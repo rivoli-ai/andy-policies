@@ -466,6 +466,8 @@ The runtime adapter is `HttpRbacChecker` (P7.2, [#51](https://github.com/rivoli-
 
 **Per-action policy attributes** (P7.4, [#57](https://github.com/rivoli-ai/andy-policies/issues/57)). Every REST controller action carries `[Authorize(Policy = "andy-policies:…")]` naming a permission code from the catalog above. `RbacAuthorizationHandler` extracts the subject id (`sub` / `NameIdentifier` / `Identity.Name`), the JWT `groups` claim, and a route-derived resource instance (`{type}:{routeId}`), then delegates to `IRbacChecker`. A denied or fail-closed decision means the action returns 403; an allowed decision lets the request proceed. MCP and gRPC interceptors (P7.6) reuse the same handler.
 
+**Test harness** (P7.5, [#61](https://github.com/rivoli-ai/andy-policies/issues/61)). `tests/Andy.Policies.Tests.Integration/Fixtures/RbacStubFixture` starts a `WireMockServer` with a default-deny catch-all; tests call `Allow(subject, permission, instance?)`, `Deny(...)`, or `SimulateOutage()` to drive the **real** `HttpRbacChecker` end-to-end. `RbacTestApplicationFactory` rewrites `AndyRbac:BaseUrl` to the stub's port — unlike `PoliciesApiFactory`, it does *not* swap in an allow-all stub, so the full `[Authorize(Policy=…)] → handler → checker → wire` path is under test.
+
 ### Permission catalog
 
 | Code | Resource | Held by |
