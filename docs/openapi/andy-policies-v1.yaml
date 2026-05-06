@@ -288,6 +288,7 @@ paths:
             type: string
         - name: bundleId
           in: query
+          description: Bundle id to pin the read against. Required when andy.policies.bundleVersionPinning is true (the manifest default); absence yields a 400 ProblemDetails with type "https://andy.local/problems/bundle-pin-required".
           schema:
             type: string
             format: uuid
@@ -304,6 +305,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+          x-andy-pinning-gate-type: https://andy.local/problems/bundle-pin-required
         '404':
           description: Not Found
           content:
@@ -507,6 +509,15 @@ paths:
       responses:
         '200':
           description: OK
+          headers:
+            ETag:
+              description: 'Strong validator: "<snapshotHash>" (64 hex chars). Bundles are immutable post-insert (P8.1), so the ETag is stable for the lifetime of the bundle id.'
+              schema:
+                type: string
+            Cache-Control:
+              description: 'public, max-age=31536000, immutable — the response body for a given (bundleId, snapshotHash) never changes.'
+              schema:
+                type: string
           content:
             application/json:
               schema:
@@ -559,6 +570,15 @@ paths:
       responses:
         '200':
           description: OK
+          headers:
+            ETag:
+              description: 'Strong validator: "<snapshotHash>" (64 hex chars). Bundles are immutable post-insert (P8.1), so the ETag is stable for the lifetime of the bundle id.'
+              schema:
+                type: string
+            Cache-Control:
+              description: 'public, max-age=31536000, immutable — the response body for a given (bundleId, snapshotHash) never changes.'
+              schema:
+                type: string
           content:
             application/json:
               schema:
@@ -1181,6 +1201,7 @@ paths:
             format: int32
         - name: bundleId
           in: query
+          description: Bundle id to pin the read against. Required when andy.policies.bundleVersionPinning is true (the manifest default); absence yields a 400 ProblemDetails with type "https://andy.local/problems/bundle-pin-required".
           schema:
             type: string
             format: uuid
@@ -1203,6 +1224,11 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/PolicyDto'
+        '400':
+          description: Bundle pinning required (or other request validation failure).
+          content:
+            application/problem+json: { }
+          x-andy-pinning-gate-type: https://andy.local/problems/bundle-pin-required
     post:
       tags:
         - Policies
@@ -1245,6 +1271,7 @@ paths:
             format: uuid
         - name: bundleId
           in: query
+          description: Bundle id to pin the read against. Required when andy.policies.bundleVersionPinning is true (the manifest default); absence yields a 400 ProblemDetails with type "https://andy.local/problems/bundle-pin-required".
           schema:
             type: string
             format: uuid
@@ -1261,6 +1288,11 @@ paths:
             text/json:
               schema:
                 $ref: '#/components/schemas/PolicyDto'
+        '400':
+          description: Bundle pinning required (or other request validation failure).
+          content:
+            application/problem+json: { }
+          x-andy-pinning-gate-type: https://andy.local/problems/bundle-pin-required
   '/api/Policies/by-name/{name}':
     get:
       tags:
@@ -1274,6 +1306,7 @@ paths:
             type: string
         - name: bundleId
           in: query
+          description: Bundle id to pin the read against. Required when andy.policies.bundleVersionPinning is true (the manifest default); absence yields a 400 ProblemDetails with type "https://andy.local/problems/bundle-pin-required".
           schema:
             type: string
             format: uuid
@@ -1290,6 +1323,11 @@ paths:
             text/json:
               schema:
                 $ref: '#/components/schemas/PolicyDto'
+        '400':
+          description: Bundle pinning required (or other request validation failure).
+          content:
+            application/problem+json: { }
+          x-andy-pinning-gate-type: https://andy.local/problems/bundle-pin-required
   '/api/Policies/{id}/versions':
     get:
       tags:
@@ -1304,6 +1342,7 @@ paths:
             format: uuid
         - name: bundleId
           in: query
+          description: Bundle id to pin the read against. Required when andy.policies.bundleVersionPinning is true (the manifest default); absence yields a 400 ProblemDetails with type "https://andy.local/problems/bundle-pin-required".
           schema:
             type: string
             format: uuid
@@ -1326,6 +1365,11 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/PolicyVersionDto'
+        '400':
+          description: Bundle pinning required (or other request validation failure).
+          content:
+            application/problem+json: { }
+          x-andy-pinning-gate-type: https://andy.local/problems/bundle-pin-required
   '/api/Policies/{id}/versions/active':
     get:
       tags:
@@ -1341,6 +1385,7 @@ paths:
             format: uuid
         - name: bundleId
           in: query
+          description: Bundle id to pin the read against. Required when andy.policies.bundleVersionPinning is true (the manifest default); absence yields a 400 ProblemDetails with type "https://andy.local/problems/bundle-pin-required".
           schema:
             type: string
             format: uuid
@@ -1357,6 +1402,11 @@ paths:
             text/json:
               schema:
                 $ref: '#/components/schemas/PolicyVersionDto'
+        '400':
+          description: Bundle pinning required (or other request validation failure).
+          content:
+            application/problem+json: { }
+          x-andy-pinning-gate-type: https://andy.local/problems/bundle-pin-required
   '/api/Policies/{id}/versions/{versionId}':
     get:
       tags:
@@ -1377,6 +1427,7 @@ paths:
             format: uuid
         - name: bundleId
           in: query
+          description: Bundle id to pin the read against. Required when andy.policies.bundleVersionPinning is true (the manifest default); absence yields a 400 ProblemDetails with type "https://andy.local/problems/bundle-pin-required".
           schema:
             type: string
             format: uuid
@@ -1393,6 +1444,11 @@ paths:
             text/json:
               schema:
                 $ref: '#/components/schemas/PolicyVersionDto'
+        '400':
+          description: Bundle pinning required (or other request validation failure).
+          content:
+            application/problem+json: { }
+          x-andy-pinning-gate-type: https://andy.local/problems/bundle-pin-required
     put:
       tags:
         - Policies
@@ -1836,6 +1892,7 @@ paths:
             format: uuid
         - name: bundleId
           in: query
+          description: Bundle id to pin the read against. Required when andy.policies.bundleVersionPinning is true (the manifest default); absence yields a 400 ProblemDetails with type "https://andy.local/problems/bundle-pin-required".
           schema:
             type: string
             format: uuid
@@ -1852,6 +1909,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+          x-andy-pinning-gate-type: https://andy.local/problems/bundle-pin-required
         '404':
           description: Not Found
           content:
