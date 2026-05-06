@@ -340,6 +340,10 @@ builder.Services.AddSwaggerGen(options =>
 
     options.SchemaFilter<Andy.Policies.Api.Swagger.PolicyDimensionSchemaFilter>();
     options.DocumentFilter<Andy.Policies.Api.Swagger.OverridesDocumentFilter>();
+    // P8.7 (#87): annotate the bundle-pinning gate's 400
+    // ProblemDetails response and the bundle resolve / get-pinned
+    // ETag + Cache-Control headers on the OpenAPI surface.
+    options.OperationFilter<Andy.Policies.Api.Swagger.BundleOperationFilter>();
 
     options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
     {
