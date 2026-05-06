@@ -1,6 +1,7 @@
 // Copyright (c) Rivoli AI 2026. All rights reserved.
 // Licensed under the Apache License, Version 2.0.
 
+using Andy.Policies.Api.Filters;
 using Andy.Policies.Application.Dtos;
 using Andy.Policies.Application.Interfaces;
 using Andy.Policies.Application.Queries;
@@ -20,14 +21,17 @@ namespace Andy.Policies.Api.Controllers;
 public class PoliciesController : ControllerBase
 {
     private readonly IPolicyService _policies;
+    private readonly IBundleBackedPolicyReader _bundleReader;
 
-    public PoliciesController(IPolicyService policies)
+    public PoliciesController(IPolicyService policies, IBundleBackedPolicyReader bundleReader)
     {
         _policies = policies;
+        _bundleReader = bundleReader;
     }
 
     [HttpGet]
     [Authorize(Policy = "andy-policies:policy:read")]
+    [RequiresBundlePin]
     public async Task<ActionResult<IReadOnlyList<PolicyDto>>> List(
         [FromQuery] string? namePrefix,
         [FromQuery] string? scope,
@@ -35,6 +39,7 @@ public class PoliciesController : ControllerBase
         [FromQuery] string? severity,
         [FromQuery] int? skip,
         [FromQuery] int? take,
+        [FromQuery] Guid? bundleId,
         CancellationToken ct)
     {
         var query = new ListPoliciesQuery(
@@ -45,33 +50,58 @@ public class PoliciesController : ControllerBase
             Skip: skip ?? 0,
             Take: take ?? 100);
 
+        if (bundleId is { } pinned)
+        {
+            var pinnedResults = await _bundleReader.ListPoliciesAsync(pinned, query, ct);
+            return pinnedResults is null ? NotFound() : Ok(pinnedResults);
+        }
         var results = await _policies.ListPoliciesAsync(query, ct);
         return Ok(results);
     }
 
     [HttpGet("{id:guid}")]
     [Authorize(Policy = "andy-policies:policy:read")]
-    public async Task<ActionResult<PolicyDto>> Get(Guid id, CancellationToken ct)
+    [RequiresBundlePin]
+    public async Task<ActionResult<PolicyDto>> Get(
+        Guid id, [FromQuery] Guid? bundleId, CancellationToken ct)
     {
+        if (bundleId is { } pinned)
+        {
+            var pinnedDto = await _bundleReader.GetPolicyAsync(pinned, id, ct);
+            return pinnedDto is null ? NotFound() : Ok(pinnedDto);
+        }
         var policy = await _policies.GetPolicyAsync(id, ct);
         return policy is null ? NotFound() : Ok(policy);
     }
 
     [HttpGet("by-name/{name}")]
     [Authorize(Policy = "andy-policies:policy:read")]
-    public async Task<ActionResult<PolicyDto>> GetByName(string name, CancellationToken ct)
+    [RequiresBundlePin]
+    public async Task<ActionResult<PolicyDto>> GetByName(
+        string name, [FromQuery] Guid? bundleId, CancellationToken ct)
     {
+        if (bundleId is { } pinned)
+        {
+            var pinnedDto = await _bundleReader.GetPolicyByNameAsync(pinned, name, ct);
+            return pinnedDto is null ? NotFound() : Ok(pinnedDto);
+        }
         var policy = await _policies.GetPolicyByNameAsync(name, ct);
         return policy is null ? NotFound() : Ok(policy);
     }
 
     [HttpGet("{id:guid}/versions")]
     [Authorize(Policy = "andy-policies:policy:read")]
+    [RequiresBundlePin]
     public async Task<ActionResult<IReadOnlyList<PolicyVersionDto>>> ListVersions(
-        Guid id, CancellationToken ct)
+        Guid id, [FromQuery] Guid? bundleId, CancellationToken ct)
     {
-        var versions = await _policies.ListVersionsAsync(id, ct);
-        return Ok(versions);
+        if (bundleId is { } pinned)
+        {
+            var versions = await _bundleReader.ListVersionsAsync(pinned, id, ct);
+            return versions is null ? NotFound() : Ok(versions);
+        }
+        var live = await _policies.ListVersionsAsync(id, ct);
+        return Ok(live);
     }
 
     /// <summary>
@@ -82,18 +112,30 @@ public class PoliciesController : ControllerBase
     /// </summary>
     [HttpGet("{id:guid}/versions/active")]
     [Authorize(Policy = "andy-policies:policy:read")]
+    [RequiresBundlePin]
     public async Task<ActionResult<PolicyVersionDto>> GetActiveVersion(
-        Guid id, CancellationToken ct)
+        Guid id, [FromQuery] Guid? bundleId, CancellationToken ct)
     {
+        if (bundleId is { } pinned)
+        {
+            var pinnedActive = await _bundleReader.GetActiveVersionAsync(pinned, id, ct);
+            return pinnedActive is null ? NotFound() : Ok(pinnedActive);
+        }
         var active = await _policies.GetActiveVersionAsync(id, ct);
         return active is null ? NotFound() : Ok(active);
     }
 
     [HttpGet("{id:guid}/versions/{versionId:guid}")]
     [Authorize(Policy = "andy-policies:policy:read")]
+    [RequiresBundlePin]
     public async Task<ActionResult<PolicyVersionDto>> GetVersion(
-        Guid id, Guid versionId, CancellationToken ct)
+        Guid id, Guid versionId, [FromQuery] Guid? bundleId, CancellationToken ct)
     {
+        if (bundleId is { } pinned)
+        {
+            var pinnedVersion = await _bundleReader.GetVersionAsync(pinned, id, versionId, ct);
+            return pinnedVersion is null ? NotFound() : Ok(pinnedVersion);
+        }
         var version = await _policies.GetVersionAsync(id, versionId, ct);
         return version is null ? NotFound() : Ok(version);
     }

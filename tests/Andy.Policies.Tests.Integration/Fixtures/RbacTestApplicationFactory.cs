@@ -69,6 +69,17 @@ public sealed class RbacTestApplicationFactory : WebApplicationFactory<Program>
                     .Build();
             });
 
+            // P8.4 (#84): same stub posture as PoliciesApiFactory —
+            // legacy P7.5 RBAC tests don't pass `?bundleId=` and
+            // shouldn't be 400'd by the gate. The pinning gate has
+            // its own dedicated tests.
+            var pinDescriptors = services
+                .Where(d => d.ServiceType == typeof(Andy.Policies.Application.Interfaces.IPinningPolicy))
+                .ToList();
+            foreach (var d in pinDescriptors) services.Remove(d);
+            services.AddSingleton<Andy.Policies.Application.Interfaces.IPinningPolicy>(
+                new PoliciesApiFactory.StaticPinningPolicy(required: false));
+
             using var sp = services.BuildServiceProvider();
             using var scope = sp.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();

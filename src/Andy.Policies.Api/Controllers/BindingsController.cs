@@ -2,6 +2,7 @@
 // Licensed under the Apache License, Version 2.0.
 
 using System.Security.Claims;
+using Andy.Policies.Api.Filters;
 using Andy.Policies.Application.Dtos;
 using Andy.Policies.Application.Interfaces;
 using Andy.Policies.Domain.Enums;
@@ -137,18 +138,48 @@ public sealed class BindingsController : ControllerBase
     /// </summary>
     [HttpGet("resolve")]
     [Authorize(Policy = "andy-policies:binding:read")]
+    [RequiresBundlePin]
     [ProducesResponseType(typeof(ResolveBindingsResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ResolveBindingsResponse>> Resolve(
         [FromQuery] BindingTargetType targetType,
         [FromQuery] string targetRef,
+        [FromQuery] Guid? bundleId,
         [FromServices] IBindingResolver resolver,
+        [FromServices] IBundleResolver bundleResolver,
         CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(targetRef))
         {
             return ValidationProblem("targetRef query parameter is required.");
         }
+
+        if (bundleId is { } pinned)
+        {
+            // P8.4 (#84) — snapshot-backed dispatch. Translate the
+            // BundleResolveResult shape to the existing
+            // ResolveBindingsResponse so consumers see one wire shape
+            // regardless of pinning. Missing/deleted bundle is a 404.
+            var pinnedResult = await bundleResolver.ResolveAsync(pinned, targetType, targetRef, ct);
+            if (pinnedResult is null) return NotFound();
+
+            var dtos = pinnedResult.Bindings
+                .Select(b => new ResolvedBindingDto(
+                    BindingId: b.BindingId,
+                    PolicyId: b.PolicyId,
+                    PolicyName: b.PolicyName,
+                    PolicyVersionId: b.PolicyVersionId,
+                    VersionNumber: b.VersionNumber,
+                    VersionState: LifecycleState.Active.ToString(),
+                    Enforcement: b.Enforcement,
+                    Severity: b.Severity,
+                    Scopes: b.Scopes,
+                    BindStrength: b.BindStrength))
+                .ToList();
+            return Ok(new ResolveBindingsResponse(targetType, targetRef, dtos, dtos.Count));
+        }
+
         var response = await resolver.ResolveExactAsync(targetType, targetRef, ct);
         return Ok(response);
     }

@@ -1,6 +1,7 @@
 // Copyright (c) Rivoli AI 2026. All rights reserved.
 // Licensed under the Apache License, Version 2.0.
 
+using Andy.Policies.Api.Filters;
 using Andy.Policies.Application.Dtos;
 using Andy.Policies.Application.Interfaces;
 using Andy.Policies.Domain.Enums;
@@ -90,10 +91,21 @@ public sealed class ScopesController : ControllerBase
     /// </summary>
     [HttpGet("{id:guid}/effective-policies")]
     [Authorize(Policy = "andy-policies:scope:read")]
+    [RequiresBundlePin]
     [ProducesResponseType(typeof(EffectivePolicySetDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<EffectivePolicySetDto>> Effective(Guid id, CancellationToken ct)
+    public async Task<ActionResult<EffectivePolicySetDto>> Effective(
+        Guid id,
+        [FromQuery] Guid? bundleId,
+        [FromServices] IBundleResolver bundleResolver,
+        CancellationToken ct)
     {
+        if (bundleId is { } pinned)
+        {
+            var snapshotResult = await bundleResolver.ResolveEffectiveForScopeAsync(pinned, id, ct);
+            return snapshotResult is null ? NotFound() : Ok(snapshotResult);
+        }
         var result = await _resolver.ResolveForScopeAsync(id, ct);
         return Ok(result);
     }
