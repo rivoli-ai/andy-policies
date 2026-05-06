@@ -569,6 +569,10 @@ docker compose -f docker-compose.e2e.yml down -v
 First build is slow (8 images: 4 services × build + 4 Postgres pulls).
 Subsequent rebuilds are incremental.
 
+### Cross-service embedded smoke (P10.4, [#39](https://github.com/rivoli-ai/andy-policies/issues/39))
+
+The `EmbeddedCrossServiceSmokeTests` class in the same project drives the full catalog lifecycle (create → publish → bind → bundle → resolve → audit → verify) against the live REST surface. Used by [Conductor Epic AO](https://github.com/rivoli-ai/conductor/issues/669) via the `ANDY_POLICIES_E2E_NO_COMPOSE=1` flag so the harness owns compose; locally the fixture brings up `docker-compose.e2e.yml` itself. Every URL / credential is configurable via env var — see [`docs/embedded/cross-service-smoke.md`](docs/embedded/cross-service-smoke.md) for the full table and the harness-integration recipe.
+
 ## Docker modes
 
 ```bash
