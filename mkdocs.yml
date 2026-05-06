@@ -30,6 +30,7 @@ nav:
     - Permission catalog: reference/permission-catalog.md
   - Guides:
     - Consumer integration — bindings: guides/consumer-integration-bindings.md
+    - Consumer integration — bundles: guides/consumer-integration-bundles.md
   - Runbooks:
     - Override approver: runbooks/override-approver.md
     - Override operator: runbooks/override-operator.md
@@ -42,3 +43,4 @@ nav:
     - 0005 Overrides: adr/0005-overrides.md
     - 0006 Audit hash chain: adr/0006-audit-hash-chain.md
     - 0007 Edit RBAC: adr/0007-edit-rbac.md
+    - 0008 Bundle pinning: adr/0008-bundle-pinning.md
