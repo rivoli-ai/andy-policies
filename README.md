@@ -579,6 +579,20 @@ docker compose up -d
 docker compose -f docker-compose.embedded.yml up -d
 ```
 
+### Embedded mode notes (P10.1, [#31](https://github.com/rivoli-ai/andy-policies/issues/31))
+
+The embedded compose runs the API against a SQLite file persisted to the `sqlite_data` named volume. EF migrations apply on every boot (idempotent — `Database.MigrateAsync` writes to `__EFMigrationsHistory` on first run and short-circuits thereafter), so upgrading the image against an existing volume is safe. The boot-time stock-policy seeder (P1.3) populates the catalog only when the database is empty; restart-booting against a populated volume preserves operator edits.
+
+After `up -d`, smoke check:
+
+```bash
+sleep 15  # allow migrate + seed
+curl -fsk https://localhost:5112/health
+curl -fsk https://localhost:5112/api/policies
+```
+
+The migration / model invariants are pinned by `SqliteModelCompatibilityTests`, `SqliteMigrationApplyTests`, and `SqliteBootTests`. A change to `AppDbContext.OnModelCreating` that introduces a Postgres-only column type (`jsonb`, `timestamptz`, `text[]`) without an `IsNpgsql()` branch fails the model-compat test before merge.
+
 ## Documentation
 
 Full documentation at [rivoli-ai.github.io/andy-policies](https://rivoli-ai.github.io/andy-policies/).
