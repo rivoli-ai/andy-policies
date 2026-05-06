@@ -1,7 +1,7 @@
 # Edit matrix
 
 For every catalog mutation, this table names the required permission code from
-[`config/registration.json`](../../config/registration.json), whether the actor
+[`config/registration.json`](https://github.com/rivoli-ai/andy-policies/blob/main/config/registration.json), whether the actor
 plays the *author* or *approver* role, and whether the action permits a single
 caller acting in both roles.
 
