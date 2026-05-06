@@ -76,6 +76,10 @@ internal static class Program
         AuditCommands.Register(auditCommand, apiUrlOption, tokenOption, outputOption);
         rootCommand.AddCommand(auditCommand);
 
+        var bundlesCommand = new Command("bundles", "Manage policy bundles (frozen catalog snapshots)");
+        BundleCommands.Register(bundlesCommand, apiUrlOption, tokenOption, outputOption);
+        rootCommand.AddCommand(bundlesCommand);
+
         return await rootCommand.InvokeAsync(args);
     }
 }

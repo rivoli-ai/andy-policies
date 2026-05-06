@@ -310,6 +310,179 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+  /api/bundles:
+    post:
+      tags:
+        - Bundles
+      summary: "Create a new bundle (frozen snapshot of the live catalog).\r\nReturns 201 with the Andy.Policies.Application.Interfaces.BundleDto + `Location`\r\nheader pointing at `GET /api/bundles/{id}`.\r\nMaps Andy.Policies.Application.Exceptions.ValidationException → 400 and\r\nAndy.Policies.Application.Exceptions.ConflictException → 409 (duplicate active name).\r\nP8.6 (#86) — the CLI from this story is the first REST consumer."
+      operationId: Bundles_Create
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBundleRequest'
+          text/json:
+            schema:
+              $ref: '#/components/schemas/CreateBundleRequest'
+          application/*+json:
+            schema:
+              $ref: '#/components/schemas/CreateBundleRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BundleDto'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+    get:
+      tags:
+        - Bundles
+      summary: "List bundles. `?includeDeleted=true` includes soft-deleted\r\nrows; `take` is clamped server-side. P8.6 (#86)."
+      operationId: Bundles_List
+      parameters:
+        - name: includeDeleted
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: skip
+          in: query
+          schema:
+            type: integer
+            format: int32
+            default: 0
+        - name: take
+          in: query
+          schema:
+            type: integer
+            format: int32
+            default: 50
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BundleDto'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  '/api/bundles/{id}':
+    get:
+      tags:
+        - Bundles
+      summary: "Get a bundle by id. Returns 200 with Andy.Policies.Application.Interfaces.BundleDto or\r\n404 when the bundle is missing. Soft-deleted bundles are\r\naddressable here (the row remains for audit-chain integrity);\r\npass `?includeDeleted=true` on `GET /api/bundles` to\r\nlist them. P8.6 (#86)."
+      operationId: Bundles_Get
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BundleDto'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+    delete:
+      tags:
+        - Bundles
+      summary: "Soft-delete a bundle. State flips to\r\nAndy.Policies.Domain.Enums.BundleState.Deleted; the row remains in the table\r\nfor audit-chain integrity. Idempotent: a second delete on the\r\nsame id returns 404. P8.6 (#86)."
+      operationId: Bundles_Delete
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: rationale
+          in: query
+          schema:
+            type: string
+      responses:
+        '204':
+          description: No Content
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   '/api/bundles/{id}/resolve':
     get:
       tags:
@@ -392,6 +565,55 @@ paths:
                 $ref: '#/components/schemas/BundlePinnedPolicyDto'
         '304':
           description: Not Modified
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  '/api/bundles/{id}/diff':
+    get:
+      tags:
+        - Bundles
+      summary: "Emit an RFC-6902 JSON Patch between two bundles' frozen\r\nsnapshots (P8.6, story rivoli-ai/andy-policies#86). Returns\r\n200 with a Andy.Policies.Application.Interfaces.BundleDiffResult; 404 when either\r\nbundle is missing or soft-deleted; 400 when the same id is\r\npassed for both id and `to` (the\r\ntrivial empty-patch case is allowed via two distinct ids\r\nthat happen to resolve to identical canonical bytes — the\r\ndiff returns `[]`; same-id is rejected as a likely\r\ncaller mistake)."
+      operationId: Bundles_Diff
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BundleDiffResult'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '401':
           description: Unauthorized
           content:
@@ -1754,6 +1976,67 @@ components:
         - Tenant
         - Org
       type: string
+    BundleDiffResult:
+      type: object
+      properties:
+        fromId:
+          type: string
+          format: uuid
+        fromSnapshotHash:
+          type: string
+          nullable: true
+        toId:
+          type: string
+          format: uuid
+        toSnapshotHash:
+          type: string
+          nullable: true
+        rfc6902PatchJson:
+          type: string
+          nullable: true
+        opCount:
+          type: integer
+          format: int32
+      additionalProperties: false
+      description: 'Result envelope for M:Andy.Policies.Application.Interfaces.IBundleDiffService.DiffAsync(System.Guid,System.Guid,System.Threading.CancellationToken).'
+    BundleDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        createdBySubjectId:
+          type: string
+          nullable: true
+        snapshotHash:
+          type: string
+          nullable: true
+        state:
+          enum:
+            - Draft
+            - Active
+            - WindingDown
+            - Retired
+          type: string
+          nullable: true
+        deletedAt:
+          type: string
+          format: date-time
+          nullable: true
+        deletedBySubjectId:
+          type: string
+          nullable: true
+      additionalProperties: false
+      description: "Wire shape returned by Andy.Policies.Application.Interfaces.IBundleService. Excludes the\r\n(potentially large) `SnapshotJson` payload — surfaces fetch\r\nthat separately on demand via `BundlesController` in P8.3."
     BundlePinnedPolicyDto:
       type: object
       properties:
@@ -1915,6 +2198,23 @@ components:
           $ref: '#/components/schemas/BindStrength'
       additionalProperties: false
       description: "Request payload for `IBindingService.CreateAsync` (P3.2, story\r\nrivoli-ai/andy-policies#20). The target version must exist and not be in\r\n`LifecycleState.Retired`; the service throws\r\n`BindingRetiredVersionException` on a retired target."
+    CreateBundleRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: "Slug shape: `^[a-z0-9][a-z0-9-]{0,62}$`.\r\n            Active bundles are unique by name; soft-deleted bundles release\r\n            the slug for reuse."
+          nullable: true
+        description:
+          type: string
+          description: Optional human-readable summary.
+          nullable: true
+        rationale:
+          type: string
+          description: "Required non-empty rationale recorded\r\n            against the audit event."
+          nullable: true
+      additionalProperties: false
+      description: 'Inputs to M:Andy.Policies.Application.Interfaces.IBundleService.CreateAsync(Andy.Policies.Application.Interfaces.CreateBundleRequest,System.String,System.Threading.CancellationToken).'
     CreateItemRequest:
       type: object
       properties:

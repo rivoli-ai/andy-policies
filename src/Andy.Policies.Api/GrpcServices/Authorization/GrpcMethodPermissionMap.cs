@@ -72,6 +72,16 @@ public sealed class GrpcMethodPermissionMap : IGrpcMethodPermissionMap
         ["/andy_policies.AuditService/GetAudit"]     = "andy-policies:audit:read",
         ["/andy_policies.AuditService/VerifyAudit"]  = "andy-policies:audit:verify",
         ["/andy_policies.AuditService/ExportAudit"]  = "andy-policies:audit:export",
+
+        // BundleService — P8.6 (#86) parity over IBundleService /
+        // IBundleResolver / IBundleDiffService. Diff is treated as
+        // a read (it's a snapshot comparison; no mutation).
+        ["/andy_policies.BundleService/CreateBundle"]  = "andy-policies:bundle:create",
+        ["/andy_policies.BundleService/ListBundles"]   = "andy-policies:bundle:read",
+        ["/andy_policies.BundleService/GetBundle"]     = "andy-policies:bundle:read",
+        ["/andy_policies.BundleService/ResolveBundle"] = "andy-policies:bundle:read",
+        ["/andy_policies.BundleService/DeleteBundle"]  = "andy-policies:bundle:delete",
+        ["/andy_policies.BundleService/DiffBundles"]   = "andy-policies:bundle:read",
     };
 
     /// <summary>Services not in this set are allowed to bypass RBAC.
@@ -84,6 +94,7 @@ public sealed class GrpcMethodPermissionMap : IGrpcMethodPermissionMap
         "/andy_policies.ScopesService",
         "/andy_policies.OverridesService",
         "/andy_policies.AuditService",
+        "/andy_policies.BundleService",
     };
 
     public IReadOnlyDictionary<string, string> Entries => Map;
