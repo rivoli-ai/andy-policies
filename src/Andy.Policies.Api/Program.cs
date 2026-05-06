@@ -418,6 +418,35 @@ builder.Services
 
 var app = builder.Build();
 
+// --- Reverse-proxy pathbase (P10.2, #35) ---
+// In Conductor's embedded mode (Mode 3), a single reverse proxy on
+// :9100 routes by URL prefix — `/policies/*` is forwarded here.
+// `UsePathBase` strips the prefix off inbound requests before
+// routing matches and re-prepends it on outbound URL generation
+// (Swagger `servers`, OIDC redirect_uri via the SPA's <base href>,
+// LinkGenerator). Order is load-bearing: this MUST run before any
+// endpoint-mapping middleware, before UseRouting / UseAuthentication
+// / UseAuthorization, and before MapFallbackToFile so the SPA
+// mounts under the prefix too.
+//
+// Modes 1 + 2 leave ASPNETCORE_PATHBASE empty; the call no-ops and
+// routes resolve at the root. The `embeddedProxyPrefix` from
+// config/registration.json is the canonical source for the value
+// (`/policies` today).
+var pathBase = builder.Configuration["AspNetCore:PathBase"]
+    ?? Environment.GetEnvironmentVariable("ASPNETCORE_PATHBASE")
+    ?? string.Empty;
+if (!string.IsNullOrEmpty(pathBase))
+{
+    app.UsePathBase(pathBase);
+}
+// Explicit UseRouting after UsePathBase so the implicit insertion
+// from Map* calls below doesn't position routing before pathbase
+// (would route on the prefixed path against un-prefixed registered
+// routes → 404). With pathbase empty, this is equivalent to the
+// implicit behavior anyway.
+app.UseRouting();
+
 // --- Middleware ---
 // Swagger document + UI are exposed in Development and the integration-test
 // "Testing" environment. The OpenAPI document drives the committed
