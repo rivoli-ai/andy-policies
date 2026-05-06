@@ -17,6 +17,13 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=https://+:8443;http://+:8080
+      # P10.2 (#35): Conductor's embedded reverse proxy on :9100
+      # routes /policies/* here. UsePathBase strips the prefix
+      # before routing matches and re-prepends on outbound URL
+      # generation (Swagger servers, OIDC redirect_uri via the
+      # SPA's <base href>). Empty in Modes 1/2 — only set when
+      # the API is actually running behind the embedded proxy.
+      - ASPNETCORE_PATHBASE=/policies
       - Database__Provider=Sqlite
       - ConnectionStrings__DefaultConnection=Data Source=/data/andy_policies.db
       - AndyAuth__Authority=https://host.docker.internal:5001
@@ -33,7 +40,11 @@ services:
       - sqlite_data:/data
       - dpkeys:/app/.aspnet/DataProtection-Keys
     healthcheck:
-      test: ["CMD", "curl", "-fk", "https://localhost:8443/health"]
+      # P10.2 (#35): probe the prefixed path so the healthcheck
+      # exercises the same route Conductor's proxy reaches.
+      # UsePathBase is non-enforcing, so /health would also work
+      # — but using the prefix keeps the smoke contract honest.
+      test: ["CMD", "curl", "-fk", "https://localhost:8443/policies/health"]
       interval: 10s
       timeout: 5s
       retries: 3
