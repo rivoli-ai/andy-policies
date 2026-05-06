@@ -597,6 +597,13 @@ curl -fsk https://localhost:5112/api/policies
 
 The migration / model invariants are pinned by `SqliteModelCompatibilityTests`, `SqliteMigrationApplyTests`, and `SqliteBootTests`. A change to `AppDbContext.OnModelCreating` that introduces a Postgres-only column type (`jsonb`, `timestamptz`, `text[]`) without an `IsNpgsql()` branch fails the model-compat test before merge.
 
+**Operator runbooks** (P10.5, [#40](https://github.com/rivoli-ai/andy-policies/issues/40)):
+
+- [Embedded operations](docs/embedded/operations.md) — boot, seed, backup the SQLite file, upgrade migration, env var matrix.
+- [Embedded troubleshooting](docs/embedded/troubleshooting.md) — 404 under the prefix, manifest fail-loud crashes, SQLite locks, OIDC redirect mismatches.
+- [Cross-service smoke](docs/embedded/cross-service-smoke.md) — local + Conductor harness recipe (P10.4).
+- [ADR 0010 — Embedded mode](docs/adr/0010-embedded-mode.md) — SQLite trade-offs, in-process pathbase, manifest-driven registration, fail-loud rationale.
+
 ### Registration manifest (P10.3, [#38](https://github.com/rivoli-ai/andy-policies/issues/38))
 
 Embedded mode is "batteries-included": on first boot, andy-policies POSTs the three blocks of [`config/registration.json`](config/registration.json) to the corresponding consumer:

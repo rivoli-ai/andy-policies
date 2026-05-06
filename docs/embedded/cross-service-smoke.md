@@ -2,7 +2,7 @@
 
 This is the andy-policies side of the [Conductor Epic AO](https://github.com/rivoli-ai/conductor/issues/669) cross-service integration suite. It boots the full ecosystem (andy-auth + andy-rbac + andy-settings + andy-policies), drives a complete catalog lifecycle through the live REST surface, and verifies the audit hash chain.
 
-The fixture lives in [`tests/Andy.Policies.Tests.E2E/EmbeddedSmoke/`](../../tests/Andy.Policies.Tests.E2E/EmbeddedSmoke/) — the `EmbeddedCrossServiceSmokeTests` class is the one Conductor's harness invokes.
+The fixture lives in [`tests/Andy.Policies.Tests.E2E/EmbeddedSmoke/`](https://github.com/rivoli-ai/andy-policies/tree/main/tests/Andy.Policies.Tests.E2E/EmbeddedSmoke) — the `EmbeddedCrossServiceSmokeTests` class is the one Conductor's harness invokes.
 
 ## What it proves
 
@@ -59,7 +59,7 @@ The fixture honors `ANDY_POLICIES_E2E_NO_COMPOSE=1` by skipping both compose `up
 
 ## Configurable env vars
 
-Defined in [`EmbeddedTestEnvironment.cs`](../../tests/Andy.Policies.Tests.E2E/EmbeddedSmoke/EmbeddedTestEnvironment.cs). All optional; defaults track `docker-compose.e2e.yml`'s exposed ports.
+Defined in [`EmbeddedTestEnvironment.cs`](https://github.com/rivoli-ai/andy-policies/blob/main/tests/Andy.Policies.Tests.E2E/EmbeddedSmoke/EmbeddedTestEnvironment.cs). All optional; defaults track `docker-compose.e2e.yml`'s exposed ports.
 
 | Var | Default | Purpose |
 |---|---|---|
