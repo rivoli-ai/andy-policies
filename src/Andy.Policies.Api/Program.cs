@@ -217,6 +217,37 @@ builder.Services.AddHttpClient<
     client.BaseAddress = new Uri(url);
     client.Timeout = TimeSpan.FromSeconds(3);
 });
+// --- Registration manifest (P10.3, #38) ---
+// Embedded mode (docker-compose.embedded.yml) sets
+// Registration:AutoRegister=true so andy-policies self-registers its
+// OAuth client, RBAC application, and settings keys with andy-auth,
+// andy-rbac, and andy-settings on first boot. Modes 1/2 leave the flag
+// unset and continue to rely on the operator-driven seed scripts.
+//
+// Wiring is unconditional. The hosted service self-gates on
+// `Registration:AutoRegister` at runtime; in Modes 1/2 it short-
+// circuits before touching any client. Each I*ManifestClient resolves
+// its endpoint URL from IConfiguration at call time (not HttpClient
+// build time) so missing URLs in Modes 1/2 do not fault host
+// construction.
+builder.Services.AddSingleton<
+    Andy.Policies.Application.Manifest.IManifestLoader,
+    Andy.Policies.Infrastructure.Manifest.FileManifestLoader>();
+builder.Services.AddHttpClient<
+        Andy.Policies.Application.Manifest.IAuthManifestClient,
+        Andy.Policies.Infrastructure.Manifest.AuthManifestClient>(client =>
+        client.Timeout = TimeSpan.FromSeconds(15));
+builder.Services.AddHttpClient<
+        Andy.Policies.Application.Manifest.IRbacManifestClient,
+        Andy.Policies.Infrastructure.Manifest.RbacManifestClient>(client =>
+        client.Timeout = TimeSpan.FromSeconds(15));
+builder.Services.AddHttpClient<
+        Andy.Policies.Application.Manifest.ISettingsManifestClient,
+        Andy.Policies.Infrastructure.Manifest.SettingsManifestClient>(client =>
+        client.Timeout = TimeSpan.FromSeconds(15));
+builder.Services.AddHostedService<
+    Andy.Policies.Infrastructure.Manifest.ManifestRegistrationHostedService>();
+
 // P5.3 (#53): periodic sweep that transitions Approved overrides past
 // ExpiresAt into Expired. Runs even when the experimental-overrides
 // gate is off — turning the feature off must not strand previously

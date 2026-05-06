@@ -593,6 +593,18 @@ curl -fsk https://localhost:5112/api/policies
 
 The migration / model invariants are pinned by `SqliteModelCompatibilityTests`, `SqliteMigrationApplyTests`, and `SqliteBootTests`. A change to `AppDbContext.OnModelCreating` that introduces a Postgres-only column type (`jsonb`, `timestamptz`, `text[]`) without an `IsNpgsql()` branch fails the model-compat test before merge.
 
+### Registration manifest (P10.3, [#38](https://github.com/rivoli-ai/andy-policies/issues/38))
+
+Embedded mode is "batteries-included": on first boot, andy-policies POSTs the three blocks of [`config/registration.json`](config/registration.json) to the corresponding consumer:
+
+| Block | Consumer | Endpoint |
+|---|---|---|
+| `auth` (apiClient + webClient) | andy-auth | `AndyAuth__ManifestEndpoint` |
+| `rbac` (resource types, permissions, roles) | andy-rbac | `AndyRbac__ManifestEndpoint` |
+| `settings` (definitions) | andy-settings | `AndySettings__ManifestEndpoint` |
+
+Gated by `Registration__AutoRegister` (default off). When unset, Modes 1/2 stay on the operator-driven `auth-seed.sql` + `rbac-seed.json` path. When set, dispatch order is `auth → rbac → settings` (the auth-issued S2S token authenticates the rbac + settings calls in P10.4); failure at any step crashes the host before Kestrel binds — a half-registered deployment is worse than an unregistered one. Each consumer owns idempotent upsert semantics, so replaying the manifest against the same stack is safe.
+
 ## Documentation
 
 Full documentation at [rivoli-ai.github.io/andy-policies](https://rivoli-ai.github.io/andy-policies/).

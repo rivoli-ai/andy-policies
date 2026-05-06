@@ -28,8 +28,26 @@ services:
       - ConnectionStrings__DefaultConnection=Data Source=/data/andy_policies.db
       - AndyAuth__Authority=https://host.docker.internal:5001
       - AndyAuth__Audience=urn:andy-policies-api
-      - Rbac__ApiBaseUrl=https://host.docker.internal:5003
-      - Rbac__ApplicationCode=andy-policies
+      - AndyRbac__BaseUrl=https://host.docker.internal:5003
+      - AndySettings__ApiBaseUrl=https://host.docker.internal:5300
+      # P10.3 (#38): manifest auto-registration. On first boot under
+      # embedded mode andy-policies POSTs config/registration.json's
+      # auth/rbac/settings blocks to the three consumer manifest
+      # endpoints. Each consumer upserts idempotently; failure of any
+      # is fail-loud (the host crashes before Kestrel binds). Modes
+      # 1/2 leave Registration__AutoRegister unset so the hosted
+      # service is not registered at all.
+      - Registration__AutoRegister=true
+      - AndyAuth__ManifestEndpoint=https://host.docker.internal:5001/api/manifest
+      - AndyRbac__ManifestEndpoint=https://host.docker.internal:5003/api/manifest
+      - AndySettings__ManifestEndpoint=https://host.docker.internal:5300/api/manifest
+      # P10.3 (#38) / P10.4 (#39): the api-client uses the
+      # client_credentials grant for the cross-service smoke. The
+      # secret env var name matches auth.apiClient.clientSecretEnvVar
+      # in config/registration.json. The dev-only default mirrors the
+      # auth-seed.sql fallback used in Modes 1/2; production
+      # deployments must override.
+      - ANDY_POLICIES_API_SECRET=${ANDY_POLICIES_API_SECRET:-_dev_only_not_production_}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:

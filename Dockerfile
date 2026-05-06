@@ -106,6 +106,13 @@ RUN mkdir -p /https /app/.aspnet/DataProtection-Keys && \
 COPY --from=build /app/publish .
 COPY --from=node-build /node-build/dist/client/browser ./wwwroot
 COPY content/help ./content/help
+# P10.3 (#38): config/registration.json must reach the runtime stage
+# so FileManifestLoader can read it from /app/config/ on embedded boot.
+# Without this copy, ManifestRegistrationHostedService.StartAsync raises
+# FileNotFoundException and the host crashes immediately. Sourced from
+# the build stage (not the build context) so the working set matches
+# what was published.
+COPY --from=build /build/config/ ./config/
 RUN chown -R appuser:appuser /app
 
 # Self-signed dev cert
