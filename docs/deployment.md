@@ -77,3 +77,12 @@ export Database__Provider=Sqlite
 export ConnectionStrings__DefaultConnection="Data Source=andy_policies.db"
 dotnet run --project src/Andy.Policies.Api
 ```
+
+### Embedded mode (Mode 3) operator docs
+
+Mode 3 is the bundled-with-Conductor deployment shape. The operator-facing runbooks live under `embedded/`:
+
+- [Operations](embedded/operations.md) — boot, seed, backup, upgrade, full env var matrix.
+- [Troubleshooting](embedded/troubleshooting.md) — 404 under the prefix, manifest fail-loud, SQLite locks, OIDC redirect mismatches.
+- [Cross-service smoke](embedded/cross-service-smoke.md) — local recipe + Conductor harness contract.
+- [ADR 0010 — Embedded mode](adr/0010-embedded-mode.md) — architectural decisions (SQLite trade-offs, in-process pathbase, manifest-driven registration, fail-loud rationale).
