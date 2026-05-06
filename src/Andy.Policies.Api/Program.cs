@@ -177,6 +177,8 @@ builder.Services.AddScoped<Andy.Policies.Application.Interfaces.IBundleService, 
 // because it depends on the per-request DbContext; the cached
 // parsed-snapshot lives in the singleton IMemoryCache below.
 builder.Services.AddScoped<Andy.Policies.Application.Interfaces.IBundleResolver, Andy.Policies.Infrastructure.Services.BundleResolver>();
+// P8.6 (#86): RFC-6902 diff between two bundle snapshots.
+builder.Services.AddScoped<Andy.Policies.Application.Interfaces.IBundleDiffService, Andy.Policies.Infrastructure.Services.BundleDiffService>();
 // P8.4 (#84): bundle-pinning gate. PinningPolicy is the live
 // adapter over andy-settings; the BundleBackedPolicyReader projects
 // snapshot rows into PolicyDto/PolicyVersionDto for /api/policies*
@@ -441,6 +443,7 @@ app.MapGrpcService<Andy.Policies.Api.GrpcServices.BindingsGrpcService>();
 app.MapGrpcService<Andy.Policies.Api.GrpcServices.ScopesGrpcService>();
 app.MapGrpcService<Andy.Policies.Api.GrpcServices.OverridesGrpcService>();
 app.MapGrpcService<Andy.Policies.Api.GrpcServices.AuditGrpcService>();
+app.MapGrpcService<Andy.Policies.Api.GrpcServices.BundleGrpcService>();
 
 // --- MCP endpoint ---
 app.MapMcp("/mcp")

@@ -60,6 +60,11 @@
          export over the same IAuditQuery / IAuditChain /
          IAuditExporter as REST + MCP. -->
     <Protobuf Include="Protos\audit.proto" GrpcServices="Both" />
+    <!-- bundles.proto: P8.6 (#86). Bundle pinning with an
+         RFC-6902 DiffBundles RPC alongside the create / list /
+         get / resolve / delete parity over IBundleService +
+         IBundleResolver. -->
+    <Protobuf Include="Protos\bundles.proto" GrpcServices="Both" />
   </ItemGroup>
 
 </Project>

@@ -29,6 +29,7 @@ public class GrpcPermissionMapCoverageTests
         new object[] { typeof(ScopesService.ScopesServiceBase) },
         new object[] { typeof(OverridesService.OverridesServiceBase) },
         new object[] { typeof(AuditService.AuditServiceBase) },
+        new object[] { typeof(BundleService.BundleServiceBase) },
     };
 
     [Theory]
