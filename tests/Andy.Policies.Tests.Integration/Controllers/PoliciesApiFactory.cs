@@ -96,6 +96,21 @@ public sealed class PoliciesApiFactory : WebApplicationFactory<Program>
             foreach (var d in rbacDescriptors) services.Remove(d);
             services.AddSingleton<IRbacChecker>(new AllowAllStubRbacChecker());
 
+            // P8.4 (#84): the bundle-pinning gate defaults to `true` per
+            // the manifest. The bulk of pre-P8.4 integration tests
+            // exercise the live read paths (no `?bundleId=`); flipping
+            // pinning ON inside the factory would 400 every one of
+            // them. Stub IPinningPolicy with pinning OFF so the legacy
+            // tests stay focused on what they were testing. The gate
+            // itself gets exercised by BundlePinningGateTests via its
+            // own factory variant that pins ON.
+            var pinDescriptors = services
+                .Where(d => d.ServiceType == typeof(Andy.Policies.Application.Interfaces.IPinningPolicy))
+                .ToList();
+            foreach (var d in pinDescriptors) services.Remove(d);
+            services.AddSingleton<Andy.Policies.Application.Interfaces.IPinningPolicy>(
+                new StaticPinningPolicy(required: false));
+
             // Build the schema once on the shared connection.
             using var sp = services.BuildServiceProvider();
             using var scope = sp.CreateScope();
@@ -119,5 +134,16 @@ public sealed class PoliciesApiFactory : WebApplicationFactory<Program>
             string? resourceInstanceId,
             CancellationToken ct)
             => Task.FromResult(new RbacDecision(true, "test-allow"));
+    }
+
+    /// <summary>
+    /// Static <see cref="Andy.Policies.Application.Interfaces.IPinningPolicy"/> for tests
+    /// that don't exercise the gate themselves; <see cref="BundlePinningGateTests"/> uses
+    /// its own factory variant for tests that flip the value.
+    /// </summary>
+    internal sealed class StaticPinningPolicy : Andy.Policies.Application.Interfaces.IPinningPolicy
+    {
+        public StaticPinningPolicy(bool required) => IsPinningRequired = required;
+        public bool IsPinningRequired { get; }
     }
 }

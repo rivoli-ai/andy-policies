@@ -1,7 +1,9 @@
 // Copyright (c) Rivoli AI 2026. All rights reserved.
 // Licensed under the Apache License, Version 2.0.
 
+using Andy.Policies.Application.Dtos;
 using Andy.Policies.Domain.Enums;
+using Andy.Policies.Domain.ValueObjects;
 
 namespace Andy.Policies.Application.Interfaces;
 
@@ -46,7 +48,53 @@ public interface IBundleResolver
         Guid bundleId,
         Guid policyId,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// Return the parsed <see cref="BundleSnapshot"/> for the given
+    /// bundle, sharing the resolver's <c>(bundleId, snapshotHash)</c>
+    /// cache. P8.4 (#84) added this so the policy / effective-policy
+    /// snapshot-backed readers don't each re-parse the same JSON;
+    /// also yields the bundle name and hash for callers that need
+    /// to stamp envelopes with snapshot coordinates. Returns
+    /// <c>null</c> when the bundle is missing / soft-deleted.
+    /// </summary>
+    Task<BundleSnapshotView?> GetSnapshotAsync(Guid bundleId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Snapshot-backed equivalent of
+    /// <see cref="IBindingResolutionService.ResolveForScopeAsync"/>
+    /// (P8.4, #84). Walks the bundle's scope tree from the target
+    /// node up to its root and folds matching bindings with
+    /// stricter-tightens-only semantics. Returns <c>null</c> when
+    /// the bundle is missing / soft-deleted; returns an
+    /// <see cref="EffectivePolicySetDto"/> with empty
+    /// <c>Policies</c> when the bundle exists but the scope node
+    /// is absent from it.
+    /// </summary>
+    /// <remarks>
+    /// <b>Scope of dispatch.</b> This method matches only
+    /// <c>TargetType=ScopeNode</c> bindings keyed by
+    /// <c>scope:{nodeId}</c>. The bridge logic from
+    /// <c>BindingResolutionService</c> (which also matches
+    /// <c>Repo</c> / <c>Tenant</c> / <c>Org</c> / <c>Template</c>
+    /// targets against the chain's external refs) is deferred to
+    /// a follow-up; consumers using bridge-typed bindings should
+    /// keep <c>bundleVersionPinning=false</c> until then.
+    /// </remarks>
+    Task<EffectivePolicySetDto?> ResolveEffectiveForScopeAsync(
+        Guid bundleId, Guid scopeNodeId, CancellationToken ct = default);
 }
+
+/// <summary>
+/// View of a bundle row + its parsed snapshot (P8.4, #84). Carries
+/// the identity coordinates so callers projecting the snapshot into
+/// surface DTOs can stamp the bundle id, name, and hash.
+/// </summary>
+public sealed record BundleSnapshotView(
+    Guid BundleId,
+    string BundleName,
+    string SnapshotHash,
+    BundleSnapshot Snapshot);
 
 /// <summary>
 /// Envelope for <see cref="IBundleResolver.ResolveAsync"/>. Carries

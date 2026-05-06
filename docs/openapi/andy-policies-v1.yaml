@@ -286,6 +286,11 @@ paths:
           in: query
           schema:
             type: string
+        - name: bundleId
+          in: query
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
           description: OK
@@ -295,6 +300,12 @@ paths:
                 $ref: '#/components/schemas/ResolveBindingsResponse'
         '400':
           description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
           content:
             application/json:
               schema:
@@ -946,6 +957,11 @@ paths:
           schema:
             type: integer
             format: int32
+        - name: bundleId
+          in: query
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
           description: OK
@@ -1005,6 +1021,11 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: bundleId
+          in: query
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
           description: OK
@@ -1029,6 +1050,11 @@ paths:
           required: true
           schema:
             type: string
+        - name: bundleId
+          in: query
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
           description: OK
@@ -1051,6 +1077,11 @@ paths:
         - name: id
           in: path
           required: true
+          schema:
+            type: string
+            format: uuid
+        - name: bundleId
+          in: query
           schema:
             type: string
             format: uuid
@@ -1086,6 +1117,11 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: bundleId
+          in: query
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
           description: OK
@@ -1114,6 +1150,11 @@ paths:
         - name: versionId
           in: path
           required: true
+          schema:
+            type: string
+            format: uuid
+        - name: bundleId
+          in: query
           schema:
             type: string
             format: uuid
@@ -1571,6 +1612,11 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: bundleId
+          in: query
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
           description: OK
@@ -1578,6 +1624,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/EffectivePolicySetDto'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '404':
           description: Not Found
           content:

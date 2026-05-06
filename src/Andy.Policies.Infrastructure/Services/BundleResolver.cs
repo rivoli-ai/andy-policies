@@ -3,6 +3,7 @@
 
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Andy.Policies.Application.Dtos;
 using Andy.Policies.Application.Interfaces;
 using Andy.Policies.Domain.Enums;
 using Andy.Policies.Domain.ValueObjects;
@@ -118,6 +119,127 @@ public sealed class BundleResolver : IBundleResolver
             Bindings: ordered,
             Count: ordered.Count);
     }
+
+    public async Task<BundleSnapshotView?> GetSnapshotAsync(
+        Guid bundleId, CancellationToken ct = default)
+    {
+        var carrier = await LoadAsync(bundleId, ct).ConfigureAwait(false);
+        return carrier is null
+            ? null
+            : new BundleSnapshotView(carrier.Id, carrier.Name, carrier.SnapshotHash, carrier.Snapshot);
+    }
+
+    public async Task<EffectivePolicySetDto?> ResolveEffectiveForScopeAsync(
+        Guid bundleId, Guid scopeNodeId, CancellationToken ct = default)
+    {
+        var carrier = await LoadAsync(bundleId, ct).ConfigureAwait(false);
+        if (carrier is null) return null;
+
+        // Walk the scope chain via ParentId from the snapshot. The
+        // snapshot doesn't carry materialised paths, so we hand-walk;
+        // depth defaults to chain index (0 at the root).
+        var scopeById = carrier.Snapshot.Scopes.ToDictionary(s => s.ScopeNodeId);
+        if (!scopeById.ContainsKey(scopeNodeId))
+        {
+            // Bundle exists but the scope node is not in the snapshot.
+            // Mirror the live empty-set semantics rather than 404 — the
+            // caller addressed a real bundle, just at a node that
+            // doesn't appear there.
+            return new EffectivePolicySetDto(
+                ScopeNodeId: scopeNodeId,
+                Policies: Array.Empty<EffectivePolicyDto>());
+        }
+
+        var chain = WalkAncestorChain(scopeById, scopeNodeId);
+        var policiesByVersionId = carrier.Snapshot.Policies.ToDictionary(p => p.PolicyVersionId);
+
+        // Match bindings that target ScopeNode and reference a chain
+        // node via "scope:{nodeId}". Each candidate is tagged with its
+        // node's depth (its position in the root→leaf chain) so the
+        // tighten-only fold can prefer deeper Mandatory rows.
+        var depthByNodeId = chain
+            .Select((n, idx) => (n.ScopeNodeId, Depth: idx))
+            .ToDictionary(p => p.ScopeNodeId, p => p.Depth);
+        var candidates = new List<EffectiveCandidate>();
+        foreach (var b in carrier.Snapshot.Bindings)
+        {
+            if (!string.Equals(b.TargetType, BindingTargetType.ScopeNode.ToString(), StringComparison.Ordinal))
+            {
+                continue;
+            }
+            if (!b.TargetRef.StartsWith("scope:", StringComparison.Ordinal)
+                || !Guid.TryParse(b.TargetRef.AsSpan("scope:".Length), out var nodeId))
+            {
+                continue;
+            }
+            if (!depthByNodeId.TryGetValue(nodeId, out var depth)) continue;
+            if (!policiesByVersionId.TryGetValue(b.PolicyVersionId, out var policy)) continue;
+            var node = scopeById[nodeId];
+            candidates.Add(new EffectiveCandidate(
+                b, policy, depth, nodeId, ParseScopeType(node.Type)));
+        }
+
+        var folded = candidates
+            .GroupBy(c => c.Policy.PolicyId)
+            .Select(group =>
+            {
+                var mandatory = group
+                    .Where(c => ParseStrength(c.Binding.BindStrength) == BindStrength.Mandatory)
+                    .ToList();
+                var winner = (mandatory.Count > 0 ? mandatory : group.ToList())
+                    .OrderByDescending(c => c.Depth)
+                    .First();
+                return new EffectivePolicyDto(
+                    PolicyId: winner.Policy.PolicyId,
+                    PolicyVersionId: winner.Policy.PolicyVersionId,
+                    PolicyKey: winner.Policy.Name,
+                    Version: winner.Policy.Version,
+                    BindStrength: ParseStrength(winner.Binding.BindStrength),
+                    SourceBindingId: winner.Binding.BindingId,
+                    SourceScopeNodeId: winner.ScopeNodeId,
+                    SourceScopeType: winner.ScopeType,
+                    SourceDepth: winner.Depth);
+            })
+            .OrderBy(p => p.BindStrength)
+            .ThenBy(p => p.PolicyKey, StringComparer.Ordinal)
+            .ToList();
+
+        return new EffectivePolicySetDto(scopeNodeId, folded);
+    }
+
+    /// <summary>Root-to-leaf chain of scope nodes. The leaf is at the
+    /// end of the list; depth increases with index. Stops at the
+    /// first ancestor that is not in <paramref name="scopeById"/> —
+    /// snapshots can be partial (the builder includes every node the
+    /// catalog had at capture time, but a corrupted snapshot or a
+    /// future schema-tightening could drop ancestors).</summary>
+    private static List<BundleScopeEntry> WalkAncestorChain(
+        IReadOnlyDictionary<Guid, BundleScopeEntry> scopeById, Guid leafId)
+    {
+        var visited = new HashSet<Guid>();
+        var leafToRoot = new List<BundleScopeEntry>();
+        var cursor = scopeById[leafId];
+        while (true)
+        {
+            if (!visited.Add(cursor.ScopeNodeId)) break; // defensive: cycle
+            leafToRoot.Add(cursor);
+            if (cursor.ParentId is null) break;
+            if (!scopeById.TryGetValue(cursor.ParentId.Value, out var parent)) break;
+            cursor = parent;
+        }
+        leafToRoot.Reverse();
+        return leafToRoot;
+    }
+
+    private static ScopeType ParseScopeType(string wire)
+        => Enum.TryParse<ScopeType>(wire, ignoreCase: true, out var st) ? st : default;
+
+    private sealed record EffectiveCandidate(
+        BundleBindingEntry Binding,
+        BundlePolicyEntry Policy,
+        int Depth,
+        Guid ScopeNodeId,
+        ScopeType ScopeType);
 
     public async Task<BundlePinnedPolicyDto?> GetPinnedPolicyAsync(
         Guid bundleId,

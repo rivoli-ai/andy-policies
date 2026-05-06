@@ -177,6 +177,14 @@ builder.Services.AddScoped<Andy.Policies.Application.Interfaces.IBundleService, 
 // because it depends on the per-request DbContext; the cached
 // parsed-snapshot lives in the singleton IMemoryCache below.
 builder.Services.AddScoped<Andy.Policies.Application.Interfaces.IBundleResolver, Andy.Policies.Infrastructure.Services.BundleResolver>();
+// P8.4 (#84): bundle-pinning gate. PinningPolicy is the live
+// adapter over andy-settings; the BundleBackedPolicyReader projects
+// snapshot rows into PolicyDto/PolicyVersionDto for /api/policies*
+// dispatched via ?bundleId=. The gate filter is registered
+// alongside AddControllers below.
+builder.Services.AddSingleton<Andy.Policies.Application.Interfaces.IPinningPolicy, Andy.Policies.Infrastructure.Settings.PinningPolicy>();
+builder.Services.AddScoped<Andy.Policies.Application.Interfaces.IBundleBackedPolicyReader, Andy.Policies.Infrastructure.Services.BundleBackedPolicyReader>();
+builder.Services.AddSingleton<Andy.Policies.Api.Filters.BundlePinningFilter>();
 
 // P7.2 (#51): IRbacChecker delegates POST /api/check to andy-rbac.
 // AndyRbac:BaseUrl is required (no auth-bypass — same posture as
@@ -269,6 +277,13 @@ builder.Services.AddControllers(options =>
         // path remains as a second guarantee for code paths that
         // bypass the filter (e.g. background workers).
         options.Filters.Add<Andy.Policies.Api.Filters.RationaleRequiredFilter>();
+        // P8.4 (#84): bundle-pinning gate. Reads
+        // andy.policies.bundleVersionPinning and rejects requests to
+        // [RequiresBundlePin]-annotated read endpoints that omit
+        // ?bundleId= when pinning is required. Per-action attribute
+        // beats blanket middleware so a missing entry can never brick
+        // a public route.
+        options.Filters.AddService<Andy.Policies.Api.Filters.BundlePinningFilter>();
     })
     .AddJsonOptions(options =>
     {
