@@ -474,10 +474,24 @@ if (!string.IsNullOrEmpty(connectionString))
     {
         await db.Database.MigrateAsync();
     }
-    else if (db.Database.IsSqlite()
-             && (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testing")))
+    else if (db.Database.IsSqlite() && app.Environment.IsDevelopment())
     {
-        await db.Database.EnsureCreatedAsync();
+        // P10.1 (#31): SQLite-embedded mode (docker-compose.embedded.yml
+        // sets ASPNETCORE_ENVIRONMENT=Development) must apply
+        // migrations, not EnsureCreated. EnsureCreated skips
+        // __EFMigrationsHistory and prevents in-place upgrade
+        // against an existing sqlite_data volume; a Conductor
+        // operator updating to a newer image would otherwise lose
+        // data on schema drift. Both providers share the same
+        // migration set; BundleMigrationTests (P8.1) already proves
+        // it applies cleanly on SQLite.
+        //
+        // The Testing environment is intentionally NOT included —
+        // integration test factories (PoliciesApiFactory, etc.)
+        // own schema initialisation via their own EnsureCreated /
+        // Migrate calls, and a startup-time Migrate here would
+        // collide with the factory's pre-built schema.
+        await db.Database.MigrateAsync();
     }
 }
 

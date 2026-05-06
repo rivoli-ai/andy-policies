@@ -32,7 +32,11 @@ dotnet build "$API_PROJECT" -c Release --nologo --verbosity minimal
 # file path is wiped on each run so the seed never carries over.
 TMP_DB="$(mktemp -t andy-policies-export-openapi-XXXXXX.db)"
 trap 'rm -f "$TMP_DB"' EXIT
-ASPNETCORE_ENVIRONMENT="Testing" \
+# P10.1 (#31): use Development env so Program.cs runs MigrateAsync
+# against the empty temp SQLite — the boot-time seeder needs a
+# schema. The "Testing" env is reserved for integration tests
+# whose own factories own schema initialisation.
+ASPNETCORE_ENVIRONMENT="Development" \
 AndyAuth__Authority="https://export.invalid" \
 AndyAuth__Audience="urn:andy-policies-api" \
 AndySettings__ApiBaseUrl="https://export.invalid" \
