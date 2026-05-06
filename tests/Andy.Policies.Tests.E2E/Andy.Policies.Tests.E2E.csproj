@@ -11,6 +11,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- P10.4 (#39): the cross-service smoke fixtures + AuditChainVerifier
+         carry internal seams (env-reader injection, process-starter
+         injection) that Tests.Unit pokes at to prove the no-hard-code
+         contract without standing up a real stack. -->
+    <InternalsVisibleTo Include="Andy.Policies.Tests.Unit" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
     <PackageReference Include="xunit" Version="2.9.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">

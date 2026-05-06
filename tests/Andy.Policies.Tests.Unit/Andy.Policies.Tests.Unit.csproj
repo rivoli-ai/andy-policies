@@ -12,6 +12,12 @@
     <!-- P7.7 (#65): RbacDocsGeneratorTests pin the generator's parsing,
          idempotency, and admin "*" rendering. -->
     <ProjectReference Include="..\..\tools\GenerateRbacDocs\GenerateRbacDocs.csproj" />
+    <!-- P10.4 (#39): unit tests for the cross-service smoke helpers
+         (AuditChainVerifier, EmbeddedTestEnvironment, DockerComposeHelper)
+         — they live in Tests.E2E so the smoke + helpers ship together,
+         but their pure logic is asserted from Tests.Unit so it exercises
+         on every dotnet test (no E2E_ENABLED gate, no Docker). -->
+    <ProjectReference Include="..\Andy.Policies.Tests.E2E\Andy.Policies.Tests.E2E.csproj" />
   </ItemGroup>
 
   <ItemGroup>
