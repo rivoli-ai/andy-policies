@@ -31,7 +31,10 @@ public sealed class BundleSnapshotBuilder : IBundleSnapshotBuilder
         _db = db;
     }
 
-    public async Task<BundleSnapshot> BuildAsync(DateTimeOffset capturedAt, CancellationToken ct = default)
+    public async Task<BundleSnapshot> BuildAsync(
+        DateTimeOffset capturedAt,
+        bool includeOverrides = true,
+        CancellationToken ct = default)
     {
         // Active policy versions, ordered (PolicyId, Version) for
         // deterministic serialisation. Include the parent Policy so
@@ -98,33 +101,47 @@ public sealed class BundleSnapshotBuilder : IBundleSnapshotBuilder
         // and refine on ExpiresAt client-side. The Approved set is
         // bounded in practice; for catalogs that grow large here, a
         // future migration would push the predicate via raw SQL.
-        var approvedRows = await _db.Overrides
-            .AsNoTracking()
-            .Where(o => o.State == OverrideState.Approved)
-            .Select(o => new
-            {
-                o.Id,
-                o.PolicyVersionId,
-                o.ScopeKind,
-                o.ScopeRef,
-                o.Effect,
-                o.ReplacementPolicyVersionId,
-                o.ExpiresAt,
-            })
-            .ToListAsync(ct)
-            .ConfigureAwait(false);
-        var overrides = approvedRows
-            .Where(o => o.ExpiresAt > capturedAt)
-            .OrderBy(o => o.Id)
-            .Select(o => new BundleOverrideEntry(
-                o.Id,
-                o.PolicyVersionId,
-                o.ScopeKind.ToString(),
-                o.ScopeRef,
-                o.Effect.ToString(),
-                o.ReplacementPolicyVersionId,
-                o.ExpiresAt))
-            .ToList();
+        //
+        // P9 follow-up #205 (2026-05-07): when `includeOverrides` is
+        // false, skip the query entirely and emit an empty list.
+        // Compliance / immutability bundles use this to publish a
+        // snapshot whose runtime behavior is governed strictly by the
+        // active policy + binding set, with no override surface.
+        List<BundleOverrideEntry> overrides;
+        if (includeOverrides)
+        {
+            var approvedRows = await _db.Overrides
+                .AsNoTracking()
+                .Where(o => o.State == OverrideState.Approved)
+                .Select(o => new
+                {
+                    o.Id,
+                    o.PolicyVersionId,
+                    o.ScopeKind,
+                    o.ScopeRef,
+                    o.Effect,
+                    o.ReplacementPolicyVersionId,
+                    o.ExpiresAt,
+                })
+                .ToListAsync(ct)
+                .ConfigureAwait(false);
+            overrides = approvedRows
+                .Where(o => o.ExpiresAt > capturedAt)
+                .OrderBy(o => o.Id)
+                .Select(o => new BundleOverrideEntry(
+                    o.Id,
+                    o.PolicyVersionId,
+                    o.ScopeKind.ToString(),
+                    o.ScopeRef,
+                    o.Effect.ToString(),
+                    o.ReplacementPolicyVersionId,
+                    o.ExpiresAt))
+                .ToList();
+        }
+        else
+        {
+            overrides = new List<BundleOverrideEntry>();
+        }
 
         // Scope tree: every node, ordered by Id. Consumers reconstruct
         // the hierarchy via ParentId; the snapshot does not pre-build

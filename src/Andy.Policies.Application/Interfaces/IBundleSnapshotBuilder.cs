@@ -35,6 +35,13 @@ public interface IBundleSnapshotBuilder
     /// transaction. <paramref name="capturedAt"/> is the instant the
     /// caller wants stamped into <see cref="BundleSnapshot.CapturedAt"/>;
     /// it is also the cutoff for "non-expired" override rows.
+    /// <paramref name="includeOverrides"/> (P9 follow-up #205,
+    /// 2026-05-07) elides the override scan when false — useful for
+    /// compliance / immutability bundles whose runtime behaviour is
+    /// governed strictly by the active policy + binding set.
     /// </summary>
-    Task<BundleSnapshot> BuildAsync(DateTimeOffset capturedAt, CancellationToken ct = default);
+    Task<BundleSnapshot> BuildAsync(
+        DateTimeOffset capturedAt,
+        bool includeOverrides = true,
+        CancellationToken ct = default);
 }
