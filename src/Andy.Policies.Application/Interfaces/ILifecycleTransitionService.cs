@@ -26,6 +26,7 @@ public interface ILifecycleTransitionService
         LifecycleState target,
         string rationale,
         string actorSubjectId,
+        uint? expectedRevision = null,
         CancellationToken ct = default);
 }
 

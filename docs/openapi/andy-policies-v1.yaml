@@ -2477,8 +2477,12 @@ components:
         rationale:
           type: string
           nullable: true
+        expectedRevision:
+          type: integer
+          format: int32
+          nullable: true
       additionalProperties: false
-      description: "Request payload for the lifecycle transition endpoints (P2.3, story\r\nrivoli-ai/andy-policies#13): publish, winding-down, retire. The single\r\n`rationale` field is forwarded to `ILifecycleTransitionService`\r\nwhere `IRationalePolicy` validates it against the\r\n`andy.policies.rationaleRequired` setting (P2.4 wires the dynamic\r\ngate; P2.3 ships with the require-non-empty default)."
+      description: "Request payload for the lifecycle transition endpoints (P2.3, story\r\nrivoli-ai/andy-policies#13): publish, winding-down, retire. The\r\n`rationale` field is forwarded to `ILifecycleTransitionService`\r\nwhere `IRationalePolicy` validates it against the\r\n`andy.policies.rationaleRequired` setting (P2.4 wires the dynamic\r\ngate; P2.3 ships with the require-non-empty default).\r\n\n`ExpectedRevision` (P9 follow-up #194, 2026-05-07) is an optional\r\noptimistic-concurrency token. When supplied, the service verifies the\r\nloaded version's `Revision` matches before transitioning; mismatch\r\nreturns 412. Nullable for backward compat — clients that don't set it\r\nfall through to last-write-wins (the existing behavior).\r\n"
     OverrideDto:
       type: object
       properties:
@@ -2623,8 +2627,11 @@ components:
         proposerSubjectId:
           type: string
           nullable: true
+        revision:
+          type: integer
+          format: int32
       additionalProperties: false
-      description: "Wire-format projection of a `PolicyVersion`. Enum-shaped fields are\r\nserialised in the casing required by ADR 0001 §6:\r\n<list type=\"bullet\"><item><term>Enforcement</term><description>uppercase RFC 2119 tokens (`MUST` / `SHOULD` / `MAY`).</description></item><item><term>Severity</term><description>lowercase (`info` / `moderate` / `critical`).</description></item><item><term>State</term><description>PascalCase (`Draft` / `Active` / `WindingDown` / `Retired`) — matches DB storage and consumer-visible lifecycle labels.</description></item></list>\r\nService layer performs the casing conversion; controllers pass the DTO through unchanged."
+      description: "Wire-format projection of a `PolicyVersion`. Enum-shaped fields are\r\nserialised in the casing required by ADR 0001 §6:\r\n<list type=\"bullet\"><item><term>Enforcement</term><description>uppercase RFC 2119 tokens (`MUST` / `SHOULD` / `MAY`).</description></item><item><term>Severity</term><description>lowercase (`info` / `moderate` / `critical`).</description></item><item><term>State</term><description>PascalCase (`Draft` / `Active` / `WindingDown` / `Retired`) — matches DB storage and consumer-visible lifecycle labels.</description></item></list>\r\nService layer performs the casing conversion; controllers pass the DTO through unchanged.\r\n\n`Revision` is the optimistic-concurrency token (P9 follow-up #194,\r\n2026-05-07). On Postgres + SQLite alike it's a manually-bumped `uint`;\r\nEF raises `DbUpdateConcurrencyException` when the loaded version's\r\n`Revision` diverges from what's on disk. UI flows that present a\r\nversion DTO and let the user save later should round-trip the value via\r\n`UpdatePolicyVersionRequest.ExpectedRevision` and the lifecycle\r\ntransition request's `ExpectedRevision`; mismatch returns 412.\r\n"
     ProblemDetails:
       type: object
       properties:
@@ -2824,8 +2831,12 @@ components:
         rationale:
           type: string
           nullable: true
+        expectedRevision:
+          type: integer
+          format: int32
+          nullable: true
       additionalProperties: false
-      description: "Request payload for `IPolicyService.UpdateDraftAsync`. Mutates the content\r\nof an existing Draft version. The `Policy.Name` slug is never updated via\r\nthis path — that would require a separate endpoint (deliberately deferred).\r\n\n`Rationale` is captured into the audit chain (P6.2) when supplied; the\r\n`RationaleRequiredFilter` rejects empty values when the\r\n`andy.policies.rationaleRequired` setting is on. Nullable for\r\nbackward compatibility (P9 follow-up #193).\r\n"
+      description: "Request payload for `IPolicyService.UpdateDraftAsync`. Mutates the content\r\nof an existing Draft version. The `Policy.Name` slug is never updated via\r\nthis path — that would require a separate endpoint (deliberately deferred).\r\n\n`Rationale` is captured into the audit chain (P6.2) when supplied; the\r\n`RationaleRequiredFilter` rejects empty values when the\r\n`andy.policies.rationaleRequired` setting is on. Nullable for\r\nbackward compatibility (P9 follow-up #193).\r\n\n`ExpectedRevision` (P9 follow-up #194, 2026-05-07) is an optional\r\noptimistic-concurrency token sourced from `PolicyVersionDto.Revision`.\r\nWhen supplied, the service verifies the loaded version's\r\n`Revision` matches before mutating; mismatch returns 412. Nullable\r\nfor backward compat — clients that don't set it fall through to\r\nlast-write-wins.\r\n"
   securitySchemes:
     Bearer:
       type: http

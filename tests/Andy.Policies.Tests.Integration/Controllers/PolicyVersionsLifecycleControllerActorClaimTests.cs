@@ -126,7 +126,9 @@ public class PolicyVersionsLifecycleControllerActorClaimTests
 
         public Task<PolicyVersionDto> TransitionAsync(
             Guid policyId, Guid versionId, LifecycleState target,
-            string rationale, string actorSubjectId, CancellationToken ct = default)
+            string rationale, string actorSubjectId,
+            uint? expectedRevision = null,
+            CancellationToken ct = default)
         {
             Calls.Add(new RecordedCall(policyId, versionId, target, rationale, actorSubjectId));
             return Task.FromResult(new PolicyVersionDto(

@@ -12,6 +12,15 @@ namespace Andy.Policies.Application.Dtos;
 ///   <item><term>State</term><description>PascalCase (<c>Draft</c> / <c>Active</c> / <c>WindingDown</c> / <c>Retired</c>) — matches DB storage and consumer-visible lifecycle labels.</description></item>
 /// </list>
 /// Service layer performs the casing conversion; controllers pass the DTO through unchanged.
+/// <para>
+/// <c>Revision</c> is the optimistic-concurrency token (P9 follow-up #194,
+/// 2026-05-07). On Postgres + SQLite alike it's a manually-bumped <c>uint</c>;
+/// EF raises <c>DbUpdateConcurrencyException</c> when the loaded version's
+/// <c>Revision</c> diverges from what's on disk. UI flows that present a
+/// version DTO and let the user save later should round-trip the value via
+/// <c>UpdatePolicyVersionRequest.ExpectedRevision</c> and the lifecycle
+/// transition request's <c>ExpectedRevision</c>; mismatch returns 412.
+/// </para>
 /// </summary>
 public record PolicyVersionDto(
     Guid Id,
@@ -25,4 +34,5 @@ public record PolicyVersionDto(
     string RulesJson,
     DateTimeOffset CreatedAt,
     string CreatedBySubjectId,
-    string ProposerSubjectId);
+    string ProposerSubjectId,
+    uint Revision = 0);
