@@ -158,6 +158,66 @@ export interface RevokeOverrideRequest {
   revocationReason: string;
 }
 
+/** Subset of RFC 6902 operations we expect in `AuditEventDto.fieldDiff`. */
+export interface Rfc6902Op {
+  op: 'add' | 'remove' | 'replace' | 'move' | 'copy' | 'test';
+  path: string;
+  value?: unknown;
+  from?: string;
+}
+
+/**
+ * P9.7 (#89) — wire shape for `AuditEventDto`. Note `fieldDiff` arrives
+ * already parsed (server emits it as a JSON array, not a stringified blob)
+ * so client-side rendering can iterate operations directly. `prevHashHex`
+ * + `hashHex` are hex-encoded SHA-256 strings.
+ */
+export interface AuditEventDto {
+  id: string;
+  seq: number;
+  prevHashHex: string;
+  hashHex: string;
+  timestamp: string;
+  actorSubjectId: string;
+  actorRoles: string[];
+  action: string;
+  entityType: string;
+  entityId: string;
+  fieldDiff: Rfc6902Op[];
+  rationale: string | null;
+}
+
+/** Page envelope returned by `GET /api/audit`. Cursor-based: pass
+ *  `nextCursor` back as `cursor` to fetch the next page. */
+export interface AuditPageDto {
+  items: AuditEventDto[];
+  nextCursor: string | null;
+  pageSize: number;
+}
+
+/** Filters accepted by `GET /api/audit`. `from`/`to` are timestamps,
+ *  `cursor` is the opaque token from a previous page's `nextCursor`. */
+export interface AuditQuery {
+  actor?: string;
+  action?: string;
+  entityType?: string;
+  entityId?: string;
+  from?: string;
+  to?: string;
+  cursor?: string | null;
+  pageSize?: number;
+}
+
+/** Result of `GET /api/audit/verify`. `valid === true` ⇔
+ *  `firstDivergenceSeq === null`. `lastSeq` is the highest seq inspected
+ *  (or 0 if the chain is empty). */
+export interface ChainVerificationDto {
+  valid: boolean;
+  firstDivergenceSeq: number | null;
+  inspectedCount: number;
+  lastSeq: number;
+}
+
 /**
  * Maps a target lifecycle state to the action-shaped path segment used by
  * `PolicyVersionsLifecycleController`. `Draft` is intentionally null —
@@ -322,6 +382,31 @@ export class ApiService {
     return this.http.post<OverrideDto>(
       `${this.baseUrl}/overrides/${id}/revoke`,
       body,
+    );
+  }
+
+  // --- Audit (P9.7, #89) ---
+
+  listAudit(query: AuditQuery = {}): Observable<AuditPageDto> {
+    let params = new HttpParams();
+    if (query.actor) params = params.set('actor', query.actor);
+    if (query.action) params = params.set('action', query.action);
+    if (query.entityType) params = params.set('entityType', query.entityType);
+    if (query.entityId) params = params.set('entityId', query.entityId);
+    if (query.from) params = params.set('from', query.from);
+    if (query.to) params = params.set('to', query.to);
+    if (query.cursor) params = params.set('cursor', query.cursor);
+    if (query.pageSize != null) params = params.set('pageSize', query.pageSize.toString());
+    return this.http.get<AuditPageDto>(`${this.baseUrl}/audit`, { params });
+  }
+
+  verifyAuditChain(fromSeq?: number, toSeq?: number): Observable<ChainVerificationDto> {
+    let params = new HttpParams();
+    if (fromSeq != null) params = params.set('fromSeq', fromSeq.toString());
+    if (toSeq != null) params = params.set('toSeq', toSeq.toString());
+    return this.http.get<ChainVerificationDto>(
+      `${this.baseUrl}/audit/verify`,
+      { params },
     );
   }
 

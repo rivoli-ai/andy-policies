@@ -1,0 +1,166 @@
+<!-- Copyright (c) Rivoli AI 2026. All rights reserved. -->
+<div class="page">
+  <header class="page-header">
+    <div class="title-row">
+      <h1>Audit timeline</h1>
+      <button
+        type="button"
+        class="btn-primary"
+        (click)="verify()"
+        [disabled]="verifyState() === 'running'"
+        data-testid="verify">
+        <span *ngIf="verifyState() !== 'running'">Verify chain</span>
+        <span *ngIf="verifyState() === 'running'">Verifying…</span>
+      </button>
+    </div>
+    <p class="page-subtitle">
+      Tamper-evident, hash-chained record of every state-changing operation.
+      Reads via cursor pagination — newest first.
+    </p>
+  </header>
+
+  <!-- Verify result banners -->
+  <div
+    *ngIf="verifyState() === 'ok' && verifyResult() as r"
+    class="banner-ok"
+    role="status"
+    data-testid="verify-ok">
+    Chain verified through seq <strong>{{ r.lastSeq }}</strong> ·
+    inspected {{ r.inspectedCount }} events.
+  </div>
+
+  <div
+    *ngIf="verifyState() === 'diverged' && verifyResult() as r"
+    class="banner-diverged"
+    role="alert"
+    data-testid="verify-diverged">
+    <strong>Divergence at seq {{ r.firstDivergenceSeq }}.</strong>
+    Audit integrity is compromised. Last known-good seq: {{ r.lastSeq }}.
+    Contact an administrator.
+    <button type="button" class="btn-link" (click)="copyDiagnostic()">
+      Copy diagnostic
+    </button>
+  </div>
+
+  <div
+    *ngIf="verifyState() === 'error'"
+    class="banner-error"
+    role="alert"
+    data-testid="verify-error">
+    Verify failed — try again.
+  </div>
+
+  <!-- Filter bar -->
+  <section class="filter-bar" aria-label="Audit filters">
+    <input
+      class="input"
+      type="text"
+      placeholder="Actor subject id…"
+      [ngModel]="actor()"
+      (ngModelChange)="actor.set($event)"
+      (change)="reload()"
+      data-testid="filter-actor"
+      aria-label="Actor filter" />
+    <input
+      class="input"
+      type="text"
+      placeholder="Action (e.g. policy.publish)"
+      [ngModel]="action()"
+      (ngModelChange)="action.set($event)"
+      (change)="reload()"
+      data-testid="filter-action"
+      aria-label="Action filter" />
+    <input
+      class="input"
+      type="text"
+      placeholder="Entity type"
+      [ngModel]="entityType()"
+      (ngModelChange)="entityType.set($event)"
+      (change)="reload()"
+      data-testid="filter-entityType"
+      aria-label="Entity type filter" />
+    <input
+      class="input"
+      type="text"
+      placeholder="Entity id"
+      [ngModel]="entityId()"
+      (ngModelChange)="entityId.set($event)"
+      (change)="reload()"
+      data-testid="filter-entityId"
+      aria-label="Entity id filter" />
+  </section>
+
+  <!-- Status / banner / empty -->
+  <div *ngIf="loading() && events().length === 0" class="loading" data-testid="loading">
+    Loading audit events…
+  </div>
+
+  <div *ngIf="errorMessage()" class="banner-error" role="alert" data-testid="banner">
+    {{ errorMessage() }}
+    <button type="button" class="btn-link" (click)="reload()">Retry</button>
+  </div>
+
+  <p
+    *ngIf="!loading() && events().length === 0 && !errorMessage()"
+    class="empty"
+    data-testid="empty">
+    No audit events match the current filters.
+  </p>
+
+  <!-- Timeline -->
+  <ol *ngIf="events().length > 0" class="timeline" data-testid="timeline">
+    <li
+      *ngFor="let e of events()"
+      class="event"
+      [class.expanded]="isExpanded(e.id)"
+      [attr.data-testid]="'event-' + e.id">
+      <div class="event-header">
+        <span class="seq">#{{ e.seq }}</span>
+        <span class="action-badge">{{ e.action }}</span>
+        <span class="entity">
+          <strong>{{ e.entityType }}</strong>
+          <code>{{ e.entityId }}</code>
+        </span>
+        <span class="actor">{{ e.actorSubjectId }}</span>
+        <time class="ts">{{ e.timestamp | date: 'short' }}</time>
+        <button
+          type="button"
+          class="btn-link expand-btn"
+          (click)="toggle(e.id)"
+          [attr.data-testid]="'expand-' + e.id">
+          {{ isExpanded(e.id) ? 'Collapse' : 'Expand' }}
+        </button>
+      </div>
+      <p *ngIf="e.rationale" class="rationale">
+        <span class="rationale-label">Rationale:</span> {{ e.rationale }}
+      </p>
+      <div *ngIf="isExpanded(e.id)" class="diff-panel" [attr.data-testid]="'diff-' + e.id">
+        <app-rfc6902-diff-view [fieldDiff]="e.fieldDiff"></app-rfc6902-diff-view>
+        <details class="hashes">
+          <summary>Hashes</summary>
+          <dl class="hash-grid">
+            <dt>prev</dt><dd><code>{{ e.prevHashHex }}</code></dd>
+            <dt>hash</dt><dd><code>{{ e.hashHex }}</code></dd>
+          </dl>
+        </details>
+      </div>
+    </li>
+  </ol>
+
+  <!-- Footer + pagination -->
+  <footer
+    *ngIf="events().length > 0"
+    class="footer"
+    data-testid="footer">
+    <span class="count">{{ events().length }} events loaded</span>
+    <button
+      *ngIf="hasMore()"
+      class="btn-secondary"
+      (click)="loadMore()"
+      [disabled]="loading()"
+      data-testid="load-more">
+      <span *ngIf="!loading()">Load more</span>
+      <span *ngIf="loading()">Loading…</span>
+    </button>
+  </footer>
+</div>

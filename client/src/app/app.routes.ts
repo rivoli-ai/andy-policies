@@ -58,6 +58,14 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'audit',
+    loadComponent: () =>
+      import('./features/audit/audit-timeline.component').then(
+        (m) => m.AuditTimelineComponent
+      ),
+    canActivate: [authGuard],
+  },
+  {
     path: 'help',
     loadComponent: () =>
       import('./features/help/help.component').then(
