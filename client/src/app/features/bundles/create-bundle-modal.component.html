@@ -1,0 +1,75 @@
+<!-- Copyright (c) Rivoli AI 2026. All rights reserved. -->
+<div class="overlay" (click)="cancel()" data-testid="overlay">
+  <div
+    class="modal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="create-bundle-title"
+    (click)="$event.stopPropagation()">
+    <header class="modal-header">
+      <h2 id="create-bundle-title">New bundle</h2>
+      <p class="subtitle">Freeze the current catalog into an immutable, named snapshot.</p>
+    </header>
+
+    <form [formGroup]="form" (ngSubmit)="submit()" class="form" data-testid="form">
+      <label class="field">
+        <span>Name (slug) <em>required</em></span>
+        <input
+          formControlName="name"
+          class="input"
+          autocomplete="off"
+          spellcheck="false"
+          placeholder="e.g. release-2026-05"
+          data-testid="name" />
+        <small *ngIf="form.controls.name.touched && form.controls.name.errors?.['pattern']" class="hint error">
+          Slug must start with lowercase letter/digit and use only lowercase, digits, <code>.</code> or <code>-</code>.
+        </small>
+      </label>
+
+      <label class="field">
+        <span>Description</span>
+        <textarea
+          formControlName="description"
+          class="input"
+          rows="2"
+          maxlength="500"
+          placeholder="Optional human-readable summary"
+          data-testid="description"></textarea>
+      </label>
+
+      <label class="field">
+        <span>
+          Rationale <em>required (min 10 chars — recorded in audit chain)</em>
+        </span>
+        <textarea
+          formControlName="rationale"
+          class="input rationale"
+          rows="3"
+          data-testid="rationale"
+          placeholder="Why is this bundle being created?"></textarea>
+      </label>
+
+      <div *ngIf="errorMessage()" class="banner-error" role="alert" data-testid="banner">
+        {{ errorMessage() }}
+      </div>
+
+      <footer class="modal-footer">
+        <button
+          type="button"
+          class="btn-secondary"
+          (click)="cancel()"
+          [disabled]="submitting()">
+          Cancel
+        </button>
+        <button
+          type="submit"
+          class="btn-primary"
+          [disabled]="form.invalid || submitting()"
+          data-testid="submit">
+          <span *ngIf="!submitting()">Create bundle</span>
+          <span *ngIf="submitting()">Creating…</span>
+        </button>
+      </footer>
+    </form>
+  </div>
+</div>

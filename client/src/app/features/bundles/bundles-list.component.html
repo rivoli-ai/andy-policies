@@ -1,0 +1,94 @@
+<!-- Copyright (c) Rivoli AI 2026. All rights reserved. -->
+<div class="page">
+  <header class="page-header">
+    <div class="title-row">
+      <h1>Bundles</h1>
+      <div class="actions">
+        <label class="checkbox">
+          <input
+            type="checkbox"
+            [checked]="includeDeleted()"
+            (change)="toggleIncludeDeleted()"
+            data-testid="include-deleted" />
+          Show deleted
+        </label>
+        <button
+          type="button"
+          class="btn-secondary"
+          (click)="compare()"
+          [disabled]="!canCompare()"
+          data-testid="compare">
+          Compare ({{ selectedIds().size }})
+        </button>
+        <button
+          type="button"
+          class="btn-primary"
+          (click)="openCreate()"
+          data-testid="new-bundle">
+          New bundle
+        </button>
+      </div>
+    </div>
+    <p class="page-subtitle">
+      Immutable, named snapshots of the catalog. Select two rows to compare.
+    </p>
+  </header>
+
+  <div *ngIf="loading() && bundles().length === 0" class="loading" data-testid="loading">
+    Loading bundles…
+  </div>
+
+  <div *ngIf="errorMessage()" class="banner-error" role="alert" data-testid="banner">
+    <span>{{ errorMessage() }}</span>
+    <button type="button" class="btn-link" (click)="reload()">Retry</button>
+  </div>
+
+  <p *ngIf="!loading() && bundles().length === 0 && !errorMessage()"
+     class="empty"
+     data-testid="empty">
+    No bundles yet. Click <strong>New bundle</strong> to freeze the catalog.
+  </p>
+
+  <table *ngIf="bundles().length > 0" class="bundles-table" data-testid="bundles-table">
+    <thead>
+      <tr>
+        <th></th>
+        <th>Name</th>
+        <th>Description</th>
+        <th>State</th>
+        <th>Snapshot</th>
+        <th>Created</th>
+        <th>Created by</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let b of bundles()" [class.selected]="isSelected(b.id)">
+        <td>
+          <input
+            type="checkbox"
+            [checked]="isSelected(b.id)"
+            (change)="toggleSelect(b.id)"
+            [attr.aria-label]="'Select bundle ' + b.name"
+            [attr.data-testid]="'select-' + b.id" />
+        </td>
+        <td>
+          <a [routerLink]="['/bundles', b.id]" class="name" [attr.data-testid]="'detail-' + b.id">
+            {{ b.name }}
+          </a>
+        </td>
+        <td>{{ b.description || '—' }}</td>
+        <td>
+          <span class="badge" [class.deleted]="b.state === 'Deleted'">{{ b.state }}</span>
+        </td>
+        <td><code class="hash">{{ b.snapshotHash | slice: 0:12 }}…</code></td>
+        <td>{{ b.createdAt | date: 'short' }}</td>
+        <td class="subject">{{ b.createdBySubjectId }}</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<app-create-bundle-modal
+  *ngIf="showCreate()"
+  (closed)="onCreateClosed($event)">
+</app-create-bundle-modal>

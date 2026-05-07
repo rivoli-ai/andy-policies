@@ -218,6 +218,26 @@ export interface ChainVerificationDto {
   lastSeq: number;
 }
 
+/** P9.8 (#90) — body for `POST /api/bundles`. Server's CreateBundleRequest
+ *  has no `includeOverrides` flag; that's a P9.8 follow-up. */
+export interface CreateBundleRequest {
+  name: string;
+  description: string | null;
+  rationale: string;
+}
+
+/** P9.8 (#90) — return shape for `GET /api/bundles/{id}/diff?to={otherId}`,
+ *  matches `BundleDiffResult` server-side. `rfc6902PatchJson` is a
+ *  stringified array of operations; `Rfc6902DiffViewComponent` parses it. */
+export interface BundleDiffResult {
+  fromId: string;
+  fromSnapshotHash: string;
+  toId: string;
+  toSnapshotHash: string;
+  rfc6902PatchJson: string;
+  opCount: number;
+}
+
 /**
  * Maps a target lifecycle state to the action-shaped path segment used by
  * `PolicyVersionsLifecycleController`. `Draft` is intentionally null —
@@ -410,11 +430,36 @@ export class ApiService {
     );
   }
 
-  // --- Bundles (P8.3) ---
+  // --- Bundles (P8.3 + P9.8 #90) ---
 
   listBundles(includeDeleted = false): Observable<BundleDto[]> {
     let params = new HttpParams();
     if (includeDeleted) params = params.set('includeDeleted', 'true');
     return this.http.get<BundleDto[]>(`${this.baseUrl}/bundles`, { params });
+  }
+
+  createBundle(request: CreateBundleRequest): Observable<BundleDto> {
+    return this.http.post<BundleDto>(`${this.baseUrl}/bundles`, request);
+  }
+
+  getBundle(id: string): Observable<BundleDto> {
+    return this.http.get<BundleDto>(`${this.baseUrl}/bundles/${id}`);
+  }
+
+  /** Diffs `aId` against `bId`. Server requires distinct ids and rejects
+   *  same-id with 400; UI prevents that anyway via the 2-row select. */
+  diffBundles(aId: string, bId: string): Observable<BundleDiffResult> {
+    const params = new HttpParams().set('to', bId);
+    return this.http.get<BundleDiffResult>(
+      `${this.baseUrl}/bundles/${aId}/diff`,
+      { params },
+    );
+  }
+
+  /** Server accepts rationale as a query param (NOT body) on DELETE. */
+  deleteBundle(id: string, rationale: string): Observable<void> {
+    let params = new HttpParams();
+    if (rationale) params = params.set('rationale', rationale);
+    return this.http.delete<void>(`${this.baseUrl}/bundles/${id}`, { params });
   }
 }

@@ -1,0 +1,57 @@
+<!-- Copyright (c) Rivoli AI 2026. All rights reserved. -->
+<div class="page">
+  <p class="back"><a routerLink="/bundles">← Back to bundles</a></p>
+
+  <div *ngIf="loading()" class="loading" data-testid="loading">Loading bundle…</div>
+
+  <div *ngIf="errorMessage() && !loading()" class="banner-error" role="alert" data-testid="banner">
+    {{ errorMessage() }}
+  </div>
+
+  <ng-container *ngIf="bundle() as b">
+    <header class="page-header">
+      <h1 class="title-row">
+        <span class="bundle-name">{{ b.name }}</span>
+        <span class="badge" [class.deleted]="b.state === 'Deleted'">{{ b.state }}</span>
+      </h1>
+      <p *ngIf="b.description" class="subtitle">{{ b.description }}</p>
+    </header>
+
+    <section class="card">
+      <h2>Metadata</h2>
+      <dl class="metadata-grid">
+        <dt>Bundle id</dt>
+        <dd><code>{{ b.id }}</code></dd>
+
+        <dt>Snapshot hash</dt>
+        <dd><code class="hash">{{ b.snapshotHash }}</code></dd>
+
+        <dt>Created at</dt>
+        <dd>{{ b.createdAt | date: 'medium' }}</dd>
+
+        <dt>Created by</dt>
+        <dd><code class="subject">{{ b.createdBySubjectId }}</code></dd>
+
+        <dt *ngIf="b.deletedAt">Deleted at</dt>
+        <dd *ngIf="b.deletedAt">{{ b.deletedAt | date: 'medium' }}</dd>
+
+        <dt *ngIf="b.deletedBySubjectId">Deleted by</dt>
+        <dd *ngIf="b.deletedBySubjectId">
+          <code class="subject">{{ b.deletedBySubjectId }}</code>
+        </dd>
+      </dl>
+    </section>
+
+    <section class="card empty-tree" data-testid="frozen-tree-stub">
+      <h2>Frozen catalog</h2>
+      <p class="muted">
+        Per-policy snapshot detail is not yet exposed by the API as a single
+        tree dump. To inspect a specific frozen policy use
+        <code>GET /api/bundles/{{ b.id }}/policies/{{ '{policyId}' }}</code>
+        or hit <code>GET /api/bundles/{{ b.id }}/resolve</code> with a
+        target. A follow-up issue tracks adding a bulk listing endpoint
+        suitable for this view.
+      </p>
+    </section>
+  </ng-container>
+</div>

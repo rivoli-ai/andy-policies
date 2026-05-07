@@ -1,0 +1,118 @@
+/* Copyright (c) Rivoli AI 2026. All rights reserved. */
+
+.page { display: flex; flex-direction: column; gap: 16px; }
+
+.back a { color: var(--text-secondary); text-decoration: none; font-size: 13px; }
+.back a:hover { color: var(--primary); }
+
+.loading {
+  padding: 32px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 14px;
+  background: var(--surface);
+  border-radius: 8px;
+  border: 1px dashed var(--border);
+}
+
+.banner-error {
+  padding: 12px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  background: #fce8e6;
+  border: 1px solid #f0a99a;
+  color: var(--error);
+}
+
+.page-header h1.title-row {
+  margin: 0 0 4px;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.bundle-name { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+.badge {
+  font-size: 0.7em;
+  padding: 2px 10px;
+  border-radius: 12px;
+  background: #e6f4ea;
+  color: var(--success);
+  font-weight: 500;
+}
+.badge.deleted {
+  background: var(--background);
+  color: var(--text-secondary);
+}
+
+.subtitle { margin: 0; color: var(--text-secondary); font-size: 14px; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.card h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.metadata-grid {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 16px;
+  margin: 0;
+}
+
+.metadata-grid dt {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.metadata-grid dd {
+  margin: 0;
+  font-size: 13px;
+  word-break: break-word;
+}
+
+.metadata-grid code {
+  font-size: 12px;
+  background: var(--background);
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+
+.metadata-grid .hash {
+  font-size: 11px;
+  word-break: break-all;
+}
+
+.metadata-grid .subject {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.empty-tree .muted {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+
+  code {
+    background: var(--background);
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-size: 12px;
+  }
+}
