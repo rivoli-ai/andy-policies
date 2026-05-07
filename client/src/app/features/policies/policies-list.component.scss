@@ -136,7 +136,10 @@
 
   .name {
     font-weight: 500;
+    color: var(--primary);
+    text-decoration: none;
   }
+  .name:hover { text-decoration: underline; }
 }
 
 .badge {
