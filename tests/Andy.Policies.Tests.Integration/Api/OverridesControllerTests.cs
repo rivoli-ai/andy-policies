@@ -330,6 +330,77 @@ public class OverridesControllerTests : IDisposable
         dto.RevocationReason.Should().Be("withdrawn");
     }
 
+    // ----- Reject (P9 follow-up #201, 2026-05-07) ---------------------
+
+    [Fact]
+    public async Task Reject_HappyPath_FromProposed_Returns200_WithRejectedState()
+    {
+        var client = Client;
+        var version = await CreateActivePolicyVersionAsync(client, Slug("ovr-rj1"));
+        var proposeResp = await client.PostAsJsonAsync("/api/overrides", ExemptRequest(version.Id));
+        proposeResp.EnsureSuccessStatusCode();
+        var proposed = (await proposeResp.Content.ReadFromJsonAsync<OverrideDto>(JsonOptions))!;
+
+        var resp = await client.PostAsJsonAsync(
+            $"/api/overrides/{proposed.Id}/reject", new RejectOverrideRequest("policy mismatch"));
+
+        resp.StatusCode.Should().Be(HttpStatusCode.OK);
+        var dto = await resp.Content.ReadFromJsonAsync<OverrideDto>(JsonOptions);
+        dto!.State.Should().Be(OverrideState.Rejected);
+        dto.RevocationReason.Should().Be("policy mismatch");
+    }
+
+    [Fact]
+    public async Task Reject_BlankReason_Returns400()
+    {
+        var client = Client;
+        var version = await CreateActivePolicyVersionAsync(client, Slug("ovr-rj2"));
+        var proposeResp = await client.PostAsJsonAsync("/api/overrides", ExemptRequest(version.Id));
+        proposeResp.EnsureSuccessStatusCode();
+        var proposed = (await proposeResp.Content.ReadFromJsonAsync<OverrideDto>(JsonOptions))!;
+
+        var resp = await client.PostAsJsonAsync(
+            $"/api/overrides/{proposed.Id}/reject", new RejectOverrideRequest("   "));
+
+        resp.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task Reject_FromApproved_Returns409()
+    {
+        var client = Client;
+        var version = await CreateActivePolicyVersionAsync(client, Slug("ovr-rj3"));
+        var proposeResp = await client.PostAsJsonAsync("/api/overrides", ExemptRequest(version.Id));
+        proposeResp.EnsureSuccessStatusCode();
+        var proposed = (await proposeResp.Content.ReadFromJsonAsync<OverrideDto>(JsonOptions))!;
+
+        // The integration fixture signs all HTTP requests as a single test
+        // user, so to land in Approved we drive the approve transition
+        // directly through the service (under a distinct subject id —
+        // self-approval is rejected before the RBAC stub is consulted).
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var svc = scope.ServiceProvider.GetRequiredService<IOverrideService>();
+            await svc.ApproveAsync(proposed.Id, "user:another-approver");
+        }
+
+        var resp = await client.PostAsJsonAsync(
+            $"/api/overrides/{proposed.Id}/reject", new RejectOverrideRequest("changed mind"));
+
+        resp.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
+
+    [Fact]
+    public async Task Reject_UnknownId_Returns404()
+    {
+        var client = Client;
+
+        var resp = await client.PostAsJsonAsync(
+            $"/api/overrides/{Guid.NewGuid()}/reject", new RejectOverrideRequest("nope"));
+
+        resp.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
     [Fact]
     public async Task Get_UnknownId_Returns404()
     {

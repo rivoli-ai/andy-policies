@@ -66,6 +66,7 @@ string[] rbacPermissionCodes =
     "andy-policies:scope:read",         "andy-policies:scope:manage",
     "andy-policies:override:read",      "andy-policies:override:propose",
     "andy-policies:override:approve",   "andy-policies:override:revoke",
+    "andy-policies:override:reject",
     "andy-policies:bundle:read",        "andy-policies:bundle:create",
     "andy-policies:bundle:delete",      "andy-policies:audit:read",
     "andy-policies:audit:export",       "andy-policies:audit:verify",

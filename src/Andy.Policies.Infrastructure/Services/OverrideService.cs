@@ -302,6 +302,75 @@ public sealed class OverrideService : IOverrideService
         return ToDto(ovr);
     }
 
+    public async Task<OverrideDto> RejectAsync(
+        Guid id,
+        RejectOverrideRequest request,
+        string actorSubjectId,
+        CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentException.ThrowIfNullOrEmpty(actorSubjectId);
+
+        var reason = (request.RejectionReason ?? string.Empty).Trim();
+        if (string.IsNullOrEmpty(reason))
+        {
+            throw new ValidationException("RejectionReason is required and may not be empty or whitespace.");
+        }
+        if (reason.Length > MaxRationaleLength)
+        {
+            throw new ValidationException(
+                $"RejectionReason length {reason.Length} exceeds the {MaxRationaleLength}-char limit.");
+        }
+
+        await using var transaction = await _db.Database
+            .BeginTransactionAsync(IsolationLevel.Serializable, ct)
+            .ConfigureAwait(false);
+
+        var ovr = await _db.Overrides
+            .FirstOrDefaultAsync(o => o.Id == id, ct)
+            .ConfigureAwait(false)
+            ?? throw new NotFoundException($"Override {id} not found.");
+
+        if (ovr.State != OverrideState.Proposed)
+        {
+            // Reject is the proposal-time termination only. Once
+            // approved, the operator-initiated terminal path is Revoke;
+            // once Expired/Revoked/Rejected the row is already terminal.
+            throw new ConflictException(
+                $"Override {id} is in state {ovr.State}; only Proposed overrides can be rejected.");
+        }
+
+        // RBAC: rejection is a separate permission so admins can
+        // delegate "review proposals" without granting full revoke
+        // authority over already-approved overrides.
+        var rbacResult = await _rbac.CheckAsync(
+            actorSubjectId,
+            permissionCode: "andy-policies:override:reject",
+            groups: Array.Empty<string>(),
+            resourceInstanceId: ovr.ScopeRef,
+            ct).ConfigureAwait(false);
+        if (!rbacResult.Allowed)
+        {
+            throw new RbacDeniedException(
+                actorSubjectId, "andy-policies:override:reject", ovr.ScopeRef, rbacResult.Reason);
+        }
+
+        var now = _clock.GetUtcNow();
+        ovr.State = OverrideState.Rejected;
+        ovr.RevocationReason = reason;
+        await _db.SaveChangesAsync(ct).ConfigureAwait(false);
+        await transaction.CommitAsync(ct).ConfigureAwait(false);
+
+        await _events.DispatchAsync(new OverrideRejected(
+            OverrideId: ovr.Id,
+            PolicyVersionId: ovr.PolicyVersionId,
+            ActorSubjectId: actorSubjectId,
+            Reason: reason,
+            At: now), ct).ConfigureAwait(false);
+
+        return ToDto(ovr);
+    }
+
     public async Task<OverrideDto> ExpireAsync(Guid id, CancellationToken ct = default)
     {
         await using var transaction = await _db.Database

@@ -51,6 +51,28 @@ public interface IOverrideService
         CancellationToken ct = default);
 
     /// <summary>
+    /// Reject a <c>Proposed</c> override (P9 follow-up #201, 2026-05-07).
+    /// Distinct from <see cref="RevokeAsync"/>: rejection only fires
+    /// from <c>Proposed</c>, terminating the proposal before it ever
+    /// took effect; revocation fires from <c>Approved</c> (and
+    /// continues to accept <c>Proposed</c> for backward compat). The
+    /// audit trail can therefore distinguish "this proposal was
+    /// declined" from "this active override was pulled". Self-rejection
+    /// is allowed — proposers may withdraw their own proposals.
+    /// </summary>
+    /// <exception cref="Andy.Policies.Application.Exceptions.NotFoundException">
+    /// No row matches <paramref name="id"/>.</exception>
+    /// <exception cref="Andy.Policies.Application.Exceptions.ValidationException">
+    /// Empty or oversized rejection reason.</exception>
+    /// <exception cref="Andy.Policies.Application.Exceptions.ConflictException">
+    /// Row is not in <see cref="OverrideState.Proposed"/>.</exception>
+    Task<OverrideDto> RejectAsync(
+        Guid id,
+        RejectOverrideRequest request,
+        string actorSubjectId,
+        CancellationToken ct = default);
+
+    /// <summary>
     /// System-only transition: moves an <c>Approved</c> override past
     /// its <c>ExpiresAt</c> into <see cref="OverrideState.Expired"/>.
     /// Called exclusively by <c>OverrideExpiryReaper</c> (P5.3,

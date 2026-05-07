@@ -24,6 +24,7 @@
     { "code": "andy-policies:override:propose",  "name": "Propose an override",      "resourceType": "override" },
     { "code": "andy-policies:override:approve",  "name": "Approve an override",      "resourceType": "override" },
     { "code": "andy-policies:override:revoke",   "name": "Revoke an override",       "resourceType": "override" },
+    { "code": "andy-policies:override:reject",   "name": "Reject a proposal",        "resourceType": "override" },
     { "code": "andy-policies:bundle:read",       "name": "Read bundles",             "resourceType": "bundle"   },
     { "code": "andy-policies:bundle:create",     "name": "Create a bundle",          "resourceType": "bundle"   },
     { "code": "andy-policies:bundle:delete",     "name": "Soft-delete a bundle",     "resourceType": "bundle"   },
@@ -70,6 +71,7 @@
         "andy-policies:override:read",
         "andy-policies:override:approve",
         "andy-policies:override:revoke",
+        "andy-policies:override:reject",
         "andy-policies:bundle:read",
         "andy-policies:bundle:create",
         "andy-policies:audit:read"
