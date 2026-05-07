@@ -35,10 +35,17 @@ public sealed partial class PolicyService : IPolicyService
     public const int MaxPageSize = 500;
 
     private readonly AppDbContext _db;
+    private readonly IAuditWriter? _audit;
 
-    public PolicyService(AppDbContext db)
+    /// <param name="audit">Optional audit writer. Production DI wires
+    /// <c>NoopAuditWriter</c> (P3.2) and the real hash-chained writer
+    /// (P6.2). Tests that construct directly may pass <c>null</c> to
+    /// skip audit emission — the 57 pre-existing direct-instantiation
+    /// tests rely on that. New audit-aware tests inject a spy.</param>
+    public PolicyService(AppDbContext db, IAuditWriter? audit = null)
     {
         _db = db;
+        _audit = audit;
     }
 
     public async Task<IReadOnlyList<PolicyDto>> ListPoliciesAsync(ListPoliciesQuery query, CancellationToken ct = default)
@@ -186,6 +193,16 @@ public sealed partial class PolicyService : IPolicyService
         await _db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
 
+        // Audit append after commit — matches BindingService.CreateAsync's
+        // pattern. NoopAuditWriter today; the P6.2 real writer will need
+        // to fold this into the same transaction when it lands.
+        if (_audit is not null)
+        {
+            await _audit.AppendAsync(
+                "policy.draft.created", policy.Id, subjectId, request.Rationale, ct)
+                .ConfigureAwait(false);
+        }
+
         return ToVersionDto(version);
     }
 
@@ -228,6 +245,13 @@ public sealed partial class PolicyService : IPolicyService
         // the load above and this save — the API layer (P1.5) maps that to 412 Precondition
         // Failed.
         await _db.SaveChangesAsync(ct);
+
+        if (_audit is not null)
+        {
+            await _audit.AppendAsync(
+                "policy.draft.updated", version.Id, subjectId, request.Rationale, ct)
+                .ConfigureAwait(false);
+        }
 
         return ToVersionDto(version);
     }

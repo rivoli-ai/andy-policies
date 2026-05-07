@@ -4,6 +4,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using Andy.Policies.Application.Dtos;
+using Andy.Policies.Tests.Integration.Fixtures;
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
 using Xunit;
@@ -21,10 +22,12 @@ namespace Andy.Policies.Tests.Integration.Controllers;
 /// </summary>
 public class PolicyVersionsLifecycleControllerTests : IClassFixture<PoliciesApiFactory>
 {
+    private readonly PoliciesApiFactory _factory;
     private readonly HttpClient _client;
 
     public PolicyVersionsLifecycleControllerTests(PoliciesApiFactory factory)
     {
+        _factory = factory;
         _client = factory.CreateClient();
     }
 
@@ -35,7 +38,12 @@ public class PolicyVersionsLifecycleControllerTests : IClassFixture<PoliciesApiF
         Enforcement: "Must",
         Severity: "Critical",
         Scopes: Array.Empty<string>(),
-        RulesJson: "{}");
+        RulesJson: "{}",
+        // P9 follow-up #193: CreatePolicyRequest now carries Rationale.
+        // The publish-gate tests below test the publish endpoint's
+        // empty-rationale rejection; the draft-create setup step needs
+        // a non-empty value so it can pass through and reach publish.
+        Rationale: "test-create-draft");
 
     private static LifecycleTransitionRequest WithRationale(string rationale = "ship-it")
         => new(rationale);
@@ -102,9 +110,18 @@ public class PolicyVersionsLifecycleControllerTests : IClassFixture<PoliciesApiF
     [Fact]
     public async Task Publish_WithEmptyRationale_Returns400()
     {
-        var draft = await CreateDraftAsync("publish-no-rationale");
+        // P9 follow-up #193: PoliciesApiFactory now stubs the rationale
+        // gate OFF (most tests don't supply rationale). This test
+        // specifically tests the gate's empty-rationale rejection on
+        // publish — flip it back ON locally.
+        using var rationaleOn = _factory.WithRationaleOn();
+        var client = rationaleOn.CreateClient();
+        var slug = "publish-no-rationale";
+        var createResp = await client.PostAsJsonAsync("/api/policies", MinimalCreate(slug));
+        createResp.EnsureSuccessStatusCode();
+        var draft = (await createResp.Content.ReadFromJsonAsync<PolicyVersionDto>())!;
 
-        var response = await _client.PostAsJsonAsApproverAsync(
+        var response = await client.PostAsJsonAsApproverAsync(
             $"/api/policies/{draft.PolicyId}/versions/{draft.Id}/publish",
             new LifecycleTransitionRequest(Rationale: "   "));
 

@@ -10,9 +10,17 @@ namespace Andy.Policies.Application.Dtos;
 /// rivoli-ai/andy-policies#20). The target version must exist and not be in
 /// <c>LifecycleState.Retired</c>; the service throws
 /// <c>BindingRetiredVersionException</c> on a retired target.
+/// <para>
+/// <c>Rationale</c> is forwarded to <c>IAuditWriter.AppendAsync</c> on the
+/// <c>binding.created</c> event. Nullable for backward compatibility — when
+/// the <c>andy.policies.rationaleRequired</c> gate is on, the
+/// <c>RationaleRequiredFilter</c> rejects requests with an empty rationale
+/// (P9 follow-up #197).
+/// </para>
 /// </summary>
 public sealed record CreateBindingRequest(
     Guid PolicyVersionId,
     BindingTargetType TargetType,
     string TargetRef,
-    BindStrength BindStrength);
+    BindStrength BindStrength,
+    string? Rationale = null);

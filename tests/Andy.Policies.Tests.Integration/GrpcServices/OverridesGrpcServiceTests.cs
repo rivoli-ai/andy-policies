@@ -4,6 +4,7 @@
 using System.Net.Http.Json;
 using Andy.Policies.Api.Protos;
 using Andy.Policies.Application.Interfaces;
+using Andy.Policies.Tests.Integration.Fixtures;
 using Andy.Policies.Application.Settings;
 using Andy.Policies.Infrastructure.Data;
 using Andy.Policies.Tests.Integration.Controllers;
@@ -92,6 +93,9 @@ public class OverridesGrpcServiceTests : IDisposable
                         .RequireAuthenticatedUser()
                         .Build();
                 });
+
+                // P9 follow-up #193: rationale gate stubbed off.
+                services.StubRationaleOff();
 
                 using var sp = services.BuildServiceProvider();
                 using var scope = sp.CreateScope();

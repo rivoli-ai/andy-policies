@@ -80,6 +80,11 @@ public sealed class RbacTestApplicationFactory : WebApplicationFactory<Program>
             services.AddSingleton<Andy.Policies.Application.Interfaces.IPinningPolicy>(
                 new PoliciesApiFactory.StaticPinningPolicy(required: false));
 
+            // P9 follow-up #193: rationale gate stubbed off so RBAC-focused
+            // tests don't have to thread rationale through every CreateDraft
+            // call. RationaleEnforcementTests use their own snapshot factory.
+            services.StubRationaleOff();
+
             using var sp = services.BuildServiceProvider();
             using var scope = sp.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();

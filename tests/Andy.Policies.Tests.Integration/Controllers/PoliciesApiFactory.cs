@@ -20,7 +20,7 @@ namespace Andy.Policies.Tests.Integration.Controllers;
 /// pre-existing <c>ItemsControllerTests</c> failure mode (default factory tries to
 /// migrate against Postgres on :5439 because of the auto-migrate in <c>Program.cs</c>).
 /// </summary>
-public sealed class PoliciesApiFactory : WebApplicationFactory<Program>
+public class PoliciesApiFactory : WebApplicationFactory<Program>
 {
     // Connection lives for the lifetime of the factory; closing it would drop the
     // in-memory database. SQLite's :memory: store is per-connection, so a single
@@ -111,6 +111,24 @@ public sealed class PoliciesApiFactory : WebApplicationFactory<Program>
             services.AddSingleton<Andy.Policies.Application.Interfaces.IPinningPolicy>(
                 new StaticPinningPolicy(required: false));
 
+            // P9 follow-up #193 (rationale on draft mutations): the manifest
+            // default for `andy.policies.rationaleRequired` is `true`. Now
+            // that CreatePolicyRequest / UpdatePolicyVersionRequest /
+            // CreateBindingRequest carry a `Rationale` field, the
+            // RationaleRequiredFilter (P2.4) enforces it on every mutating
+            // request when the gate is on. Most pre-existing integration
+            // tests don't supply rationale and aren't testing the gate;
+            // stub IRationalePolicy off so they stay focused on their
+            // actual subject. RationaleEnforcementTests uses its own
+            // RationaleFactory with the gate on for the dedicated
+            // enforcement coverage.
+            var rationaleDescriptors = services
+                .Where(d => d.ServiceType == typeof(Andy.Policies.Application.Interfaces.IRationalePolicy))
+                .ToList();
+            foreach (var d in rationaleDescriptors) services.Remove(d);
+            services.AddSingleton<Andy.Policies.Application.Interfaces.IRationalePolicy>(
+                new StaticRationalePolicy(required: false));
+
             // Build the schema once on the shared connection.
             using var sp = services.BuildServiceProvider();
             using var scope = sp.CreateScope();
@@ -134,6 +152,21 @@ public sealed class PoliciesApiFactory : WebApplicationFactory<Program>
             string? resourceInstanceId,
             CancellationToken ct)
             => Task.FromResult(new RbacDecision(true, "test-allow"));
+    }
+
+    /// <summary>
+    /// Static <see cref="Andy.Policies.Application.Interfaces.IRationalePolicy"/> for tests
+    /// that don't exercise the gate themselves; <see cref="RationaleEnforcementTests"/>
+    /// uses its own factory variant for tests that flip the value.
+    /// </summary>
+    internal sealed class StaticRationalePolicy : Andy.Policies.Application.Interfaces.IRationalePolicy
+    {
+        public StaticRationalePolicy(bool required) => IsRequired = required;
+        public bool IsRequired { get; }
+        public string? ValidateRationale(string? rationale)
+            => IsRequired && string.IsNullOrWhiteSpace(rationale)
+                ? "Rationale is required for this operation."
+                : null;
     }
 
     /// <summary>

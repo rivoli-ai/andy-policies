@@ -3,6 +3,7 @@
 
 using Andy.Policies.Api.Protos;
 using Andy.Policies.Tests.Integration.Controllers;
+using Andy.Policies.Tests.Integration.Fixtures;
 using FluentAssertions;
 using Grpc.Core;
 using Grpc.Net.Client;
@@ -21,12 +22,14 @@ namespace Andy.Policies.Tests.Integration.GrpcServices;
 /// </summary>
 public class LifecycleGrpcServiceTests : IClassFixture<PoliciesApiFactory>, IDisposable
 {
+    private readonly PoliciesApiFactory _factory;
     private readonly GrpcChannel _channel;
     private readonly LifecycleService.LifecycleServiceClient _lifecycle;
     private readonly Andy.Policies.Api.Protos.PolicyService.PolicyServiceClient _policies;
 
     public LifecycleGrpcServiceTests(PoliciesApiFactory factory)
     {
+        _factory = factory;
         var handler = factory.Server.CreateHandler();
         _channel = GrpcChannel.ForAddress(factory.Server.BaseAddress, new GrpcChannelOptions
         {
@@ -125,10 +128,23 @@ public class LifecycleGrpcServiceTests : IClassFixture<PoliciesApiFactory>, IDis
     [Fact]
     public async Task PublishVersion_EmptyRationale_ThrowsInvalidArgument()
     {
-        var draft = await CreateDraftAsync(Slug("nora"));
+        // P9 follow-up #193: PoliciesApiFactory now stubs the rationale gate
+        // OFF. This test specifically tests the gate's empty-rationale
+        // rejection on publish — flip it back ON locally with its own
+        // channel + clients pinned to the new factory.
+        using var rationaleOn = _factory.WithRationaleOn();
+        using var localHandler = rationaleOn.Server.CreateHandler();
+        using var localChannel = GrpcChannel.ForAddress(
+            rationaleOn.Server.BaseAddress,
+            new GrpcChannelOptions { HttpHandler = localHandler });
+        var lifecycle = new LifecycleService.LifecycleServiceClient(localChannel);
+        var policies = new Andy.Policies.Api.Protos.PolicyService.PolicyServiceClient(localChannel);
+
+        var metadata = new Metadata { { TestAuthHandler.SubjectHeader, "test-creator" } };
+        var draft = (await policies.CreateDraftAsync(MinimalCreate(Slug("nora")), metadata)).Version;
 
         var ex = await Assert.ThrowsAsync<RpcException>(() =>
-            _lifecycle.PublishVersionAsync(new PublishVersionRequest
+            lifecycle.PublishVersionAsync(new PublishVersionRequest
             {
                 PolicyId = draft.PolicyId,
                 VersionId = draft.Id,

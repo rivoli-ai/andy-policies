@@ -121,7 +121,12 @@ public class RationaleEnforcementTests
         Enforcement: "Must",
         Severity: "Critical",
         Scopes: Array.Empty<string>(),
-        RulesJson: "{}");
+        RulesJson: "{}",
+        // P9 follow-up #193: CreatePolicyRequest now carries Rationale.
+        // This fixture toggles RationaleRequired per-test on the
+        // publish endpoint, so we always supply rationale on the
+        // create-draft setup step regardless of the gate.
+        Rationale: "test-create-draft");
 
     private static async Task<PolicyVersionDto> CreateDraftAsync(HttpClient client, string name)
     {

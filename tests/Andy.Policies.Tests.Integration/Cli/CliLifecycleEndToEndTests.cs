@@ -7,6 +7,7 @@ using Andy.Policies.Application.Dtos;
 using Andy.Policies.Cli.Commands;
 using Andy.Policies.Cli.Http;
 using Andy.Policies.Tests.Integration.Controllers;
+using Andy.Policies.Tests.Integration.Fixtures;
 using FluentAssertions;
 using Microsoft.AspNetCore.TestHost;
 using Xunit;
@@ -62,6 +63,8 @@ public class CliLifecycleEndToEndTests : IClassFixture<PoliciesApiFactory>
             severity = "Critical",
             scopes = Array.Empty<string>(),
             rulesJson = "{}",
+            // P9 follow-up #193: CreatePolicyRequest now carries Rationale.
+            rationale = "test-create-draft",
         }, "test-creator");
         resp.EnsureSuccessStatusCode();
         return (await resp.Content.ReadFromJsonAsync<PolicyVersionDto>())!;
@@ -99,10 +102,40 @@ public class CliLifecycleEndToEndTests : IClassFixture<PoliciesApiFactory>
         // because System.CommandLine reserves exit 2 for parser-level errors.
         // The acceptance criterion is that the binary exits non-zero and the
         // DB stays untouched.
-        using var _scope = ClientFactory.UseHandlerForTesting(_factory.Server.CreateHandler());
-        var draft = await CreateDraftAsync($"cli-norat-{Guid.NewGuid():N}".Substring(0, 16));
+        //
+        // P9 follow-up #193: PoliciesApiFactory now stubs the rationale gate
+        // OFF for the bulk of tests; flip it back ON via a dedicated subclass
+        // for this test, and route the CLI's HTTP through that factory's
+        // handler + base address.
+        using var factoryOn = new RationaleOnFactory();
+        using var _scope = ClientFactory.UseHandlerForTesting(factoryOn.Server.CreateHandler());
+        var slug = $"cli-norat-{Guid.NewGuid():N}".Substring(0, 16);
+        var setupClient = factoryOn.CreateClient();
+        var setupResp = await setupClient.PostAsJsonAsSubjectAsync("/api/policies", new
+        {
+            name = slug,
+            description = (string?)null,
+            summary = "summary",
+            enforcement = "Must",
+            severity = "Critical",
+            scopes = Array.Empty<string>(),
+            rulesJson = "{}",
+            rationale = "test-create-draft",
+        }, "test-creator");
+        setupResp.EnsureSuccessStatusCode();
+        var draft = (await setupResp.Content.ReadFromJsonAsync<PolicyVersionDto>())!;
 
-        var root = BuildRootCommand();
+        var apiUrl = new Option<string>("--api-url", () => factoryOn.Server.BaseAddress.ToString());
+        var token = new Option<string?>("--token");
+        var output = new Option<string>("--output", () => "json");
+        var root = new RootCommand("test-cli");
+        root.AddGlobalOption(apiUrl);
+        root.AddGlobalOption(token);
+        root.AddGlobalOption(output);
+        var versions = new Command("versions");
+        VersionCommands.Register(versions, apiUrl, token, output);
+        root.AddCommand(versions);
+
         var exit = await root.InvokeAsync(new[]
         {
             "versions", "publish",
@@ -112,10 +145,23 @@ public class CliLifecycleEndToEndTests : IClassFixture<PoliciesApiFactory>
 
         exit.Should().Be(1);
 
-        var client = _factory.CreateClient();
-        var reloaded = await client.GetFromJsonAsync<PolicyVersionDto>(
+        var reloaded = await setupClient.GetFromJsonAsync<PolicyVersionDto>(
             $"/api/policies/{draft.PolicyId}/versions/{draft.Id}");
         reloaded!.State.Should().Be("Draft");
+    }
+
+    /// <summary>
+    /// One-off PoliciesApiFactory subclass with the rationale gate ON.
+    /// Used by the empty-rationale CLI test only; the parent class stubs
+    /// the gate off for the bulk of unrelated tests.
+    /// </summary>
+    private sealed class RationaleOnFactory : PoliciesApiFactory
+    {
+        protected override void ConfigureWebHost(Microsoft.AspNetCore.Hosting.IWebHostBuilder builder)
+        {
+            base.ConfigureWebHost(builder);
+            builder.ConfigureServices(services => services.StubRationaleOn());
+        }
     }
 
     [Fact]

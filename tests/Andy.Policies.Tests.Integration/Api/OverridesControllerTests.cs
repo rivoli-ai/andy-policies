@@ -10,6 +10,7 @@ using Andy.Policies.Application.Interfaces;
 using Andy.Policies.Application.Settings;
 using Andy.Policies.Domain.Enums;
 using Andy.Policies.Tests.Integration.Controllers;
+using Andy.Policies.Tests.Integration.Fixtures;
 using FluentAssertions;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
@@ -98,6 +99,11 @@ public class OverridesControllerTests : IDisposable
                         .RequireAuthenticatedUser()
                         .Build();
                 });
+
+                // P9 follow-up #193: rationale gate stubbed off so the
+                // override-focused tests don't trip on the new draft create
+                // gate. RationaleEnforcementTests covers gate behaviour.
+                services.StubRationaleOff();
 
                 using var sp = services.BuildServiceProvider();
                 using var scope = sp.CreateScope();

@@ -91,14 +91,30 @@ public sealed class BindingsController : ControllerBase
     public async Task<IActionResult> Delete(
         Guid id,
         [FromQuery] string? rationale,
+        [FromBody] DeleteBindingBody? body,
         CancellationToken ct)
     {
         var actor = ResolveActor();
         if (actor is null) return Unauthorized();
 
-        await _bindings.DeleteAsync(id, actor, rationale, ct);
+        // P9.5 follow-up #197: prefer the body's rationale over the query
+        // string, but accept either for backward compat with clients that
+        // already send `?rationale=`. Body wins so the audit trail records
+        // the canonical, audited copy when both are supplied.
+        var effectiveRationale = !string.IsNullOrWhiteSpace(body?.Rationale)
+            ? body.Rationale
+            : rationale;
+
+        await _bindings.DeleteAsync(id, actor, effectiveRationale, ct);
         return NoContent();
     }
+
+    /// <summary>
+    /// Optional body for <c>DELETE /api/bindings/{id}</c>. New canonical
+    /// shape — the existing <c>?rationale=</c> query parameter still
+    /// works (P9.5 follow-up #197).
+    /// </summary>
+    public sealed record DeleteBindingBody(string? Rationale);
 
     /// <summary>
     /// List active bindings for a target — exact-equality match on
