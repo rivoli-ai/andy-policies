@@ -67,6 +67,50 @@ export interface LifecycleTransitionBody {
   rationale: string;
 }
 
+/** P9.5 (#70) — bind strength enum, matches `Andy.Policies.Domain.Enums.BindStrength`. */
+export type BindStrength = 'Mandatory' | 'Recommended';
+
+/**
+ * P9.5 (#70) — what kind of foreign target a `Binding` attaches to.
+ * Mirrors `Andy.Policies.Domain.Enums.BindingTargetType` (1..5).
+ */
+export type BindingTargetType =
+  | 'Template'
+  | 'Repo'
+  | 'ScopeNode'
+  | 'Tenant'
+  | 'Org';
+
+export const BINDING_TARGET_TYPES: BindingTargetType[] = [
+  'Template',
+  'Repo',
+  'ScopeNode',
+  'Tenant',
+  'Org',
+];
+
+/** Wire shape matching `BindingDto`. `DeletedAt` is non-null for soft-deleted rows. */
+export interface BindingDto {
+  id: string;
+  policyVersionId: string;
+  targetType: BindingTargetType;
+  targetRef: string;
+  bindStrength: BindStrength;
+  createdAt: string;
+  createdBySubjectId: string;
+  deletedAt: string | null;
+  deletedBySubjectId: string | null;
+}
+
+/** Body for `POST /api/bindings`. Server has no `Rationale` field on create
+ *  today — see follow-up issue. */
+export interface CreateBindingRequest {
+  policyVersionId: string;
+  targetType: BindingTargetType;
+  targetRef: string;
+  bindStrength: BindStrength;
+}
+
 /**
  * Maps a target lifecycle state to the action-shaped path segment used by
  * `PolicyVersionsLifecycleController`. `Draft` is intentionally null —
@@ -182,6 +226,26 @@ export class ApiService {
       `${this.baseUrl}/policies/${id}/versions/${versionId}/${segment}`,
       { rationale },
     );
+  }
+
+  // --- Bindings (P9.5, #70) ---
+
+  /** Lists every (non-soft-deleted) binding on a specific version. */
+  listVersionBindings(policyId: string, versionId: string): Observable<BindingDto[]> {
+    return this.http.get<BindingDto[]>(
+      `${this.baseUrl}/policies/${policyId}/versions/${versionId}/bindings`,
+    );
+  }
+
+  createBinding(request: CreateBindingRequest): Observable<BindingDto> {
+    return this.http.post<BindingDto>(`${this.baseUrl}/bindings`, request);
+  }
+
+  /** Server accepts rationale as a query param (not body) on DELETE. */
+  deleteBinding(bindingId: string, rationale: string): Observable<void> {
+    let params = new HttpParams();
+    if (rationale) params = params.set('rationale', rationale);
+    return this.http.delete<void>(`${this.baseUrl}/bindings/${bindingId}`, { params });
   }
 
   // --- Bundles (P8.3) ---

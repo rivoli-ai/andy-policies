@@ -1,0 +1,135 @@
+/* Copyright (c) Rivoli AI 2026. All rights reserved. */
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+
+  h2 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+}
+
+.loading,
+.empty,
+.banner-error {
+  padding: 14px;
+  text-align: center;
+  font-size: 13px;
+  border-radius: 6px;
+}
+
+.loading,
+.empty {
+  background: var(--background);
+  color: var(--text-secondary);
+  border: 1px dashed var(--border);
+}
+
+.banner-error {
+  text-align: left;
+  background: #fce8e6;
+  border: 1px solid #f0a99a;
+  color: var(--error);
+}
+
+.bindings-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.bindings-table th,
+.bindings-table td {
+  padding: 8px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  vertical-align: middle;
+}
+
+.bindings-table th {
+  background: var(--background);
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.bindings-table tbody tr:last-child td { border-bottom: none; }
+
+.bindings-table .numeric {
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+.bindings-table .ref {
+  background: var(--background);
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 12px;
+}
+
+.bindings-table .subject {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+  background: var(--background);
+  color: var(--text-secondary);
+}
+
+.badge.mandatory {
+  background: #fce8e6;
+  color: var(--error);
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: white;
+  border: 1px solid var(--primary);
+  padding: 8px 16px;
+  font-size: 14px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn-primary[disabled] { opacity: 0.55; cursor: not-allowed; }
+
+.btn-sm { padding: 6px 12px; font-size: 13px; }
+
+.btn-link {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  color: var(--primary);
+  font: inherit;
+  font-size: 12px;
+}
+
+.btn-link:hover { text-decoration: underline; }
+.btn-link.danger { color: var(--error); }

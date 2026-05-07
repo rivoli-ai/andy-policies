@@ -1,0 +1,97 @@
+<!-- Copyright (c) Rivoli AI 2026. All rights reserved. -->
+<div class="overlay" (click)="cancel()" data-testid="overlay">
+  <div
+    class="modal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="create-binding-title"
+    (click)="$event.stopPropagation()">
+    <header class="modal-header">
+      <h2 id="create-binding-title">New binding</h2>
+      <p class="subtitle">Bind a policy version to a target. Tighten-only rules apply.</p>
+    </header>
+
+    <div *ngIf="eligibleVersions().length === 0" class="banner-info" data-testid="no-versions">
+      No eligible versions on this policy. Bindings can only target Draft, Active,
+      or WindingDown versions — Retired versions reject new bindings.
+    </div>
+
+    <form
+      *ngIf="eligibleVersions().length > 0"
+      [formGroup]="form"
+      (ngSubmit)="submit()"
+      class="form"
+      data-testid="form">
+      <label class="field">
+        <span>Version</span>
+        <select formControlName="policyVersionId" class="input" data-testid="version">
+          <option *ngFor="let v of eligibleVersions()" [value]="v.id">
+            v{{ v.version }} · {{ v.state }} · {{ v.summary }}
+          </option>
+        </select>
+      </label>
+
+      <div class="row two-col">
+        <label class="field">
+          <span>Target type</span>
+          <select formControlName="targetType" class="input" data-testid="target-type">
+            <option *ngFor="let t of TARGET_TYPES" [value]="t">{{ t }}</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>Bind strength</span>
+          <div class="strength-toggle" role="radiogroup" aria-label="Bind strength">
+            <label
+              class="strength-option"
+              [class.selected]="form.controls.bindStrength.value === 'Recommended'">
+              <input type="radio" value="Recommended" formControlName="bindStrength" data-testid="strength-Recommended" />
+              Recommended
+            </label>
+            <label
+              class="strength-option"
+              [class.selected]="form.controls.bindStrength.value === 'Mandatory'">
+              <input type="radio" value="Mandatory" formControlName="bindStrength" data-testid="strength-Mandatory" />
+              Mandatory
+            </label>
+          </div>
+        </label>
+      </div>
+
+      <label class="field">
+        <span>Target ref</span>
+        <input
+          formControlName="targetRef"
+          class="input"
+          autocomplete="off"
+          placeholder="e.g. rivoli-ai/andy-policies, scope:abc-123, template:guid"
+          data-testid="target-ref" />
+        <small class="hint">
+          Canonical formats per type: <code>repo:org/name</code>, <code>template:&lt;guid&gt;</code>, <code>scope:&lt;guid&gt;</code>, <code>tenant:&lt;guid&gt;</code>, <code>org:&lt;guid&gt;</code>.
+        </small>
+      </label>
+
+      <div *ngIf="errorMessage()" class="banner-error" role="alert" data-testid="banner">
+        {{ errorMessage() }}
+      </div>
+
+      <footer class="modal-footer">
+        <button
+          type="button"
+          class="btn-secondary"
+          (click)="cancel()"
+          [disabled]="submitting()">
+          Cancel
+        </button>
+        <button
+          type="submit"
+          class="btn-primary"
+          [disabled]="form.invalid || submitting()"
+          data-testid="submit">
+          <span *ngIf="!submitting()">Create binding</span>
+          <span *ngIf="submitting()">Creating…</span>
+        </button>
+      </footer>
+    </form>
+  </div>
+</div>
