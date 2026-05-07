@@ -84,8 +84,14 @@ public class SchemaShapeTests : IClassFixture<PoliciesApiFactory>
     }
 
     [Fact]
-    public async Task SchemaComponents_DoNotExpose_RevisionConcurrencyToken()
+    public async Task SchemaComponents_OnlyPolicyVersionDto_Exposes_RevisionConcurrencyToken()
     {
+        // P9 follow-up #194 (2026-05-07): PolicyVersionDto now exposes
+        // `revision` so clients can round-trip the optimistic-concurrency
+        // token via UpdatePolicyVersionRequest.ExpectedRevision and
+        // LifecycleTransitionRequest.ExpectedRevision. Other DTOs must
+        // continue to keep the token internal — only the canonical
+        // version projection should leak it.
         using var doc = await LoadAsync();
         var schemas = doc.RootElement.GetProperty("components").GetProperty("schemas");
         foreach (var schema in schemas.EnumerateObject())
@@ -96,9 +102,12 @@ public class SchemaShapeTests : IClassFixture<PoliciesApiFactory>
             }
             foreach (var prop in props.EnumerateObject())
             {
-                Assert.False(
-                    string.Equals(prop.Name, "revision", StringComparison.OrdinalIgnoreCase),
-                    $"Schema '{schema.Name}' leaks the EF concurrency token 'revision'");
+                if (string.Equals(prop.Name, "revision", StringComparison.OrdinalIgnoreCase))
+                {
+                    Assert.True(
+                        string.Equals(schema.Name, "PolicyVersionDto", StringComparison.Ordinal),
+                        $"Schema '{schema.Name}' leaks the EF concurrency token 'revision'; only PolicyVersionDto should expose it.");
+                }
             }
         }
     }

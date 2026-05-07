@@ -13,6 +13,14 @@ namespace Andy.Policies.Application.Dtos;
 /// <c>andy.policies.rationaleRequired</c> setting is on. Nullable for
 /// backward compatibility (P9 follow-up #193).
 /// </para>
+/// <para>
+/// <c>ExpectedRevision</c> (P9 follow-up #194, 2026-05-07) is an optional
+/// optimistic-concurrency token sourced from <c>PolicyVersionDto.Revision</c>.
+/// When supplied, the service verifies the loaded version's
+/// <c>Revision</c> matches before mutating; mismatch returns 412. Nullable
+/// for backward compat — clients that don't set it fall through to
+/// last-write-wins.
+/// </para>
 /// </summary>
 public record UpdatePolicyVersionRequest(
     string Summary,
@@ -20,4 +28,5 @@ public record UpdatePolicyVersionRequest(
     string Severity,
     IReadOnlyList<string> Scopes,
     string RulesJson,
-    string? Rationale = null);
+    string? Rationale = null,
+    uint? ExpectedRevision = null);

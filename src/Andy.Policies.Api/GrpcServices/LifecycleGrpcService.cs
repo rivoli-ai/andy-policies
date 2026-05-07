@@ -52,7 +52,7 @@ public class LifecycleGrpcService : Protos.LifecycleService.LifecycleServiceBase
                 policyId, versionId, LifecycleState.Active,
                 request.Rationale ?? string.Empty,
                 ResolveSubjectId(context),
-                context.CancellationToken);
+                ct: context.CancellationToken);
             return new PolicyVersionResponse { Version = ToMessage(dto) };
         }
         catch (Exception ex) { throw MapToRpcException(ex); }
@@ -76,7 +76,7 @@ public class LifecycleGrpcService : Protos.LifecycleService.LifecycleServiceBase
                 policyId, versionId, target,
                 request.Rationale ?? string.Empty,
                 ResolveSubjectId(context),
-                context.CancellationToken);
+                ct: context.CancellationToken);
             return new PolicyVersionResponse { Version = ToMessage(dto) };
         }
         catch (Exception ex) { throw MapToRpcException(ex); }

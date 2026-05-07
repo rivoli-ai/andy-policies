@@ -105,7 +105,9 @@ public sealed class PolicyVersionsLifecycleController : ControllerBase
         var dto = await _transitions.TransitionAsync(
             id, versionId, target,
             body?.Rationale ?? string.Empty,
-            subjectId, ct);
+            subjectId,
+            body?.ExpectedRevision,
+            ct);
 
         return Ok(dto);
     }

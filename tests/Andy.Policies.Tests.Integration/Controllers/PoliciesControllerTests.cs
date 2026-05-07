@@ -34,6 +34,60 @@ public class PoliciesControllerTests : IClassFixture<PoliciesApiFactory>
         RulesJson: "{}");
 
     [Fact]
+    public async Task UpdateDraft_WithStaleExpectedRevision_Returns412()
+    {
+        // P9 follow-up #194 (2026-05-07): when the client sends an
+        // ExpectedRevision that doesn't match the loaded version's
+        // Revision, the service throws DbUpdateConcurrencyException
+        // which PolicyExceptionHandler maps to 412 Precondition Failed.
+        var createResp = await _client.PostAsJsonAsync(
+            "/api/policies", MinimalCreate("rev-stale"));
+        createResp.EnsureSuccessStatusCode();
+        var draft = (await createResp.Content.ReadFromJsonAsync<PolicyVersionDto>())!;
+
+        // Submit an update with a wrong ExpectedRevision (any non-matching uint).
+        var stale = new UpdatePolicyVersionRequest(
+            Summary: "updated",
+            Enforcement: "Must",
+            Severity: "Critical",
+            Scopes: Array.Empty<string>(),
+            RulesJson: "{}",
+            Rationale: null,
+            ExpectedRevision: draft.Revision + 9999);
+        var updateResp = await _client.PutAsJsonAsync(
+            $"/api/policies/{draft.PolicyId}/versions/{draft.Id}",
+            stale);
+
+        Assert.Equal(HttpStatusCode.PreconditionFailed, updateResp.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpdateDraft_WithMatchingExpectedRevision_Returns200()
+    {
+        var createResp = await _client.PostAsJsonAsync(
+            "/api/policies", MinimalCreate("rev-fresh"));
+        createResp.EnsureSuccessStatusCode();
+        var draft = (await createResp.Content.ReadFromJsonAsync<PolicyVersionDto>())!;
+
+        var fresh = new UpdatePolicyVersionRequest(
+            Summary: "updated",
+            Enforcement: "Must",
+            Severity: "Critical",
+            Scopes: Array.Empty<string>(),
+            RulesJson: "{}",
+            Rationale: null,
+            ExpectedRevision: draft.Revision);
+        var updateResp = await _client.PutAsJsonAsync(
+            $"/api/policies/{draft.PolicyId}/versions/{draft.Id}",
+            fresh);
+
+        Assert.Equal(HttpStatusCode.OK, updateResp.StatusCode);
+        var updated = (await updateResp.Content.ReadFromJsonAsync<PolicyVersionDto>())!;
+        Assert.True(updated.Revision > draft.Revision,
+            "EF should have bumped Revision on save (manual uint token, not row-version).");
+    }
+
+    [Fact]
     public async Task List_ReturnsEmptyArray_WhenNoPolicies()
     {
         var response = await _client.GetAsync("/api/policies?namePrefix=zzzzz");

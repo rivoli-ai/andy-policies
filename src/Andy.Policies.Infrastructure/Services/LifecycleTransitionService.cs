@@ -75,6 +75,7 @@ public sealed class LifecycleTransitionService : ILifecycleTransitionService
         LifecycleState target,
         string rationale,
         string actorSubjectId,
+        uint? expectedRevision = null,
         CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(actorSubjectId);
@@ -101,6 +102,17 @@ public sealed class LifecycleTransitionService : ILifecycleTransitionService
             .ConfigureAwait(false)
             ?? throw new NotFoundException(
                 $"PolicyVersion {versionId} not found under policy {policyId}.");
+
+        // P9 follow-up #194 (2026-05-07): when ExpectedRevision is supplied,
+        // verify it before mutating. Throwing DbUpdateConcurrencyException
+        // mirrors the existing 412 mapping in PolicyExceptionHandler so
+        // callers see a uniform "Stale revision" response shape regardless
+        // of whether the conflict is detected up-front or by EF on save.
+        if (expectedRevision is { } expected && version.Revision != expected)
+        {
+            throw new DbUpdateConcurrencyException(
+                $"PolicyVersion {versionId} revision is {version.Revision}; client expected {expected}.");
+        }
 
         if (!IsTransitionAllowed(version.State, target))
         {

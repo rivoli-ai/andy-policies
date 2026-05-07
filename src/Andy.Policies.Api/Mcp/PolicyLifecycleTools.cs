@@ -142,7 +142,7 @@ public static class PolicyLifecycleTools
 
         try
         {
-            var dto = await transitions.TransitionAsync(pid, vid, target, rationale, subjectId, ct);
+            var dto = await transitions.TransitionAsync(pid, vid, target, rationale, subjectId, ct: ct);
             return FormatVersionDetail(dto);
         }
         catch (RationaleRequiredException ex)

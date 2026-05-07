@@ -215,6 +215,17 @@ public sealed partial class PolicyService : IPolicyService
             v => v.PolicyId == policyId && v.Id == versionId, ct)
             ?? throw new NotFoundException($"PolicyVersion {versionId} not found under policy {policyId}.");
 
+        // P9 follow-up #194 (2026-05-07): when ExpectedRevision is supplied,
+        // verify it before mutating. Throwing DbUpdateConcurrencyException
+        // matches the existing 412 mapping in PolicyExceptionHandler so the
+        // wire shape stays uniform whether we catch the staleness up-front
+        // or EF detects it on SaveChangesAsync.
+        if (request.ExpectedRevision is { } expected && version.Revision != expected)
+        {
+            throw new DbUpdateConcurrencyException(
+                $"PolicyVersion {versionId} revision is {version.Revision}; client expected {expected}.");
+        }
+
         // Service-level guard mirrors the domain MutateDraftField + the AppDbContext guard;
         // rejecting here yields a clearer error message than waiting for SaveChangesAsync.
         // Surfaced as ConflictException so the REST/MCP/gRPC layers map to 409 — wrong-state
@@ -343,7 +354,8 @@ public sealed partial class PolicyService : IPolicyService
         v.RulesJson,
         v.CreatedAt,
         v.CreatedBySubjectId,
-        v.ProposerSubjectId);
+        v.ProposerSubjectId,
+        v.Revision);
 
     /// <summary>ADR 0001 §6: uppercase RFC 2119 tokens on the wire.</summary>
     private static string ToEnforcementWire(EnforcementLevel level) => level switch
