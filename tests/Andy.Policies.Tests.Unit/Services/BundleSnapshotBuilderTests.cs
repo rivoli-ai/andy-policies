@@ -192,6 +192,41 @@ public class BundleSnapshotBuilderTests
     }
 
     [Fact]
+    public async Task Build_WithIncludeOverridesFalse_EmitsEmptyOverridesList()
+    {
+        // P9 follow-up #205 (2026-05-07): when CreateBundleRequest sets
+        // IncludeOverrides=false, the builder must skip the override
+        // scan even if Approved+non-expired rows exist. Used by
+        // compliance/immutability bundles whose runtime behaviour is
+        // governed strictly by the active policy + binding set.
+        await using var db = NewDb();
+        var (_, versionId) = await SeedPolicyVersionAsync(db);
+        db.Overrides.Add(new Override
+        {
+            Id = Guid.NewGuid(),
+            PolicyVersionId = versionId,
+            ScopeKind = OverrideScopeKind.Principal,
+            ScopeRef = "user:would-be-included",
+            Effect = OverrideEffect.Exempt,
+            State = OverrideState.Approved,
+            ExpiresAt = Now.AddDays(7),
+            ProposerSubjectId = "alice",
+            Rationale = "live",
+            ProposedAt = Now.AddDays(-1),
+        });
+        await db.SaveChangesAsync();
+
+        var snapshot = await new BundleSnapshotBuilder(db)
+            .BuildAsync(Now, includeOverrides: false);
+
+        snapshot.Overrides.Should().BeEmpty(
+            "IncludeOverrides=false elides the override scan entirely");
+        // Sanity check: policies + scopes still load — the flag only
+        // affects the override slice.
+        snapshot.Policies.Should().NotBeEmpty();
+    }
+
+    [Fact]
     public async Task Build_OrdersCollectionsStably()
     {
         await using var db = NewDb();

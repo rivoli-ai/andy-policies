@@ -106,7 +106,9 @@ public sealed class BundleService : IBundleService
             }
 
             var capturedAt = _clock.GetUtcNow();
-            var snapshot = await _builder.BuildAsync(capturedAt, ct).ConfigureAwait(false);
+            var snapshot = await _builder
+                .BuildAsync(capturedAt, request.IncludeOverrides, ct)
+                .ConfigureAwait(false);
 
             var canonicalBytes = CanonicalJson.SerializeObject(snapshot);
             var snapshotJson = Encoding.UTF8.GetString(canonicalBytes);

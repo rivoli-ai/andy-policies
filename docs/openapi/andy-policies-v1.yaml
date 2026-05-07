@@ -2285,6 +2285,9 @@ components:
           type: string
           description: "Required non-empty rationale recorded\r\n            against the audit event."
           nullable: true
+        includeOverrides:
+          type: boolean
+          description: "When true (P9 follow-up #205,\r\n            2026-05-07), the snapshot also captures the current set of\r\n            Approved, non-expired overrides. Default `true` preserves the\r\n            pre-#205 behaviour where overrides were always included; pass\r\n            `false` for compliance / immutability bundles where overrides\r\n            are intentionally excluded."
       additionalProperties: false
       description: 'Inputs to M:Andy.Policies.Application.Interfaces.IBundleService.CreateAsync(Andy.Policies.Application.Interfaces.CreateBundleRequest,System.String,System.Threading.CancellationToken).'
     CreateItemRequest:

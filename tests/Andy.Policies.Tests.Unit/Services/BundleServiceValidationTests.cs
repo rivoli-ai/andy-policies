@@ -23,7 +23,10 @@ public class BundleServiceValidationTests
 {
     private sealed class ThrowingBuilder : IBundleSnapshotBuilder
     {
-        public Task<BundleSnapshot> BuildAsync(DateTimeOffset capturedAt, CancellationToken ct = default)
+        public Task<BundleSnapshot> BuildAsync(
+            DateTimeOffset capturedAt,
+            bool includeOverrides = true,
+            CancellationToken ct = default)
             => throw new InvalidOperationException(
                 "BundleSnapshotBuilder must not be invoked when validation fails.");
     }

@@ -59,7 +59,17 @@ public interface IBundleService
 /// <param name="Description">Optional human-readable summary.</param>
 /// <param name="Rationale">Required non-empty rationale recorded
 /// against the audit event.</param>
-public sealed record CreateBundleRequest(string Name, string? Description, string Rationale);
+/// <param name="IncludeOverrides">When true (P9 follow-up #205,
+/// 2026-05-07), the snapshot also captures the current set of
+/// Approved, non-expired overrides. Default <c>true</c> preserves the
+/// pre-#205 behaviour where overrides were always included; pass
+/// <c>false</c> for compliance / immutability bundles where overrides
+/// are intentionally excluded.</param>
+public sealed record CreateBundleRequest(
+    string Name,
+    string? Description,
+    string Rationale,
+    bool IncludeOverrides = true);
 
 /// <summary>Filter for <see cref="IBundleService.ListAsync"/>.</summary>
 public sealed record ListBundlesFilter(
