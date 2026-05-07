@@ -6,7 +6,7 @@ import { authGuard } from './core/guards/auth.guard';
 export const routes: Routes = [
   {
     path: '',
-    redirectTo: 'dashboard',
+    redirectTo: 'policies',
     pathMatch: 'full',
   },
   {
@@ -18,10 +18,10 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
-    path: 'items',
+    path: 'policies',
     loadComponent: () =>
-      import('./features/items/items.component').then(
-        (m) => m.ItemsComponent
+      import('./features/policies/policies-list.component').then(
+        (m) => m.PoliciesListComponent
       ),
     canActivate: [authGuard],
   },

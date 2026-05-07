@@ -3,7 +3,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { ApiService, Item } from '../../shared/services/api.service';
+import { ApiService, PolicyDto } from '../../shared/services/api.service';
 
 @Component({
   selector: 'app-dashboard',
@@ -13,19 +13,19 @@ import { ApiService, Item } from '../../shared/services/api.service';
     <h1>Dashboard</h1>
     <div class="stats">
       <div class="stat-card">
-        <div class="stat-value">{{ items.length }}</div>
-        <div class="stat-label">Total Items</div>
+        <div class="stat-value">{{ policies.length }}</div>
+        <div class="stat-label">Total Policies</div>
       </div>
       <div class="stat-card">
         <div class="stat-value">{{ activeCount }}</div>
-        <div class="stat-label">Active</div>
+        <div class="stat-label">With active version</div>
       </div>
       <div class="stat-card">
-        <div class="stat-value">{{ draftCount }}</div>
-        <div class="stat-label">Draft</div>
+        <div class="stat-value">{{ draftOnlyCount }}</div>
+        <div class="stat-label">Draft only</div>
       </div>
     </div>
-    <p class="quick-link"><a routerLink="/items">Manage Items &rarr;</a></p>
+    <p class="quick-link"><a routerLink="/policies">Browse policies &rarr;</a></p>
   `,
   styles: [`
     h1 { margin-bottom: 24px; }
@@ -44,19 +44,25 @@ import { ApiService, Item } from '../../shared/services/api.service';
   `],
 })
 export class DashboardComponent implements OnInit {
-  items: Item[] = [];
+  policies: PolicyDto[] = [];
 
   get activeCount(): number {
-    return this.items.filter((i) => i.status === 'Active').length;
+    return this.policies.filter((p) => p.activeVersionId !== null).length;
   }
 
-  get draftCount(): number {
-    return this.items.filter((i) => i.status === 'Draft').length;
+  get draftOnlyCount(): number {
+    return this.policies.filter((p) => p.activeVersionId === null).length;
   }
 
   constructor(private api: ApiService) {}
 
   ngOnInit(): void {
-    this.api.getItems().subscribe((items) => (this.items = items));
+    // Best-effort: dashboard is informational; if the bundle pinning gate
+    // refuses the live read it's not worth surfacing here. Defer richer
+    // counts (per-state, per-severity) to a follow-up dashboard story.
+    this.api.listPolicies({ take: 100 }).subscribe({
+      next: (policies) => (this.policies = policies),
+      error: () => (this.policies = []),
+    });
   }
 }
