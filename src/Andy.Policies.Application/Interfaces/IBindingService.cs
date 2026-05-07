@@ -64,4 +64,26 @@ public interface IBindingService
         BindingTargetType targetType,
         string targetRef,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// P9 follow-up #198 (2026-05-07): autocomplete source for the
+    /// <c>targetRef</c> input on the bindings UI. Returns up to
+    /// <paramref name="take"/> distinct, non-deleted <c>TargetRef</c>
+    /// values that start with <paramref name="search"/> for the
+    /// requested <paramref name="targetType"/>, ordered alphabetically.
+    /// An empty / null <paramref name="search"/> returns the first
+    /// <paramref name="take"/> alphabetical refs for the type.
+    /// </summary>
+    /// <remarks>
+    /// Source of truth is the existing <c>Bindings</c> table — refs that
+    /// have been bound before are the most useful candidates. Future
+    /// iterations can extend this with provider-side discovery (a
+    /// repository scanner; a tasks-template directory) without changing
+    /// the wire shape.
+    /// </remarks>
+    Task<IReadOnlyList<string>> SearchTargetRefsAsync(
+        BindingTargetType targetType,
+        string? search,
+        int take,
+        CancellationToken ct = default);
 }

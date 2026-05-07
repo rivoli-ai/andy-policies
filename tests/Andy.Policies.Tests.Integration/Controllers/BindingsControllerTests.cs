@@ -190,6 +190,57 @@ public class BindingsControllerTests : IClassFixture<PoliciesApiFactory>
     }
 
     [Fact]
+    public async Task SearchTargetRefs_ReturnsDistinctRefsMatchingPrefix()
+    {
+        // P9 follow-up #198 (2026-05-07): the bindings UI calls
+        // GET /api/bindings/target-refs?targetType=&search=&take= for
+        // autocomplete. Pin the contract: distinct, alphabetical, prefix
+        // match, type-scoped, soft-deletion-aware.
+        var draft = await CreateDraftAsync(Slug("autocomplete"));
+        // Two bindings with overlapping refs (distinct must collapse).
+        await _client.PostAsJsonAsync("/api/bindings", BindingFor(draft.Id, "repo:rivoli-ai/aaa"));
+        await _client.PostAsJsonAsync("/api/bindings", BindingFor(draft.Id, "repo:rivoli-ai/aaa")); // dup
+        await _client.PostAsJsonAsync("/api/bindings", BindingFor(draft.Id, "repo:rivoli-ai/bbb"));
+        await _client.PostAsJsonAsync("/api/bindings", BindingFor(draft.Id, "repo:other/ccc"));
+        // A soft-deleted ref must be excluded.
+        var doomedResp = await _client.PostAsJsonAsync(
+            "/api/bindings", BindingFor(draft.Id, "repo:rivoli-ai/doomed"));
+        var doomed = (await doomedResp.Content.ReadFromJsonAsync<BindingDto>(JsonOptions))!;
+        await _client.DeleteAsync($"/api/bindings/{doomed.Id}");
+
+        var prefixedResp = await _client.GetAsync(
+            "/api/bindings/target-refs?targetType=Repo&search=repo:rivoli-ai/&take=10");
+        prefixedResp.EnsureSuccessStatusCode();
+        var prefixed = await prefixedResp.Content.ReadFromJsonAsync<List<string>>(JsonOptions);
+        prefixed.Should().NotBeNull();
+        prefixed!.Should().BeInAscendingOrder();
+        prefixed.Should().BeEquivalentTo(
+            new[] { "repo:rivoli-ai/aaa", "repo:rivoli-ai/bbb" },
+            "soft-deleted refs are excluded; non-rivoli prefix is filtered out; duplicates collapse");
+
+        var cappedResp = await _client.GetAsync(
+            "/api/bindings/target-refs?targetType=Repo&take=2");
+        cappedResp.EnsureSuccessStatusCode();
+        var capped = await cappedResp.Content.ReadFromJsonAsync<List<string>>(JsonOptions);
+        capped!.Should().HaveCount(2,
+            "the take parameter caps the response cardinality");
+    }
+
+    [Fact]
+    public async Task SearchTargetRefs_EmptySearch_ReturnsAllForType()
+    {
+        var draft = await CreateDraftAsync(Slug("empty-search"));
+        await _client.PostAsJsonAsync("/api/bindings", BindingFor(draft.Id, "repo:any/x"));
+
+        var resp = await _client.GetAsync(
+            "/api/bindings/target-refs?targetType=Repo&take=20");
+        resp.EnsureSuccessStatusCode();
+        var results = await resp.Content.ReadFromJsonAsync<List<string>>(JsonOptions);
+        results.Should().NotBeNull();
+        results!.Should().Contain("repo:any/x");
+    }
+
+    [Fact]
     public async Task ListByPolicyVersion_HonoursIncludeDeletedFlag()
     {
         var draft = await CreateDraftAsync(Slug("bind-list"));

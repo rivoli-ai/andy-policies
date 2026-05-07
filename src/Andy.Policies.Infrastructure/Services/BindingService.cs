@@ -207,6 +207,42 @@ public sealed class BindingService : IBindingService
             .ToList();
     }
 
+    public async Task<IReadOnlyList<string>> SearchTargetRefsAsync(
+        BindingTargetType targetType,
+        string? search,
+        int take,
+        CancellationToken ct = default)
+    {
+        // P9 follow-up #198 (2026-05-07): distinct, alphabetically-ordered
+        // TargetRef autocomplete source. Pre-filtering on TargetType +
+        // DeletedAt is index-friendly (the per-type Bindings index covers
+        // it); the prefix predicate is `LIKE :search%` server-side, which
+        // EF translates to either a SARGable index seek (Postgres + SQLite
+        // when the column collation supports it) or a scan with the same
+        // result. `take` is clamped to a sane upper bound; values <= 0
+        // collapse to the default page size.
+        var clamped = take > 0 && take <= 100 ? take : 20;
+        var prefix = string.IsNullOrEmpty(search) ? null : search;
+
+        var query = _db.Bindings
+            .AsNoTracking()
+            .Where(b => b.TargetType == targetType && b.DeletedAt == null);
+        if (prefix is not null)
+        {
+            // EF.Functions.Like covers Postgres + SQLite uniformly; the
+            // escape-then-wildcard is the most portable shape.
+            query = query.Where(b => EF.Functions.Like(b.TargetRef, prefix + "%"));
+        }
+        var rows = await query
+            .Select(b => b.TargetRef)
+            .Distinct()
+            .OrderBy(r => r)
+            .Take(clamped)
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+        return rows;
+    }
+
     private static BindingDto ToDto(Binding b) => new(
         b.Id,
         b.PolicyVersionId,
