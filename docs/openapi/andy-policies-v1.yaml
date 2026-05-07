@@ -1747,6 +1747,17 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+  /api/schemas/rules.json:
+    get:
+      tags:
+        - Schemas
+      summary: Returns the JSON Schema describing `PolicyVersion.rulesJson`.
+      operationId: Schemas_GetRulesSchema
+      responses:
+        '200':
+          description: Schema body. Strong ETag + 5-minute Cache-Control.
+        '304':
+          description: Body unchanged since the supplied `If-None-Match`.
   /api/scopes:
     get:
       tags:
@@ -2865,5 +2876,7 @@ tags:
     description: "Version-rooted enumeration of `Binding`s (P3.3, story\r\nrivoli-ai/andy-policies#21). Sits next to the version resource so\r\nHATEOAS-style clients can discover bindings without a separate\r\nquery. Delegates to Andy.Policies.Application.Interfaces.IBindingService; the controller is\r\npurely a wire-format adapter."
   - name: PolicyVersionsLifecycle
     description: "REST surface for lifecycle transitions on a `PolicyVersion` (P2.3, story\r\nrivoli-ai/andy-policies#13). Three action-shaped endpoints — `publish`,\r\n`winding-down`, `retire` — sit on top of\r\nAndy.Policies.Application.Interfaces.ILifecycleTransitionService. Auto-supersede of the previous\r\nActive happens inside the service's serializable transaction; the controller\r\nis a thin wire-format adapter and never re-implements state-machine logic.\r\nService exceptions map to status codes via `PolicyExceptionHandler`:\r\nAndy.Policies.Application.Exceptions.ValidationException → 400 (rationale\r\nmissing), Andy.Policies.Application.Exceptions.NotFoundException → 404\r\n(unknown id), Andy.Policies.Application.Exceptions.InvalidLifecycleTransitionException\r\nand Andy.Policies.Application.Exceptions.ConcurrentPublishException → 409."
+  - name: Schemas
+    description: "P9 follow-up #191 (2026-05-07) — JSON Schema served from the API so\r\neditors (the Angular policy editor, P9.2; the Monaco swap-in P9.8\r\nfollow-up #192) can wire schema-aware validation without hard-coding\r\nthe contract. Anonymous read; trivially cacheable."
   - name: Scopes
     description: "REST surface for the scope hierarchy (P4.5, story\r\nrivoli-ai/andy-policies#33). Six endpoints sit on top of\r\nAndy.Policies.Application.Interfaces.IScopeService (P4.2) and\r\nAndy.Policies.Application.Interfaces.IBindingResolutionService (P4.3): list, get-by-id,\r\ntree, effective-policies, create, delete. Service exceptions are\r\nmapped to status codes by `PolicyExceptionHandler`:\r\n<list type=\"bullet\"><item>Andy.Policies.Application.Exceptions.NotFoundException → 404</item><item>Andy.Policies.Application.Exceptions.InvalidScopeTypeException → 400 (`scope.parent-type-mismatch`)</item><item>Andy.Policies.Application.Exceptions.ScopeRefConflictException → 409 (`scope.ref-conflict`)</item><item>Andy.Policies.Application.Exceptions.ScopeHasDescendantsException → 409 (`scope.has-descendants`)</item></list>"
