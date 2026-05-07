@@ -18,6 +18,7 @@ import {
   PolicyDto,
   PolicyVersionDto,
 } from '../../shared/services/api.service';
+import { BindingsManagerComponent } from './bindings-manager.component';
 import { LifecycleDiagramComponent } from './lifecycle-diagram.component';
 import { LifecycleTransitionModalComponent } from './lifecycle-transition-modal.component';
 import { LIFECYCLE_GRAPH, LIFECYCLE_LABEL } from './lifecycle-graph';
@@ -35,6 +36,7 @@ import { LIFECYCLE_GRAPH, LIFECYCLE_LABEL } from './lifecycle-graph';
   imports: [
     CommonModule,
     RouterLink,
+    BindingsManagerComponent,
     LifecycleDiagramComponent,
     LifecycleTransitionModalComponent,
   ],

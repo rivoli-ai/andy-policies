@@ -1,0 +1,76 @@
+<!-- Copyright (c) Rivoli AI 2026. All rights reserved. -->
+<section class="card">
+  <header class="card-header">
+    <h2>Bindings</h2>
+    <button
+      type="button"
+      class="btn-primary btn-sm"
+      (click)="openCreate()"
+      [disabled]="loading() || versions.length === 0"
+      data-testid="create-binding">
+      + Add binding
+    </button>
+  </header>
+
+  <div *ngIf="loading()" class="loading" data-testid="loading">Loading bindings…</div>
+
+  <div *ngIf="errorMessage() && !loading()" class="banner-error" role="alert" data-testid="banner">
+    {{ errorMessage() }}
+  </div>
+
+  <p *ngIf="!loading() && !errorMessage() && !hasAnyBindings()" class="empty" data-testid="empty">
+    No bindings on any version of this policy yet.
+  </p>
+
+  <table
+    *ngIf="!loading() && hasAnyBindings()"
+    class="bindings-table"
+    data-testid="bindings-table">
+    <thead>
+      <tr>
+        <th>Version</th>
+        <th>Target type</th>
+        <th>Target ref</th>
+        <th>Strength</th>
+        <th>Created</th>
+        <th>Created by</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let b of bindings()">
+        <td class="numeric">v{{ b.versionNumber }}</td>
+        <td>{{ b.targetType }}</td>
+        <td><code class="ref">{{ b.targetRef }}</code></td>
+        <td>
+          <span class="badge" [class.mandatory]="b.bindStrength === 'Mandatory'">
+            {{ b.bindStrength }}
+          </span>
+        </td>
+        <td>{{ b.createdAt | date: 'short' }}</td>
+        <td class="subject">{{ b.createdBySubjectId }}</td>
+        <td>
+          <button
+            type="button"
+            class="btn-link danger"
+            (click)="openDelete(b)"
+            [attr.data-testid]="'delete-' + b.id">
+            Delete
+          </button>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<app-create-binding-modal
+  *ngIf="showCreate()"
+  [versions]="versions"
+  (closed)="onCreateClosed($event)">
+</app-create-binding-modal>
+
+<app-delete-binding-modal
+  *ngIf="deleting() as b"
+  [binding]="b"
+  (closed)="onDeleteClosed($event)">
+</app-delete-binding-modal>

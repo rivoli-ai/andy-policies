@@ -74,6 +74,12 @@
     </section>
   </ng-container>
 
+  <app-bindings-manager
+    *ngIf="policy() as p"
+    [policyId]="p.id"
+    [versions]="versions()">
+  </app-bindings-manager>
+
   <app-lifecycle-transition-modal
     *ngIf="transitioningVersion() as tv"
     [version]="tv"

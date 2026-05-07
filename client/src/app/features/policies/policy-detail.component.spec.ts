@@ -52,9 +52,14 @@ describe('PolicyDetailComponent (P9.4)', () => {
     api = jasmine.createSpyObj<ApiService>('ApiService', [
       'getPolicy',
       'listPolicyVersions',
+      'listVersionBindings',
     ]);
     api.getPolicy.and.returnValue(of(samplePolicy));
     api.listPolicyVersions.and.returnValue(of([activeV1, draftV2]));
+    // BindingsManager mounts as a child and pulls bindings per version on
+    // ngOnChanges — stub to empty so the parent suite stays focused on
+    // detail-level behaviour (P9.5 has its own bindings-manager.spec).
+    api.listVersionBindings.and.returnValue(of([]));
 
     TestBed.configureTestingModule({
       imports: [PolicyDetailComponent],
