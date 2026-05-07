@@ -1,0 +1,138 @@
+<!-- Copyright (c) Rivoli AI 2026. All rights reserved. -->
+<div class="page">
+  <header class="page-header">
+    <h1 *ngIf="mode() === 'create'">New policy</h1>
+    <h1 *ngIf="mode() === 'edit'">
+      Edit
+      <span *ngIf="policy() as p" class="policy-name">{{ p.name }}</span>
+      <span *ngIf="version() as v" class="version-badge">v{{ v.version }} · {{ v.state }}</span>
+    </h1>
+    <p class="page-subtitle">
+      <a routerLink="/policies">← Back to policies</a>
+    </p>
+  </header>
+
+  <div *ngIf="loading()" class="loading" data-testid="loading">Loading…</div>
+
+  <form
+    *ngIf="!loading()"
+    [formGroup]="form"
+    (ngSubmit)="save()"
+    class="form"
+    data-testid="form">
+
+    <fieldset class="card identity">
+      <legend>Identity</legend>
+      <label class="field">
+        <span>Name (slug)</span>
+        <input
+          formControlName="name"
+          class="input"
+          autocomplete="off"
+          spellcheck="false"
+          placeholder="e.g. no-prod"
+          data-testid="name" />
+        <small *ngIf="form.controls.name.touched && form.controls.name.errors?.['pattern']" class="hint error">
+          Slug must be lowercase letters, digits, and <code>: . _ -</code> only.
+        </small>
+        <small *ngIf="mode() === 'edit'" class="hint">
+          Policy name is fixed once created — versions don't rename the policy.
+        </small>
+      </label>
+
+      <label class="field">
+        <span>Description</span>
+        <textarea
+          formControlName="description"
+          class="input"
+          rows="2"
+          placeholder="Long-form description"
+          data-testid="description"></textarea>
+      </label>
+    </fieldset>
+
+    <fieldset class="card version">
+      <legend>Version</legend>
+
+      <label class="field">
+        <span>Summary <em>(required)</em></span>
+        <input
+          formControlName="summary"
+          class="input"
+          placeholder="One-line summary of this version's change"
+          data-testid="summary" />
+      </label>
+
+      <div class="row dimensions">
+        <div class="field">
+          <span>Enforcement</span>
+          <div class="chip-group" role="radiogroup" aria-label="Enforcement">
+            <label
+              *ngFor="let e of enforcementOptions"
+              class="chip-option"
+              [class.selected]="form.controls.enforcement.value === e">
+              <input
+                type="radio"
+                [value]="e"
+                formControlName="enforcement"
+                [attr.data-testid]="'enforcement-' + e" />
+              {{ e }}
+            </label>
+          </div>
+        </div>
+
+        <div class="field">
+          <span>Severity</span>
+          <div class="chip-group" role="radiogroup" aria-label="Severity">
+            <label
+              *ngFor="let s of severityOptions"
+              class="chip-option"
+              [class.selected]="form.controls.severity.value === s">
+              <input
+                type="radio"
+                [value]="s"
+                formControlName="severity"
+                [attr.data-testid]="'severity-' + s" />
+              {{ s }}
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <label class="field">
+        <span>Scopes</span>
+        <app-scope-chip-input formControlName="scopes" data-testid="scopes"></app-scope-chip-input>
+      </label>
+
+      <label class="field rules">
+        <span>Rules JSON</span>
+        <textarea
+          formControlName="rulesJson"
+          class="input rules-editor"
+          rows="14"
+          spellcheck="false"
+          autocomplete="off"
+          data-testid="rules"></textarea>
+        <small *ngIf="rulesJsonError() as msg" class="hint error" data-testid="rules-error">
+          {{ msg }}
+        </small>
+      </label>
+    </fieldset>
+
+    <div *ngIf="errorMessage()" class="banner" role="alert" data-testid="banner">
+      {{ errorMessage() }}
+    </div>
+
+    <footer class="form-footer">
+      <button type="button" class="btn-secondary" (click)="cancel()" [disabled]="saving()">Cancel</button>
+      <button
+        type="submit"
+        class="btn-primary"
+        [disabled]="!canSave()"
+        data-testid="save">
+        <span *ngIf="!saving()">Save</span>
+        <span *ngIf="saving()">Saving…</span>
+      </button>
+    </footer>
+  </form>
+</div>

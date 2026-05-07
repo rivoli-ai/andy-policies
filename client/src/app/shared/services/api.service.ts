@@ -25,6 +25,43 @@ export interface PolicyDto {
   activeVersionId: string | null;
 }
 
+/** Wire shape matching `PolicyVersionDto`. Enforcement uppercase RFC 2119,
+ *  severity lowercase, state PascalCase per ADR 0001 §6. */
+export interface PolicyVersionDto {
+  id: string;
+  policyId: string;
+  version: number;
+  state: LifecycleState;
+  enforcement: Enforcement;
+  severity: Severity;
+  scopes: string[];
+  summary: string;
+  rulesJson: string;
+  createdAt: string;
+  createdBySubjectId: string;
+  proposerSubjectId: string;
+}
+
+/** Body for `POST /api/policies` (create policy + first draft version). */
+export interface CreatePolicyRequest {
+  name: string;
+  description?: string | null;
+  summary: string;
+  enforcement: Enforcement;
+  severity: Severity;
+  scopes: string[];
+  rulesJson: string;
+}
+
+/** Body for `PUT /api/policies/{id}/versions/{versionId}` (update existing draft). */
+export interface UpdatePolicyVersionRequest {
+  summary: string;
+  enforcement: Enforcement;
+  severity: Severity;
+  scopes: string[];
+  rulesJson: string;
+}
+
 /** Filters accepted by `GET /api/policies`. The server has no full-text search;
  *  `namePrefix` does prefix matching only. No `state=` filter exists; per-row
  *  `activeVersionId == null` means "all versions are still draft" client-side. */
@@ -69,6 +106,35 @@ export class ApiService {
     if (query.take != null) params = params.set('take', query.take.toString());
     if (query.bundleId)    params = params.set('bundleId', query.bundleId);
     return this.http.get<PolicyDto[]>(`${this.baseUrl}/policies`, { params });
+  }
+
+  /** P9.2 (#67) — fetch a single policy (header data: name, description, version count). */
+  getPolicy(id: string): Observable<PolicyDto> {
+    return this.http.get<PolicyDto>(`${this.baseUrl}/policies/${id}`);
+  }
+
+  /** P9.2 (#67) — fetch a specific version (rules + dimensions for editing). */
+  getPolicyVersion(id: string, versionId: string): Observable<PolicyVersionDto> {
+    return this.http.get<PolicyVersionDto>(
+      `${this.baseUrl}/policies/${id}/versions/${versionId}`,
+    );
+  }
+
+  /** P9.2 (#67) — create policy + first draft version in one shot. */
+  createPolicy(request: CreatePolicyRequest): Observable<PolicyVersionDto> {
+    return this.http.post<PolicyVersionDto>(`${this.baseUrl}/policies`, request);
+  }
+
+  /** P9.2 (#67) — update an existing draft version (state must be Draft server-side). */
+  updatePolicyVersion(
+    id: string,
+    versionId: string,
+    request: UpdatePolicyVersionRequest,
+  ): Observable<PolicyVersionDto> {
+    return this.http.put<PolicyVersionDto>(
+      `${this.baseUrl}/policies/${id}/versions/${versionId}`,
+      request,
+    );
   }
 
   // --- Bundles (P8.3) ---

@@ -1,7 +1,10 @@
 <!-- Copyright (c) Rivoli AI 2026. All rights reserved. -->
 <div class="page">
   <header class="page-header">
-    <h1>Policies</h1>
+    <div class="title-row">
+      <h1>Policies</h1>
+      <a class="btn-primary new-btn" routerLink="/policies/new" data-testid="new-policy">New policy</a>
+    </div>
     <p class="page-subtitle">
       Catalog of structured, versioned governance policies.
       <span *ngIf="bundleId() as bId">Viewing bundle <code>{{ bId }}</code>.</span>
