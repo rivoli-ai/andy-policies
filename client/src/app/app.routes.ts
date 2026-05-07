@@ -66,6 +66,31 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'bundles',
+    loadComponent: () =>
+      import('./features/bundles/bundles-list.component').then(
+        (m) => m.BundlesListComponent
+      ),
+    canActivate: [authGuard],
+  },
+  // Order matters: /bundles/diff must beat /bundles/:bundleId.
+  {
+    path: 'bundles/diff',
+    loadComponent: () =>
+      import('./features/bundles/bundle-diff.component').then(
+        (m) => m.BundleDiffComponent
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'bundles/:bundleId',
+    loadComponent: () =>
+      import('./features/bundles/bundle-detail.component').then(
+        (m) => m.BundleDetailComponent
+      ),
+    canActivate: [authGuard],
+  },
+  {
     path: 'help',
     loadComponent: () =>
       import('./features/help/help.component').then(

@@ -1,0 +1,159 @@
+/* Copyright (c) Rivoli AI 2026. All rights reserved. */
+
+.page { display: flex; flex-direction: column; gap: 16px; }
+
+.page-header h1 { margin: 0 0 4px; }
+
+.title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.checkbox {
+  font-size: 13px;
+  color: var(--text-secondary);
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  cursor: pointer;
+}
+
+.page-subtitle {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.loading, .empty {
+  padding: 32px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 14px;
+  background: var(--surface);
+  border-radius: 8px;
+  border: 1px dashed var(--border);
+}
+
+.banner-error {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #fce8e6;
+  border: 1px solid #f0a99a;
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--error);
+
+  span { flex: 1; }
+}
+
+.bundles-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.bundles-table th, .bundles-table td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  vertical-align: middle;
+}
+
+.bundles-table th {
+  background: var(--background);
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.bundles-table tbody tr:last-child td { border-bottom: none; }
+.bundles-table tbody tr.selected { background: rgba(40, 87, 200, 0.05); }
+.bundles-table tbody tr:hover:not(.selected) { background: var(--background); }
+
+.bundles-table .name {
+  color: var(--primary);
+  text-decoration: none;
+  font-weight: 500;
+}
+.bundles-table .name:hover { text-decoration: underline; }
+
+.bundles-table .hash {
+  background: var(--background);
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+}
+
+.bundles-table .subject {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: #e6f4ea;
+  color: var(--success);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.badge.deleted {
+  background: var(--background);
+  color: var(--text-secondary);
+}
+
+.btn-primary, .btn-secondary {
+  padding: 8px 14px;
+  font-size: 13px;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 1px solid var(--border);
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+.btn-primary[disabled] { opacity: 0.55; cursor: not-allowed; }
+
+.btn-secondary {
+  background: var(--surface);
+  color: inherit;
+}
+
+.btn-secondary[disabled] { opacity: 0.55; cursor: not-allowed; }
+.btn-secondary:hover:not([disabled]) { background: var(--background); }
+
+.btn-link {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  color: var(--primary);
+  font: inherit;
+  font-size: 13px;
+}
+
+.btn-link:hover { text-decoration: underline; }

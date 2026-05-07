@@ -1,0 +1,46 @@
+<!-- Copyright (c) Rivoli AI 2026. All rights reserved. -->
+<div class="page">
+  <p class="back"><a routerLink="/bundles">← Back to bundles</a></p>
+
+  <header class="page-header">
+    <h1>Bundle diff</h1>
+  </header>
+
+  <div *ngIf="missingParams()" class="banner-error" data-testid="missing">
+    Missing bundle ids in URL — pass <code>?a=</code> and <code>?b=</code>.
+  </div>
+
+  <div *ngIf="identicalParams()" class="banner-error" data-testid="identical">
+    The same bundle id was passed for both <code>a</code> and <code>b</code>;
+    the server rejects same-id diffs with 400. Pick two distinct bundles.
+  </div>
+
+  <ng-container *ngIf="!missingParams() && !identicalParams()">
+    <div *ngIf="loading()" class="loading" data-testid="loading">Computing diff…</div>
+
+    <div *ngIf="errorMessage()" class="banner-error" role="alert" data-testid="banner">
+      {{ errorMessage() }}
+      <button type="button" class="btn-link" (click)="load()">Retry</button>
+    </div>
+
+    <div *ngIf="result() as r" class="diff-card" data-testid="diff-card">
+      <header class="diff-header">
+        <div>
+          <span class="label">From</span>
+          <a [routerLink]="['/bundles', r.fromId]"><code>{{ r.fromId }}</code></a>
+          <code class="hash">{{ r.fromSnapshotHash | slice: 0:12 }}…</code>
+        </div>
+        <div>
+          <span class="label">To</span>
+          <a [routerLink]="['/bundles', r.toId]"><code>{{ r.toId }}</code></a>
+          <code class="hash">{{ r.toSnapshotHash | slice: 0:12 }}…</code>
+        </div>
+        <div>
+          <span class="op-count">{{ r.opCount }} {{ r.opCount === 1 ? 'op' : 'ops' }}</span>
+        </div>
+      </header>
+
+      <app-rfc6902-diff-view [fieldDiff]="r.rfc6902PatchJson"></app-rfc6902-diff-view>
+    </div>
+  </ng-container>
+</div>

@@ -1,0 +1,106 @@
+/* Copyright (c) Rivoli AI 2026. All rights reserved. */
+
+.page { display: flex; flex-direction: column; gap: 16px; }
+
+.back a { color: var(--text-secondary); text-decoration: none; font-size: 13px; }
+.back a:hover { color: var(--primary); }
+
+.page-header h1 { margin: 0; }
+
+.loading {
+  padding: 32px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 14px;
+  background: var(--surface);
+  border-radius: 8px;
+  border: 1px dashed var(--border);
+}
+
+.banner-error {
+  padding: 12px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  background: #fce8e6;
+  border: 1px solid #f0a99a;
+  color: var(--error);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  code {
+    background: var(--surface);
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-size: 12px;
+    color: var(--error);
+  }
+}
+
+.diff-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.diff-header {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+
+  .label {
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-right: 6px;
+  }
+
+  a {
+    color: var(--primary);
+    text-decoration: none;
+    margin-right: 6px;
+  }
+  a:hover { text-decoration: underline; }
+
+  code {
+    background: var(--background);
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 11px;
+  }
+
+  .hash { color: var(--text-secondary); }
+
+  .op-count {
+    align-self: center;
+    background: var(--background);
+    border: 1px solid var(--border);
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 500;
+  }
+}
+
+.btn-link {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  color: var(--primary);
+  font: inherit;
+  font-size: 13px;
+}
+
+.btn-link:hover { text-decoration: underline; }
