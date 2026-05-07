@@ -112,6 +112,53 @@ export interface CreateBindingRequest {
 }
 
 /**
+ * P9.6 (#88) — Override lifecycle states. Note: the server has only four states
+ * (no Rejected); the only ways out of `Proposed` are `Approved` (via approve)
+ * or `Revoked` (via revoke). Spec asked for a Reject endpoint that doesn't exist.
+ */
+export type OverrideState = 'Proposed' | 'Approved' | 'Revoked' | 'Expired';
+
+/** Mirrors `Andy.Policies.Domain.Enums.OverrideScopeKind`. */
+export type OverrideScopeKind = 'Principal' | 'Cohort';
+
+/** Mirrors `Andy.Policies.Domain.Enums.OverrideEffect`. `Replace` requires a
+ *  non-null `replacementPolicyVersionId`; the DB enforces a CHECK constraint. */
+export type OverrideEffect = 'Exempt' | 'Replace';
+
+/** Wire shape for `OverrideDto`. ScopeRef format depends on `scopeKind`
+ *  (e.g. principal subject id, cohort name). */
+export interface OverrideDto {
+  id: string;
+  policyVersionId: string;
+  scopeKind: OverrideScopeKind;
+  scopeRef: string;
+  effect: OverrideEffect;
+  replacementPolicyVersionId: string | null;
+  proposerSubjectId: string;
+  approverSubjectId: string | null;
+  state: OverrideState;
+  proposedAt: string;
+  approvedAt: string | null;
+  expiresAt: string;
+  rationale: string;
+  revocationReason: string | null;
+}
+
+/** Filters accepted by `GET /api/overrides`. */
+export interface OverrideListQuery {
+  state?: OverrideState;
+  scopeKind?: OverrideScopeKind;
+  scopeRef?: string;
+  policyVersionId?: string;
+}
+
+/** Body for `POST /api/overrides/{id}/revoke` — note the field is
+ *  `revocationReason`, not `rationale`. */
+export interface RevokeOverrideRequest {
+  revocationReason: string;
+}
+
+/**
  * Maps a target lifecycle state to the action-shaped path segment used by
  * `PolicyVersionsLifecycleController`. `Draft` is intentionally null —
  * versions are born Draft, never transitioned to it.
@@ -246,6 +293,36 @@ export class ApiService {
     let params = new HttpParams();
     if (rationale) params = params.set('rationale', rationale);
     return this.http.delete<void>(`${this.baseUrl}/bindings/${bindingId}`, { params });
+  }
+
+  // --- Overrides (P9.6, #88) ---
+
+  listOverrides(query: OverrideListQuery = {}): Observable<OverrideDto[]> {
+    let params = new HttpParams();
+    if (query.state) params = params.set('state', query.state);
+    if (query.scopeKind) params = params.set('scopeKind', query.scopeKind);
+    if (query.scopeRef) params = params.set('scopeRef', query.scopeRef);
+    if (query.policyVersionId) params = params.set('policyVersionId', query.policyVersionId);
+    return this.http.get<OverrideDto[]>(`${this.baseUrl}/overrides`, { params });
+  }
+
+  /** Approve takes no body — server records the approver's subject id from
+   *  the JWT and stamps `approvedAt`. Spec called for a rationale field that
+   *  doesn't exist on this endpoint; deferred to a follow-up. */
+  approveOverride(id: string): Observable<OverrideDto> {
+    return this.http.post<OverrideDto>(
+      `${this.baseUrl}/overrides/${id}/approve`,
+      null,
+    );
+  }
+
+  /** Revoke body uses `revocationReason` (NOT `rationale`). */
+  revokeOverride(id: string, revocationReason: string): Observable<OverrideDto> {
+    const body: RevokeOverrideRequest = { revocationReason };
+    return this.http.post<OverrideDto>(
+      `${this.baseUrl}/overrides/${id}/revoke`,
+      body,
+    );
   }
 
   // --- Bundles (P8.3) ---

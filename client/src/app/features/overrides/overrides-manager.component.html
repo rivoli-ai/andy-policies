@@ -1,0 +1,146 @@
+<!-- Copyright (c) Rivoli AI 2026. All rights reserved. -->
+<div class="page">
+  <header class="page-header">
+    <h1>Overrides</h1>
+    <p class="page-subtitle">
+      Scoped, time-bounded exceptions to a policy. Writes are gated by
+      <code>andy.policies.experimentalOverridesEnabled</code> server-side.
+    </p>
+  </header>
+
+  <nav class="tabs" role="tablist" aria-label="Override states">
+    <button
+      *ngFor="let s of STATE_TABS"
+      type="button"
+      role="tab"
+      class="tab"
+      [class.active]="state() === s"
+      (click)="setState(s)"
+      [attr.aria-selected]="state() === s"
+      [attr.data-testid]="'tab-' + s">
+      {{ s }}
+    </button>
+  </nav>
+
+  <div *ngIf="errorMessage()" class="banner-error" role="alert" data-testid="banner">
+    <span>{{ errorMessage() }}</span>
+    <button type="button" class="btn-link" (click)="retry()">Retry</button>
+  </div>
+
+  <div *ngIf="approveError()" class="banner-error" role="alert" data-testid="approve-error">
+    {{ approveError() }}
+  </div>
+
+  <div *ngIf="loading() && currentRows().length === 0" class="loading" data-testid="loading">
+    Loading overrides…
+  </div>
+
+  <p
+    *ngIf="!loading() && !hasRows() && !errorMessage()"
+    class="empty"
+    data-testid="empty">
+    No overrides in <strong>{{ state() }}</strong> state.
+  </p>
+
+  <table
+    *ngIf="hasRows()"
+    class="overrides-table"
+    data-testid="overrides-table">
+    <thead>
+      <tr>
+        <th>Scope</th>
+        <th>Effect</th>
+        <th>Proposed by</th>
+        <th>Proposed</th>
+        <th>Expires</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      <ng-container *ngFor="let o of currentRows()">
+        <tr
+          [class.expanded]="expandedId() === o.id"
+          [attr.data-testid]="'row-' + o.id">
+          <td>
+            <span class="scope-kind">{{ o.scopeKind }}</span>
+            <code class="ref">{{ o.scopeRef }}</code>
+          </td>
+          <td>
+            <span class="badge effect-{{ o.effect }}">{{ o.effect }}</span>
+          </td>
+          <td class="subject">{{ o.proposerSubjectId }}</td>
+          <td>{{ o.proposedAt | date: 'short' }}</td>
+          <td>
+            <!-- expiry pipe: tick() is read so OnPush re-evaluates the impure pipe. -->
+            <span [attr.data-tick]="tick()">{{ o.expiresAt | expiryCountdown }}</span>
+          </td>
+          <td class="actions">
+            <button
+              type="button"
+              class="btn-link"
+              (click)="toggleExpand(o.id)"
+              [attr.data-testid]="'expand-' + o.id">
+              {{ expandedId() === o.id ? 'Hide' : 'Details' }}
+            </button>
+            <button
+              *ngIf="o.state === 'Proposed'"
+              type="button"
+              class="btn-link primary"
+              (click)="approve(o)"
+              [attr.data-testid]="'approve-' + o.id">
+              Approve
+            </button>
+            <button
+              *ngIf="o.state === 'Proposed' || o.state === 'Approved'"
+              type="button"
+              class="btn-link danger"
+              (click)="openRevoke(o)"
+              [attr.data-testid]="'revoke-' + o.id">
+              Revoke
+            </button>
+          </td>
+        </tr>
+        <tr *ngIf="expandedId() === o.id" class="detail-row">
+          <td colspan="6">
+            <div class="detail" [attr.data-testid]="'detail-' + o.id">
+              <dl class="detail-grid">
+                <dt>PolicyVersion</dt>
+                <dd><code>{{ o.policyVersionId }}</code></dd>
+
+                <dt>Replacement version</dt>
+                <dd>
+                  <code *ngIf="o.replacementPolicyVersionId">{{ o.replacementPolicyVersionId }}</code>
+                  <span *ngIf="!o.replacementPolicyVersionId" class="muted">—</span>
+                </dd>
+
+                <dt>Approver</dt>
+                <dd>
+                  <code *ngIf="o.approverSubjectId">{{ o.approverSubjectId }}</code>
+                  <span *ngIf="!o.approverSubjectId" class="muted">—</span>
+                </dd>
+
+                <dt>Approved at</dt>
+                <dd>
+                  <span *ngIf="o.approvedAt">{{ o.approvedAt | date: 'medium' }}</span>
+                  <span *ngIf="!o.approvedAt" class="muted">—</span>
+                </dd>
+
+                <dt>Rationale</dt>
+                <dd>{{ o.rationale }}</dd>
+
+                <dt *ngIf="o.revocationReason">Revocation reason</dt>
+                <dd *ngIf="o.revocationReason">{{ o.revocationReason }}</dd>
+              </dl>
+            </div>
+          </td>
+        </tr>
+      </ng-container>
+    </tbody>
+  </table>
+</div>
+
+<app-revoke-override-modal
+  *ngIf="revoking() as r"
+  [override]="r"
+  (closed)="onRevokeClosed($event)">
+</app-revoke-override-modal>

@@ -50,6 +50,14 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'overrides',
+    loadComponent: () =>
+      import('./features/overrides/overrides-manager.component').then(
+        (m) => m.OverridesManagerComponent
+      ),
+    canActivate: [authGuard],
+  },
+  {
     path: 'help',
     loadComponent: () =>
       import('./features/help/help.component').then(
