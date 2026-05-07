@@ -114,7 +114,7 @@ public sealed class BindingService : IBindingService
         await _db.SaveChangesAsync(ct).ConfigureAwait(false);
 
         await _audit.AppendAsync(
-            "binding.created", binding.Id, actorSubjectId, rationale: null, ct)
+            "binding.created", binding.Id, actorSubjectId, request.Rationale, ct)
             .ConfigureAwait(false);
 
         return ToDto(binding);

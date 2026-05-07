@@ -6,6 +6,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Andy.Policies.Application.Dtos;
+using Andy.Policies.Tests.Integration.Fixtures;
 using Andy.Policies.Application.Settings;
 using Andy.Policies.Domain.Enums;
 using Andy.Policies.Tests.Integration.Controllers;
@@ -90,6 +91,10 @@ public class OverridesGateToggleTests : IDisposable
                         .RequireAuthenticatedUser()
                         .Build();
                 });
+
+                // P9 follow-up #193: rationale gate stubbed off — these tests
+                // exercise the override write gate, not the rationale filter.
+                services.StubRationaleOff();
 
                 using var sp = services.BuildServiceProvider();
                 using var scope = sp.CreateScope();

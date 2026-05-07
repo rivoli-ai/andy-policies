@@ -256,6 +256,17 @@ paths:
           in: query
           schema:
             type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeleteBindingBody'
+          text/json:
+            schema:
+              $ref: '#/components/schemas/DeleteBindingBody'
+          application/*+json:
+            schema:
+              $ref: '#/components/schemas/DeleteBindingBody'
       responses:
         '204':
           description: No Content
@@ -2254,8 +2265,11 @@ components:
           nullable: true
         bindStrength:
           $ref: '#/components/schemas/BindStrength'
+        rationale:
+          type: string
+          nullable: true
       additionalProperties: false
-      description: "Request payload for `IBindingService.CreateAsync` (P3.2, story\r\nrivoli-ai/andy-policies#20). The target version must exist and not be in\r\n`LifecycleState.Retired`; the service throws\r\n`BindingRetiredVersionException` on a retired target."
+      description: "Request payload for `IBindingService.CreateAsync` (P3.2, story\r\nrivoli-ai/andy-policies#20). The target version must exist and not be in\r\n`LifecycleState.Retired`; the service throws\r\n`BindingRetiredVersionException` on a retired target.\r\n\n`Rationale` is forwarded to `IAuditWriter.AppendAsync` on the\r\n`binding.created` event. Nullable for backward compatibility — when\r\nthe `andy.policies.rationaleRequired` gate is on, the\r\n`RationaleRequiredFilter` rejects requests with an empty rationale\r\n(P9 follow-up #197).\r\n"
     CreateBundleRequest:
       type: object
       properties:
@@ -2317,8 +2331,11 @@ components:
         rulesJson:
           type: string
           nullable: true
+        rationale:
+          type: string
+          nullable: true
       additionalProperties: false
-      description: "Request payload for `IPolicyService.CreateDraftAsync`. Creates both the\r\nstable `Policy` row and its first `PolicyVersion` (version 1, Draft).\r\nEnum fields accept any casing on input (parsed case-insensitively by the service)."
+      description: "Request payload for `IPolicyService.CreateDraftAsync`. Creates both the\r\nstable `Policy` row and its first `PolicyVersion` (version 1, Draft).\r\nEnum fields accept any casing on input (parsed case-insensitively by the service).\r\n\n`Rationale` is captured into the audit chain (P6.2) when supplied; the\r\n`RationaleRequiredFilter` (P2.4) rejects empty values when the\r\n`andy.policies.rationaleRequired` setting is on. Nullable for\r\nbackward compatibility — clients that pre-date the field continue to work\r\nwhen the gate is off (P9 follow-up #193, 2026-05-07).\r\n"
     CreateScopeNodeRequest:
       type: object
       properties:
@@ -2336,6 +2353,14 @@ components:
           nullable: true
       additionalProperties: false
       description: "Request payload for `IScopeService.CreateAsync` (P4.2, story\r\nrivoli-ai/andy-policies#29). Andy.Policies.Application.Dtos.CreateScopeNodeRequest.ParentId is null for a\r\nroot Andy.Policies.Domain.Enums.ScopeType.Org node; non-null for any other type.\r\nThe service enforces the canonical Org→Tenant→Team→Repo→Template→Run\r\nladder."
+    DeleteBindingBody:
+      type: object
+      properties:
+        rationale:
+          type: string
+          nullable: true
+      additionalProperties: false
+      description: "Optional body for `DELETE /api/bindings/{id}`. New canonical\r\nshape — the existing `?rationale=` query parameter still\r\nworks (P9.5 follow-up #197)."
     EffectivePolicyDto:
       type: object
       properties:
@@ -2796,8 +2821,11 @@ components:
         rulesJson:
           type: string
           nullable: true
+        rationale:
+          type: string
+          nullable: true
       additionalProperties: false
-      description: "Request payload for `IPolicyService.UpdateDraftAsync`. Mutates the content\r\nof an existing Draft version. The `Policy.Name` slug is never updated via\r\nthis path — that would require a separate endpoint (deliberately deferred)."
+      description: "Request payload for `IPolicyService.UpdateDraftAsync`. Mutates the content\r\nof an existing Draft version. The `Policy.Name` slug is never updated via\r\nthis path — that would require a separate endpoint (deliberately deferred).\r\n\n`Rationale` is captured into the audit chain (P6.2) when supplied; the\r\n`RationaleRequiredFilter` rejects empty values when the\r\n`andy.policies.rationaleRequired` setting is on. Nullable for\r\nbackward compatibility (P9 follow-up #193).\r\n"
   securitySchemes:
     Bearer:
       type: http
