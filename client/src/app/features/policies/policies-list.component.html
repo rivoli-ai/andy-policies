@@ -1,0 +1,124 @@
+<!-- Copyright (c) Rivoli AI 2026. All rights reserved. -->
+<div class="page">
+  <header class="page-header">
+    <h1>Policies</h1>
+    <p class="page-subtitle">
+      Catalog of structured, versioned governance policies.
+      <span *ngIf="bundleId() as bId">Viewing bundle <code>{{ bId }}</code>.</span>
+      <span *ngIf="!bundleId()">Viewing live (active versions).</span>
+    </p>
+  </header>
+
+  <section class="filter-bar" aria-label="Policy filters">
+    <input
+      class="input search"
+      type="search"
+      placeholder="Filter by name prefix…"
+      [ngModel]="namePrefix()"
+      (ngModelChange)="onSearchInput($event)"
+      data-testid="search"
+      aria-label="Filter by name prefix" />
+
+    <input
+      class="input scope"
+      type="text"
+      placeholder="Scope tag (e.g. prod)"
+      [(ngModel)]="scope"
+      (change)="onFilterChange()"
+      data-testid="scope"
+      aria-label="Scope tag filter" />
+
+    <select
+      class="select"
+      [(ngModel)]="enforcement"
+      (change)="onFilterChange()"
+      data-testid="enforcement"
+      aria-label="Enforcement filter">
+      <option value="">All enforcement</option>
+      <option *ngFor="let e of enforcementOptions" [value]="e">{{ e }}</option>
+    </select>
+
+    <select
+      class="select"
+      [(ngModel)]="severity"
+      (change)="onFilterChange()"
+      data-testid="severity"
+      aria-label="Severity filter">
+      <option value="">All severity</option>
+      <option *ngFor="let s of severityOptions" [value]="s">{{ s }}</option>
+    </select>
+
+    <select
+      class="select bundle"
+      [(ngModel)]="bundleId"
+      (change)="onFilterChange()"
+      data-testid="bundle"
+      aria-label="Bundle context">
+      <option value="">Live (active versions)</option>
+      <option *ngFor="let b of bundles()" [value]="b.id">{{ b.name }}</option>
+    </select>
+  </section>
+
+  <div *ngIf="errorMessage()" class="banner" role="alert" data-testid="banner">
+    <span>{{ errorMessage() }}</span>
+    <button class="btn-secondary btn-sm" (click)="retry()">Retry</button>
+  </div>
+
+  <div *ngIf="loading() && policies().length === 0" class="loading" data-testid="loading">
+    Loading…
+  </div>
+
+  <table
+    *ngIf="policies().length > 0"
+    class="policies-table"
+    data-testid="table">
+    <thead>
+      <tr>
+        <th scope="col">Name</th>
+        <th scope="col">Description</th>
+        <th scope="col">Versions</th>
+        <th scope="col">Active</th>
+        <th scope="col">Created</th>
+        <th scope="col">Created by</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let p of policies()">
+        <td><span class="name">{{ p.name }}</span></td>
+        <td>{{ p.description || '—' }}</td>
+        <td class="numeric">{{ p.versionCount }}</td>
+        <td>
+          <span *ngIf="p.activeVersionId" class="badge badge-active">Active</span>
+          <span *ngIf="!p.activeVersionId" class="badge badge-draft">Draft only</span>
+        </td>
+        <td>{{ p.createdAt | date: 'short' }}</td>
+        <td class="subject">{{ p.createdBySubjectId }}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p
+    *ngIf="!loading() && policies().length === 0 && !errorMessage()"
+    class="empty"
+    data-testid="empty">
+    No policies match the current filters.
+  </p>
+
+  <footer
+    *ngIf="policies().length > 0"
+    class="footer"
+    data-testid="footer">
+    <span class="count">
+      {{ policies().length }} {{ policies().length === 1 ? 'policy' : 'policies' }} loaded
+    </span>
+    <button
+      *ngIf="hasMore()"
+      class="btn-secondary"
+      (click)="loadMore()"
+      [disabled]="loading()"
+      data-testid="load-more">
+      <span *ngIf="!loading()">Load more</span>
+      <span *ngIf="loading()">Loading…</span>
+    </button>
+  </footer>
+</div>
