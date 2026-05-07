@@ -650,6 +650,46 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+  '/api/bundles/{id}/contents':
+    get:
+      tags:
+        - Bundles
+      summary: "P9 follow-up #204 (2026-05-07) — bulk contents tree for the\r\nfrozen-tree view in the bundle detail page. Returns every\r\npolicy in the snapshot with its bindings nested underneath,\r\nplus a flat list of overrides. Same ETag / Cache-Control\r\nposture as the other snapshot-backed reads (immutable, max-age\r\n= 1y) since the response body is bound to a specific snapshot\r\nhash. Returns 404 when the bundle is missing / soft-deleted."
+      operationId: Bundles_Contents
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BundleContentsDto'
+        '304':
+          description: Not Modified
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   '/api/bundles/{id}/diff':
     get:
       tags:
@@ -2092,6 +2132,118 @@ components:
         - Tenant
         - Org
       type: string
+    BundleContentsBindingDto:
+      type: object
+      properties:
+        bindingId:
+          type: string
+          format: uuid
+        targetType:
+          type: string
+          nullable: true
+        targetRef:
+          type: string
+          nullable: true
+        bindStrength:
+          type: string
+          nullable: true
+      additionalProperties: false
+    BundleContentsDto:
+      type: object
+      properties:
+        bundleId:
+          type: string
+          format: uuid
+        bundleName:
+          type: string
+          nullable: true
+        snapshotHash:
+          type: string
+          nullable: true
+        capturedAt:
+          type: string
+          format: date-time
+        policies:
+          type: array
+          items:
+            $ref: '#/components/schemas/BundleContentsPolicyDto'
+          nullable: true
+        overrides:
+          type: array
+          items:
+            $ref: '#/components/schemas/BundleContentsOverrideDto'
+          nullable: true
+      additionalProperties: false
+      description: "Denormalised contents view of a frozen bundle (P9 follow-up #204,\r\n2026-05-07). Consumers (the bundle detail page) render this as a\r\ntree: policies grouped by name, each expandable to its bindings,\r\nplus a flat list of overrides. `SnapshotHash` is the same\r\nstrong validator the resolution endpoints emit so callers can\r\nshare an HTTP cache between this endpoint and `/resolve`."
+    BundleContentsOverrideDto:
+      type: object
+      properties:
+        overrideId:
+          type: string
+          format: uuid
+        policyVersionId:
+          type: string
+          format: uuid
+        scopeKind:
+          type: string
+          nullable: true
+        scopeRef:
+          type: string
+          nullable: true
+        effect:
+          type: string
+          nullable: true
+        replacementPolicyVersionId:
+          type: string
+          format: uuid
+          nullable: true
+        expiresAt:
+          type: string
+          format: date-time
+      additionalProperties: false
+    BundleContentsPolicyDto:
+      type: object
+      properties:
+        policyId:
+          type: string
+          format: uuid
+        name:
+          type: string
+          nullable: true
+        policyVersionId:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          format: int32
+        enforcement:
+          enum:
+            - MUST
+            - SHOULD
+            - MAY
+          type: string
+          nullable: true
+        severity:
+          enum:
+            - info
+            - moderate
+            - critical
+          type: string
+          nullable: true
+        scopes:
+          type: array
+          items:
+            type: string
+          nullable: true
+        summary:
+          type: string
+          nullable: true
+        bindings:
+          type: array
+          items:
+            $ref: '#/components/schemas/BundleContentsBindingDto'
+          nullable: true
+      additionalProperties: false
     BundleDiffResult:
       type: object
       properties:
