@@ -282,6 +282,42 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+  /api/bindings/target-refs:
+    get:
+      tags:
+        - Bindings
+      summary: "P9 follow-up #198 (2026-05-07) — autocomplete source for the\r\n`targetRef` input on the bindings UI. Returns up to\r\ntake distinct, non-deleted target refs that\r\nstart with search for the requested\r\ntargetType, ordered alphabetically."
+      description: "Source-of-truth is the existing `Bindings` table — refs\r\nalready bound are the most useful candidates. Future iterations\r\ncan extend this with provider-side discovery without changing\r\nthe wire shape."
+      operationId: Bindings_SearchTargetRefs
+      parameters:
+        - name: targetType
+          in: query
+          schema:
+            $ref: '#/components/schemas/BindingTargetType'
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: take
+          in: query
+          schema:
+            type: integer
+            format: int32
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /api/bindings/resolve:
     get:
       tags:

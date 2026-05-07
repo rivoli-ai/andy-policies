@@ -141,6 +141,34 @@ public sealed class BindingsController : ControllerBase
     }
 
     /// <summary>
+    /// P9 follow-up #198 (2026-05-07) — autocomplete source for the
+    /// <c>targetRef</c> input on the bindings UI. Returns up to
+    /// <paramref name="take"/> distinct, non-deleted target refs that
+    /// start with <paramref name="search"/> for the requested
+    /// <paramref name="targetType"/>, ordered alphabetically.
+    /// </summary>
+    /// <remarks>
+    /// Source-of-truth is the existing <c>Bindings</c> table — refs
+    /// already bound are the most useful candidates. Future iterations
+    /// can extend this with provider-side discovery without changing
+    /// the wire shape.
+    /// </remarks>
+    [HttpGet("target-refs")]
+    [Authorize(Policy = "andy-policies:binding:read")]
+    [ProducesResponseType(typeof(IReadOnlyList<string>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<IReadOnlyList<string>>> SearchTargetRefs(
+        [FromQuery] BindingTargetType targetType,
+        [FromQuery] string? search,
+        [FromQuery] int? take,
+        CancellationToken ct)
+    {
+        var results = await _bindings
+            .SearchTargetRefsAsync(targetType, search, take ?? 20, ct);
+        return Ok(results);
+    }
+
+    /// <summary>
     /// Resolve bindings for a target (P3.4, story
     /// rivoli-ai/andy-policies#22). Distinct from <see cref="Query"/>:
     /// joins each row to its <c>Policy</c> and <c>PolicyVersion</c> so
