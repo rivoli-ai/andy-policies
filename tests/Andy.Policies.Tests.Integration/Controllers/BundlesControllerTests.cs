@@ -316,4 +316,80 @@ public class BundlesControllerTests : IClassFixture<PoliciesApiFactory>
 
         resp.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
+
+    // ---- P9 follow-up #204 — bulk contents tree ----------------------
+
+    [Fact]
+    public async Task GetContents_HappyPath_ReturnsTreeWithBindingsNestedUnderPolicy()
+    {
+        var (bundleId, hash, policyId, policyVersionId) = await SeedActiveBundleAsync(
+            $"snap-{Guid.NewGuid():N}".Substring(0, 16),
+            $"p-{Guid.NewGuid():N}".Substring(0, 12),
+            "repo:rivoli-ai/contents");
+
+        var resp = await _client.GetAsync($"/api/bundles/{bundleId}/contents");
+        resp.EnsureSuccessStatusCode();
+
+        resp.Headers.ETag!.Tag.Should().Be($"\"{hash}\"",
+            "the contents endpoint shares the snapshot-hash strong validator with /resolve and /policies/{id}");
+
+        var body = await resp.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
+        body.GetProperty("bundleId").GetGuid().Should().Be(bundleId);
+        body.GetProperty("snapshotHash").GetString().Should().Be(hash);
+
+        // The shared-factory DB carries leftover policies from sibling
+        // tests, so locate this test's policy by id rather than asserting
+        // count==1. The shape and casing are the load-bearing assertions.
+        var policyNode = body.GetProperty("policies").EnumerateArray()
+            .First(p => p.GetProperty("policyId").GetGuid() == policyId);
+        policyNode.GetProperty("policyVersionId").GetGuid().Should().Be(policyVersionId);
+        policyNode.GetProperty("enforcement").GetString().Should().Be("SHOULD",
+            "wire casing is uppercase per ADR 0001 §6");
+        policyNode.GetProperty("severity").GetString().Should().Be("moderate");
+
+        var bindingNode = policyNode.GetProperty("bindings").EnumerateArray()
+            .Single(b => b.GetProperty("targetRef").GetString() == "repo:rivoli-ai/contents");
+        bindingNode.GetProperty("targetType").GetString().Should().Be("Repo");
+        bindingNode.GetProperty("bindStrength").GetString().Should().Be("Mandatory");
+    }
+
+    [Fact]
+    public async Task GetContents_IfNoneMatchMatchesSnapshotHash_Returns304()
+    {
+        var (bundleId, hash, _, _) = await SeedActiveBundleAsync(
+            $"snap-{Guid.NewGuid():N}".Substring(0, 16),
+            $"p-{Guid.NewGuid():N}".Substring(0, 12),
+            "repo:rivoli-ai/x");
+
+        var req = new HttpRequestMessage(HttpMethod.Get, $"/api/bundles/{bundleId}/contents");
+        req.Headers.IfNoneMatch.Add(new EntityTagHeaderValue($"\"{hash}\""));
+        var resp = await _client.SendAsync(req);
+
+        resp.StatusCode.Should().Be(HttpStatusCode.NotModified);
+    }
+
+    [Fact]
+    public async Task GetContents_OnUnknownBundleId_Returns404()
+    {
+        var resp = await _client.GetAsync($"/api/bundles/{Guid.NewGuid()}/contents");
+        resp.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task GetContents_OnSoftDeletedBundle_Returns404()
+    {
+        var (bundleId, _, _, _) = await SeedActiveBundleAsync(
+            $"snap-{Guid.NewGuid():N}".Substring(0, 16),
+            $"p-{Guid.NewGuid():N}".Substring(0, 12),
+            "repo:rivoli-ai/x");
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var bundles = scope.ServiceProvider.GetRequiredService<IBundleService>();
+            await bundles.SoftDeleteAsync(bundleId, "seed", "tombstone", CancellationToken.None);
+        }
+
+        var resp = await _client.GetAsync($"/api/bundles/{bundleId}/contents");
+        resp.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
 }

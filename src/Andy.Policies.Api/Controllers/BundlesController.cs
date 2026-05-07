@@ -226,6 +226,36 @@ public sealed class BundlesController : ControllerBase
     }
 
     /// <summary>
+    /// P9 follow-up #204 (2026-05-07) — bulk contents tree for the
+    /// frozen-tree view in the bundle detail page. Returns every
+    /// policy in the snapshot with its bindings nested underneath,
+    /// plus a flat list of overrides. Same ETag / Cache-Control
+    /// posture as the other snapshot-backed reads (immutable, max-age
+    /// = 1y) since the response body is bound to a specific snapshot
+    /// hash. Returns 404 when the bundle is missing / soft-deleted.
+    /// </summary>
+    [HttpGet("{id:guid}/contents")]
+    [Authorize(Policy = "andy-policies:bundle:read")]
+    [ProducesResponseType(typeof(BundleContentsDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status304NotModified)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Contents(Guid id, CancellationToken ct)
+    {
+        var dto = await _resolver.GetContentsAsync(id, ct);
+        if (dto is null) return NotFound();
+
+        if (TryReturnNotModified(dto.SnapshotHash, out var notModified))
+        {
+            return notModified;
+        }
+
+        SetSnapshotCacheHeaders(dto.SnapshotHash);
+        return Ok(dto);
+    }
+
+    /// <summary>
     /// Emit an RFC-6902 JSON Patch between two bundles' frozen
     /// snapshots (P8.6, story rivoli-ai/andy-policies#86). Returns
     /// 200 with a <see cref="BundleDiffResult"/>; 404 when either

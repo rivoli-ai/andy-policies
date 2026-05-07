@@ -83,7 +83,69 @@ public interface IBundleResolver
     /// </remarks>
     Task<EffectivePolicySetDto?> ResolveEffectiveForScopeAsync(
         Guid bundleId, Guid scopeNodeId, CancellationToken ct = default);
+
+    /// <summary>
+    /// P9 follow-up #204 (2026-05-07): denormalised contents tree for the
+    /// frozen-tree view in the bundle detail page. Projects the parsed
+    /// snapshot into a policies-with-nested-bindings shape so the UI can
+    /// render <c>FrozenPolicyTreeComponent</c> in a single call instead
+    /// of fanning out to <c>GET /policies/{id}</c> per row. Returns
+    /// <c>null</c> when the bundle is missing / soft-deleted.
+    /// </summary>
+    /// <remarks>
+    /// Bindings are grouped by their <c>PolicyVersionId</c>; an empty
+    /// nested list is allowed (a policy may be in the bundle without
+    /// any bindings, e.g. the seed policy of a fresh bundle).
+    /// Wire casing matches the live surfaces — <c>Enforcement</c>
+    /// uppercase, <c>Severity</c> lowercase, per ADR 0001 §6.
+    /// <c>RulesJson</c> is intentionally omitted — fetch the per-policy
+    /// detail at <c>GET /api/bundles/{id}/policies/{policyId}</c> when
+    /// the rule body is needed.
+    /// </remarks>
+    Task<BundleContentsDto?> GetContentsAsync(Guid bundleId, CancellationToken ct = default);
 }
+
+/// <summary>
+/// Denormalised contents view of a frozen bundle (P9 follow-up #204,
+/// 2026-05-07). Consumers (the bundle detail page) render this as a
+/// tree: policies grouped by name, each expandable to its bindings,
+/// plus a flat list of overrides. <c>SnapshotHash</c> is the same
+/// strong validator the resolution endpoints emit so callers can
+/// share an HTTP cache between this endpoint and <c>/resolve</c>.
+/// </summary>
+public sealed record BundleContentsDto(
+    Guid BundleId,
+    string BundleName,
+    string SnapshotHash,
+    DateTimeOffset CapturedAt,
+    IReadOnlyList<BundleContentsPolicyDto> Policies,
+    IReadOnlyList<BundleContentsOverrideDto> Overrides);
+
+public sealed record BundleContentsPolicyDto(
+    Guid PolicyId,
+    string Name,
+    Guid PolicyVersionId,
+    int Version,
+    string Enforcement,
+    string Severity,
+    IReadOnlyList<string> Scopes,
+    string Summary,
+    IReadOnlyList<BundleContentsBindingDto> Bindings);
+
+public sealed record BundleContentsBindingDto(
+    Guid BindingId,
+    string TargetType,
+    string TargetRef,
+    string BindStrength);
+
+public sealed record BundleContentsOverrideDto(
+    Guid OverrideId,
+    Guid PolicyVersionId,
+    string ScopeKind,
+    string ScopeRef,
+    string Effect,
+    Guid? ReplacementPolicyVersionId,
+    DateTimeOffset ExpiresAt);
 
 /// <summary>
 /// View of a bundle row + its parsed snapshot (P8.4, #84). Carries

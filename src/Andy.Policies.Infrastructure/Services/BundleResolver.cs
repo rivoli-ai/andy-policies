@@ -274,6 +274,69 @@ public sealed class BundleResolver : IBundleResolver
             Summary: policy.Summary);
     }
 
+    public async Task<BundleContentsDto?> GetContentsAsync(
+        Guid bundleId, CancellationToken ct = default)
+    {
+        var carrier = await LoadAsync(bundleId, ct).ConfigureAwait(false);
+        if (carrier is null)
+        {
+            return null;
+        }
+
+        // Group bindings by PolicyVersionId so each policy node carries
+        // its own bindings. Snapshot bindings are already deterministically
+        // ordered (P8.2 sort by BindingId asc); preserve that order
+        // inside each group so the wire is stable across calls.
+        var bindingsByVersionId = carrier.Snapshot.Bindings
+            .GroupBy(b => b.PolicyVersionId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        var policies = carrier.Snapshot.Policies
+            .OrderBy(p => p.Name, StringComparer.Ordinal)
+            .ThenByDescending(p => p.Version)
+            .Select(p =>
+            {
+                bindingsByVersionId.TryGetValue(p.PolicyVersionId, out var rows);
+                var bindingDtos = (rows ?? new List<BundleBindingEntry>())
+                    .Select(b => new BundleContentsBindingDto(
+                        BindingId: b.BindingId,
+                        TargetType: b.TargetType,
+                        TargetRef: b.TargetRef,
+                        BindStrength: b.BindStrength))
+                    .ToList();
+                return new BundleContentsPolicyDto(
+                    PolicyId: p.PolicyId,
+                    Name: p.Name,
+                    PolicyVersionId: p.PolicyVersionId,
+                    Version: p.Version,
+                    Enforcement: ToEnforcementWire(p.Enforcement),
+                    Severity: ToSeverityWire(p.Severity),
+                    Scopes: p.Scopes,
+                    Summary: p.Summary,
+                    Bindings: bindingDtos);
+            })
+            .ToList();
+
+        var overrides = carrier.Snapshot.Overrides
+            .Select(o => new BundleContentsOverrideDto(
+                OverrideId: o.OverrideId,
+                PolicyVersionId: o.PolicyVersionId,
+                ScopeKind: o.ScopeKind,
+                ScopeRef: o.ScopeRef,
+                Effect: o.Effect,
+                ReplacementPolicyVersionId: o.ReplacementPolicyVersionId,
+                ExpiresAt: o.ExpiresAt))
+            .ToList();
+
+        return new BundleContentsDto(
+            BundleId: carrier.Id,
+            BundleName: carrier.Name,
+            SnapshotHash: carrier.SnapshotHash,
+            CapturedAt: carrier.Snapshot.CapturedAt,
+            Policies: policies,
+            Overrides: overrides);
+    }
+
     /// <summary>
     /// Load the bundle row + parsed snapshot. Returns <c>null</c>
     /// when the bundle is missing or soft-deleted. The parsed
