@@ -1,0 +1,66 @@
+name: perf
+
+# Nightly perf sweep — runs the suites tagged `[Trait("Category", "Perf")]`
+# (ScopeWalkPerfTests, BundlePerfTests) which are skipped silently in PR
+# CI. The fixtures gate on `PERF_ENABLED=1` to keep PR runs fast and
+# noise-free; this workflow flips the flag against the dedicated runner
+# slot, where GC pauses and concurrent jobs don't perturb the percentile
+# tails the budgets assert against.
+#
+# Same trigger shape as e2e-embedded-smoke.yml: schedule + manual
+# dispatch + opt-in PR label.
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [labeled, synchronize]
+    branches: [main]
+  schedule:
+    # 04:00 UTC nightly — staggered ~30min after the e2e-embedded-smoke
+    # job so the two heavyweight workflows don't compete for runners.
+    - cron: '0 4 * * *'
+
+env:
+  DOTNET_VERSION: '8.0.x'
+
+jobs:
+  perf:
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      || github.event_name == 'schedule'
+      || (github.event_name == 'pull_request'
+          && contains(github.event.pull_request.labels.*.name, 'run-perf'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build (Release)
+        run: dotnet build --no-restore --configuration Release
+
+      - name: Run perf suite
+        env:
+          PERF_ENABLED: '1'
+        run: |
+          dotnet test tests/Andy.Policies.Tests.Integration \
+            --no-build \
+            --configuration Release \
+            --filter "Category=Perf" \
+            --logger "trx;LogFileName=perf.trx"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-results
+          path: tests/Andy.Policies.Tests.Integration/TestResults/*.trx
+          if-no-files-found: warn

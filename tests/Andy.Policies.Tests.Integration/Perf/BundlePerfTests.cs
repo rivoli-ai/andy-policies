@@ -35,15 +35,22 @@ namespace Andy.Policies.Tests.Integration.Perf;
 /// catch problems, loose enough to survive shared-runner noise.
 /// </para>
 /// <para>
-/// <b>Tagged <c>Perf</c>.</b> Same convention as
-/// <see cref="ScopeWalkPerfTests"/>: PR CI runs the suite by
-/// default; users that want to skip can pass
-/// <c>--filter Category!=Perf</c>.
+/// <b>Skipped in PR CI.</b> Set <c>PERF_ENABLED=1</c> to run. The
+/// nightly perf workflow is the canonical place for these to fire
+/// because shared GitHub runners contend with other jobs and a
+/// single GC pause can blow the budget even when the production
+/// path is steady. Tagged <c>Category=Perf</c> as a secondary signal
+/// for callers that filter by trait.
 /// </para>
 /// </remarks>
 [Trait("Category", "Perf")]
 public class BundlePerfTests : IDisposable
 {
+    /// <summary>Env var that flips the suite on. PR CI leaves it unset; nightly perf workflow sets it.</summary>
+    private const string EnabledFlag = "PERF_ENABLED";
+    private static bool IsEnabled =>
+        string.Equals(Environment.GetEnvironmentVariable(EnabledFlag), "1", StringComparison.Ordinal);
+
     // Budgets are calibrated for full-suite parallel xunit execution
     // on a shared CI runner — generous on purpose. In isolation
     // create-p95 sits around 5ms and resolve-p99 around 1ms; the
@@ -127,9 +134,10 @@ public class BundlePerfTests : IDisposable
         await db.SaveChangesAsync();
     }
 
-    [Fact]
+    [SkippableFact]
     public async Task Create_p95_StaysUnderBudget()
     {
+        Skip.IfNot(IsEnabled, $"perf suite disabled — set {EnabledFlag}=1 to run");
         await using var db = await InitDbAsync();
         await SeedCatalogAsync(db, CatalogSize);
         var svc = new BundleService(
@@ -165,9 +173,10 @@ public class BundlePerfTests : IDisposable
             CatalogSize, Samples, p95, CreateP95BudgetMs);
     }
 
-    [Fact]
+    [SkippableFact]
     public async Task Resolve_p95_StaysUnderBudget()
     {
+        Skip.IfNot(IsEnabled, $"perf suite disabled — set {EnabledFlag}=1 to run");
         await using var db = await InitDbAsync();
         await SeedCatalogAsync(db, CatalogSize);
         var svc = new BundleService(

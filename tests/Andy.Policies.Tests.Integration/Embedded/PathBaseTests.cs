@@ -27,18 +27,32 @@ public class PathBaseTests : IClassFixture<PoliciesApiFactory>, IDisposable
 
     public PathBaseTests(PoliciesApiFactory baseFactory)
     {
-        // Set the env var BEFORE the factory's host is built so
-        // Program.cs's `Environment.GetEnvironmentVariable("ASPNETCORE_PATHBASE")`
-        // observation picks it up. Reset on Dispose so the var
-        // doesn't bleed across test classes within the xUnit
-        // collection (process-wide state — racy without cleanup).
-        Environment.SetEnvironmentVariable("ASPNETCORE_PATHBASE", Prefix);
-        _factory = baseFactory.WithWebHostBuilder(_ => { });
+        // Inject the prefix via in-memory configuration on a derivative
+        // factory rather than via the process-wide ASPNETCORE_PATHBASE
+        // env var. Program.cs prefers Configuration["AspNetCore:PathBase"]
+        // over the env var, so the scoped path is honoured exactly the
+        // same way at host-build time. Why scoped: env vars are
+        // process-global, and xUnit runs test classes in parallel — a
+        // sibling test class building its host between this fixture's
+        // constructor and Dispose would observe the prefix and fail
+        // un-prefixed assertions, while a sibling Dispose nulling the
+        // var mid-build of OUR host would unset the prefix before Swagger
+        // wiring read it. The in-memory configuration override is
+        // confined to this factory's IHost and removes the race entirely.
+        _factory = baseFactory.WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureAppConfiguration((_, config) =>
+            {
+                config.AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["AspNetCore:PathBase"] = Prefix,
+                });
+            });
+        });
     }
 
     public void Dispose()
     {
-        Environment.SetEnvironmentVariable("ASPNETCORE_PATHBASE", null);
         GC.SuppressFinalize(this);
     }
 

@@ -20,13 +20,26 @@ namespace Andy.Policies.Tests.Integration.Perf;
 /// rivoli-ai/andy-policies#36). The Epic P4 body sets a 50ms p99
 /// target for a 6-level ancestor walk; this fixture seeds a
 /// representative tree against a Postgres testcontainer and runs the
-/// hot path 100 times to assert the budget. Skipped silently when
-/// Docker isn't available; tagged <c>Category=Perf</c> so PR CI can
-/// skip via filter and only the nightly sweep runs it.
+/// hot path 100 times to assert the budget.
 /// </summary>
+/// <remarks>
+/// Skipped silently in PR CI — set <c>PERF_ENABLED=1</c> to run.
+/// The nightly perf workflow (rivoli-ai/andy-policies <c>perf.yml</c>)
+/// is the canonical place for these to fire because shared GitHub
+/// runners contend with other jobs and a single GC pause can blow
+/// the p99 budget even when the production path is steady. Also
+/// skipped when Docker isn't available (the Postgres testcontainer
+/// can't start). Tagged <c>Category=Perf</c> as a secondary signal
+/// for callers that filter by trait.
+/// </remarks>
 [Trait("Category", "Perf")]
 public class ScopeWalkPerfTests : IAsyncLifetime
 {
+    /// <summary>Env var that flips the suite on. PR CI leaves it unset; nightly perf workflow sets it.</summary>
+    private const string EnabledFlag = "PERF_ENABLED";
+    private static bool IsEnabled =>
+        string.Equals(Environment.GetEnvironmentVariable(EnabledFlag), "1", StringComparison.Ordinal);
+
     // p99 budgets from the issue body. Conservative: include some
     // headroom for noisy CI runners.
     private static readonly TimeSpan AncestorsP99Budget = TimeSpan.FromMilliseconds(50);
@@ -50,6 +63,17 @@ public class ScopeWalkPerfTests : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
+        // Short-circuit when the suite is disabled. Skipping in
+        // InitializeAsync (rather than only inside each [SkippableFact])
+        // means we never pay the testcontainer pull / migrate / seed
+        // cost on PR runs — that fixture work is what makes this
+        // class slow even when its facts are filtered.
+        if (!IsEnabled)
+        {
+            _dockerAvailable = false;
+            return;
+        }
+
         try
         {
             _container = new PostgreSqlBuilder()
@@ -93,7 +117,8 @@ public class ScopeWalkPerfTests : IAsyncLifetime
     [SkippableFact]
     public async Task GetAncestorsAsync_p99_StaysUnderBudget()
     {
-        Skip.IfNot(_dockerAvailable);
+        Skip.IfNot(IsEnabled, $"perf suite disabled — set {EnabledFlag}=1 to run");
+        Skip.IfNot(_dockerAvailable, "Docker not available for testcontainers");
 
         await using var db = NewContext();
         var (scopes, _, _) = NewServices(db);
@@ -118,7 +143,8 @@ public class ScopeWalkPerfTests : IAsyncLifetime
     [SkippableFact]
     public async Task ResolveForScopeAsync_p99_StaysUnderBudget()
     {
-        Skip.IfNot(_dockerAvailable);
+        Skip.IfNot(IsEnabled, $"perf suite disabled — set {EnabledFlag}=1 to run");
+        Skip.IfNot(_dockerAvailable, "Docker not available for testcontainers");
 
         await using var db = NewContext();
         var (_, resolver, _) = NewServices(db);
