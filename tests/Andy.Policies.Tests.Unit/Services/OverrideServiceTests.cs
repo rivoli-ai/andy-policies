@@ -425,6 +425,94 @@ public class OverrideServiceTests
         row.RevocationReason.Should().BeNull();
     }
 
+    // ----- RejectAsync (P9 follow-up #201, 2026-05-07) ----------------
+
+    [Fact]
+    public async Task RejectAsync_FromProposed_TransitionsToRejectedAndDispatches()
+    {
+        var (svc, db, events, _, clock) = NewService();
+        var (_, version) = await SeedActiveAsync(db, "rj1");
+        var proposed = await svc.ProposeAsync(
+            ExemptRequest(version.Id, clock.GetUtcNow().AddDays(1)),
+            Proposer);
+
+        var rejected = await svc.RejectAsync(
+            proposed.Id, new RejectOverrideRequest("not justified"), Approver);
+
+        rejected.State.Should().Be(OverrideState.Rejected);
+        rejected.RevocationReason.Should().Be("not justified",
+            "the rejection reason reuses the RevocationReason column to keep the audit-relevant text in one place");
+        events.Events.OfType<OverrideRejected>().Should().ContainSingle();
+        events.Events.OfType<OverrideRevoked>().Should().BeEmpty(
+            "rejection emits OverrideRejected, not OverrideRevoked, so audit can distinguish the two terminal paths");
+    }
+
+    [Fact]
+    public async Task RejectAsync_BlankReason_ThrowsValidation()
+    {
+        var (svc, db, _, _, clock) = NewService();
+        var (_, version) = await SeedActiveAsync(db, "rj2");
+        var proposed = await svc.ProposeAsync(
+            ExemptRequest(version.Id, clock.GetUtcNow().AddDays(1)),
+            Proposer);
+
+        await FluentActions.Invoking(() => svc.RejectAsync(
+                proposed.Id, new RejectOverrideRequest("   "), Approver))
+            .Should().ThrowAsync<ValidationException>()
+            .WithMessage("*RejectionReason is required*");
+    }
+
+    [Fact]
+    public async Task RejectAsync_FromApproved_ThrowsConflict()
+    {
+        var (svc, db, _, _, clock) = NewService();
+        var (_, version) = await SeedActiveAsync(db, "rj3");
+        var proposed = await svc.ProposeAsync(
+            ExemptRequest(version.Id, clock.GetUtcNow().AddDays(1)),
+            Proposer);
+        await svc.ApproveAsync(proposed.Id, Approver);
+
+        await FluentActions.Invoking(() => svc.RejectAsync(
+                proposed.Id, new RejectOverrideRequest("too late"), Approver))
+            .Should().ThrowAsync<ConflictException>()
+            .WithMessage("*only Proposed overrides can be rejected*");
+    }
+
+    [Fact]
+    public async Task RejectAsync_RbacDenied_LeavesStateUnchanged()
+    {
+        var db = InMemoryDbFixture.Create();
+        var events = new RecordingDispatcher();
+        var clock = new FakeTimeProvider(new DateTimeOffset(2026, 5, 7, 12, 0, 0, TimeSpan.Zero));
+
+        var allowingSvc = new OverrideService(db, new StubRbac { Allow = true }, events, clock);
+        var (_, version) = await SeedActiveAsync(db, "rj4");
+        var proposed = await allowingSvc.ProposeAsync(
+            ExemptRequest(version.Id, clock.GetUtcNow().AddDays(1)),
+            Proposer);
+
+        var denyingSvc = new OverrideService(db, new StubRbac { Allow = false }, events, clock);
+
+        await FluentActions.Invoking(() => denyingSvc.RejectAsync(
+                proposed.Id, new RejectOverrideRequest("nope"), "user:not-allowed"))
+            .Should().ThrowAsync<RbacDeniedException>();
+
+        var row = await db.Overrides.AsNoTracking().FirstAsync(o => o.Id == proposed.Id);
+        row.State.Should().Be(OverrideState.Proposed,
+            "an RBAC denial must not transition the row");
+        row.RevocationReason.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task RejectAsync_UnknownId_ThrowsNotFound()
+    {
+        var (svc, _, _, _, _) = NewService();
+
+        await FluentActions.Invoking(() => svc.RejectAsync(
+                Guid.NewGuid(), new RejectOverrideRequest("missing"), Approver))
+            .Should().ThrowAsync<NotFoundException>();
+    }
+
     // ----- GetActiveAsync / ListAsync ---------------------------------
 
     [Fact]

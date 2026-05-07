@@ -32,6 +32,7 @@ Application code: `andy-policies`
 | `andy-policies:override:propose` | Propose an override | `override` |
 | `andy-policies:override:approve` | Approve an override | `override` |
 | `andy-policies:override:revoke` | Revoke an override | `override` |
+| `andy-policies:override:reject` | Reject a proposal | `override` |
 | `andy-policies:bundle:read` | Read bundles | `bundle` |
 | `andy-policies:bundle:create` | Create a bundle | `bundle` |
 | `andy-policies:bundle:delete` | Soft-delete a bundle | `bundle` |
@@ -45,12 +46,12 @@ Application code: `andy-policies`
 |------|------|-------------|-------------|
 | `admin` | Administrator | Full access: author, publish, transition, edit bindings, manage overrides. | `*` (all permissions) |
 | `author` | Policy Author | May author drafts and propose publish; cannot approve own publishes. | `andy-policies:policy:read`, `andy-policies:policy:author`, `andy-policies:binding:read`, `andy-policies:scope:read`, `andy-policies:override:read`, `andy-policies:override:propose`, `andy-policies:bundle:read`, `andy-policies:audit:read` |
-| `approver` | Publish Approver | Approves transitions of drafts to active versions. | `andy-policies:policy:read`, `andy-policies:policy:publish`, `andy-policies:policy:transition`, `andy-policies:binding:read`, `andy-policies:binding:manage`, `andy-policies:scope:read`, `andy-policies:override:read`, `andy-policies:override:approve`, `andy-policies:override:revoke`, `andy-policies:bundle:read`, `andy-policies:bundle:create`, `andy-policies:audit:read` |
+| `approver` | Publish Approver | Approves transitions of drafts to active versions. | `andy-policies:policy:read`, `andy-policies:policy:publish`, `andy-policies:policy:transition`, `andy-policies:binding:read`, `andy-policies:binding:manage`, `andy-policies:scope:read`, `andy-policies:override:read`, `andy-policies:override:approve`, `andy-policies:override:revoke`, `andy-policies:override:reject`, `andy-policies:bundle:read`, `andy-policies:bundle:create`, `andy-policies:audit:read` |
 | `risk` | Risk / Compliance | Read-all plus audit-export. | `andy-policies:policy:read`, `andy-policies:binding:read`, `andy-policies:scope:read`, `andy-policies:override:read`, `andy-policies:bundle:read`, `andy-policies:audit:read`, `andy-policies:audit:export`, `andy-policies:audit:verify` |
 | `viewer` | Viewer | Read-only access to active policies and public audit trail. | `andy-policies:policy:read`, `andy-policies:binding:read`, `andy-policies:scope:read`, `andy-policies:override:read`, `andy-policies:bundle:read` |
 
 ## Counts
 
 - Resource types: 7
-- Permissions: 18
+- Permissions: 19
 - Roles: 5

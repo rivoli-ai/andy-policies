@@ -131,6 +131,33 @@ public sealed class OverridesController : ControllerBase
     }
 
     /// <summary>
+    /// Reject a <c>Proposed</c> override (P9 follow-up #201,
+    /// 2026-05-07). Terminates a proposal before it ever takes effect;
+    /// distinct from <c>revoke</c> which is the operator-initiated
+    /// terminal path for already-approved rows. Returns 409 if the
+    /// row is past <c>Proposed</c>; 404 on unknown id.
+    /// </summary>
+    [HttpPost("{id:guid}/reject")]
+    [Authorize(Policy = "andy-policies:override:reject")]
+    [OverrideWriteGate]
+    [ProducesResponseType(typeof(OverrideDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<OverrideDto>> Reject(
+        Guid id,
+        [FromBody] RejectOverrideRequest request,
+        CancellationToken ct)
+    {
+        var subject = ResolveSubjectId();
+        if (subject is null) return Unauthorized();
+
+        return Ok(await _service.RejectAsync(id, request, subject, ct));
+    }
+
+    /// <summary>
     /// List overrides matching the optional filter. Returns rows in
     /// any state; use <c>state=Approved</c> for the live set or
     /// <c>GET /api/overrides/active</c> for the

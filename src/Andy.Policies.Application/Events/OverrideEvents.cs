@@ -47,6 +47,19 @@ public sealed record OverrideRevoked(
     DateTimeOffset At);
 
 /// <summary>
+/// Emitted in-process when an <c>Override</c> in <c>Proposed</c> is
+/// explicitly rejected before approval (P9 follow-up #201,
+/// 2026-05-07). Distinct from <see cref="OverrideRevoked"/> so audit
+/// can tell "never approved" from "was approved, then pulled".
+/// </summary>
+public sealed record OverrideRejected(
+    Guid OverrideId,
+    Guid PolicyVersionId,
+    string ActorSubjectId,
+    string Reason,
+    DateTimeOffset At);
+
+/// <summary>
 /// Emitted in-process when <c>OverrideExpiryReaper</c> transitions an
 /// approved <c>Override</c> past <c>ExpiresAt</c> to
 /// <see cref="OverrideState.Expired"/> (P5.3, story

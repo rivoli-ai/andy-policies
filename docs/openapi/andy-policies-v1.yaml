@@ -1170,6 +1170,74 @@ paths:
         - validation_failed
         - not_found
         - invalid_state
+  '/api/overrides/{id}/reject':
+    post:
+      tags:
+        - Overrides
+      summary: "Reject a `Proposed` override (P9 follow-up #201,\r\n2026-05-07). Terminates a proposal before it ever takes effect;\r\ndistinct from `revoke` which is the operator-initiated\r\nterminal path for already-approved rows. Returns 409 if the\r\nrow is past `Proposed`; 404 on unknown id."
+      operationId: Overrides_Reject
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RejectOverrideRequest'
+          text/json:
+            schema:
+              $ref: '#/components/schemas/RejectOverrideRequest'
+          application/*+json:
+            schema:
+              $ref: '#/components/schemas/RejectOverrideRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OverrideDto'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      x-error-codes:
+        - override.disabled
+        - override.self_approval_forbidden
+        - rbac.denied
+        - validation_failed
+        - not_found
+        - invalid_state
   '/api/overrides/{id}':
     get:
       tags:
@@ -2747,6 +2815,7 @@ components:
         - Approved
         - Revoked
         - Expired
+        - Rejected
       type: string
     PolicyDto:
       type: object
@@ -2879,6 +2948,14 @@ components:
           nullable: true
       additionalProperties: false
       description: "Request payload for `IOverrideService.ProposeAsync` (P5.2,\r\nstory rivoli-ai/andy-policies#52). The service validates that\r\nAndy.Policies.Application.Dtos.ProposeOverrideRequest.Effect matches the presence of\r\nAndy.Policies.Application.Dtos.ProposeOverrideRequest.ReplacementPolicyVersionId: `Replace` requires\r\nnon-null, `Exempt` requires null. Both\r\nAndy.Policies.Application.Dtos.ProposeOverrideRequest.PolicyVersionId and (if present)\r\nAndy.Policies.Application.Dtos.ProposeOverrideRequest.ReplacementPolicyVersionId must reference an\r\nexisting `PolicyVersion`."
+    RejectOverrideRequest:
+      type: object
+      properties:
+        rejectionReason:
+          type: string
+          nullable: true
+      additionalProperties: false
+      description: "Request payload for `IOverrideService.RejectAsync` (P9 follow-up\r\n#201, 2026-05-07). The reason is required and persisted to\r\n`Override.RevocationReason` — the column is reused so the audit\r\nchain can record the human-readable cause regardless of which\r\nterminal state was reached. The Andy.Policies.Application.Dtos.RejectOverrideRequest.RejectionReason\r\nalias makes the intent explicit on the wire."
     ResolveBindingsResponse:
       type: object
       properties:
