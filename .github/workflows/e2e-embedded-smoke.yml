@@ -1,0 +1,131 @@
+name: e2e-embedded-smoke
+
+# P10.4 (rivoli-ai/andy-policies#39) — cross-service smoke against the
+# 4-service compose stack (andy-auth + andy-rbac + andy-settings +
+# andy-policies). The xUnit fixtures in tests/Andy.Policies.Tests.E2E
+# are skipped silently unless E2E_ENABLED=1; this workflow is the
+# CI surface that flips that flag.
+#
+# Deliberately not part of ci.yml's PR gate — the build is heavy
+# (4 .NET services + Postgres pulls + Node) and depends on three
+# sibling repos. Triggers:
+#
+#   - workflow_dispatch — operator-driven, e.g. before cutting a release
+#   - pull_request_target with the `run-e2e` label — opt-in per PR
+#   - schedule (nightly main verification)
+#
+# The pull_request_target trigger uses the base-branch checkout to
+# avoid running untrusted code with secrets; the labeled-PR pattern
+# makes the gate explicit.
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [labeled, synchronize]
+    branches: [main]
+  schedule:
+    # 03:30 UTC nightly — catches drift introduced by other repos
+    # (the embedded smoke depends on andy-auth + andy-rbac + andy-settings).
+    - cron: '30 3 * * *'
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  # Sibling repos cloned alongside andy-policies so docker-compose.e2e.yml's
+  # `additional_contexts: ../andy-auth/...` etc. resolve.
+  ANDY_AUTH_REF: main
+  ANDY_RBAC_REF: main
+  ANDY_SETTINGS_REF: main
+
+jobs:
+  e2e-embedded-smoke:
+    # Gate: workflow_dispatch and schedule always run; PR runs only when
+    # the `run-e2e` label is present (synchronize re-runs on push only
+    # when label is set so we don't burn minutes on every untagged push).
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      || github.event_name == 'schedule'
+      || (github.event_name == 'pull_request'
+          && contains(github.event.pull_request.labels.*.name, 'run-e2e'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout andy-policies
+        uses: actions/checkout@v4
+        with:
+          path: andy-policies
+
+      - name: Checkout andy-auth
+        uses: actions/checkout@v4
+        with:
+          repository: rivoli-ai/andy-auth
+          ref: ${{ env.ANDY_AUTH_REF }}
+          path: andy-auth
+          token: ${{ secrets.E2E_REPO_PAT || github.token }}
+
+      - name: Checkout andy-rbac
+        uses: actions/checkout@v4
+        with:
+          repository: rivoli-ai/andy-rbac
+          ref: ${{ env.ANDY_RBAC_REF }}
+          path: andy-rbac
+          token: ${{ secrets.E2E_REPO_PAT || github.token }}
+
+      - name: Checkout andy-settings
+        uses: actions/checkout@v4
+        with:
+          repository: rivoli-ai/andy-settings
+          ref: ${{ env.ANDY_SETTINGS_REF }}
+          path: andy-settings
+          token: ${{ secrets.E2E_REPO_PAT || github.token }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Pack andy-settings local NuGet
+        # docker-compose.e2e.yml pulls the Andy.Settings.Client package
+        # from ../andy-settings/artifacts via additional_contexts. The
+        # pack-local script writes the .nupkg into that directory.
+        working-directory: andy-settings
+        run: bash scripts/pack-local.sh
+
+      - name: Build embedded stack
+        working-directory: andy-policies
+        run: docker compose -f docker-compose.e2e.yml build
+
+      - name: Boot embedded stack
+        working-directory: andy-policies
+        run: docker compose -f docker-compose.e2e.yml up -d --wait
+        # --wait blocks until each service's healthcheck reports healthy.
+        # The fixture also runs an HTTP probe before driving the scenario,
+        # so the wait here just shortens the first probe's retry budget.
+
+      - name: Run cross-service smoke suite
+        working-directory: andy-policies
+        env:
+          E2E_ENABLED: '1'
+          # Compose is owned by the workflow, not the fixture. The fixture
+          # respects ANDY_POLICIES_E2E_NO_COMPOSE so down/up cycles
+          # don't double-fire and clobber container state.
+          ANDY_POLICIES_E2E_NO_COMPOSE: '1'
+        run: dotnet test tests/Andy.Policies.Tests.E2E --configuration Release --logger "trx;LogFileName=e2e-embedded.trx"
+
+      - name: Dump compose logs on failure
+        if: failure()
+        working-directory: andy-policies
+        run: docker compose -f docker-compose.e2e.yml logs --no-color --tail=500
+
+      - name: Teardown embedded stack
+        if: always()
+        working-directory: andy-policies
+        run: docker compose -f docker-compose.e2e.yml down -v
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-embedded-smoke-results
+          path: andy-policies/tests/Andy.Policies.Tests.E2E/TestResults/*.trx
+          if-no-files-found: warn
