@@ -1,0 +1,82 @@
+<!-- Copyright (c) Rivoli AI 2026. All rights reserved. -->
+<div class="page">
+  <p class="back"><a routerLink="/policies">← Back to policies</a></p>
+
+  <ng-container *ngIf="loading()">
+    <div class="loading" data-testid="loading">Loading…</div>
+  </ng-container>
+
+  <div *ngIf="errorMessage() && !loading()" class="banner-error" role="alert" data-testid="banner">
+    {{ errorMessage() }}
+  </div>
+
+  <ng-container *ngIf="policy() as p">
+    <header class="page-header">
+      <h1 class="title-row">
+        <span class="policy-name">{{ p.name }}</span>
+        <span *ngIf="activeVersion() as a" class="active-pill">
+          Active v{{ a.version }}
+        </span>
+        <span *ngIf="!activeVersion()" class="active-pill draft">
+          No active version
+        </span>
+      </h1>
+      <p *ngIf="p.description" class="subtitle">{{ p.description }}</p>
+    </header>
+
+    <section *ngIf="activeVersion() as a" class="card">
+      <h2>Lifecycle</h2>
+      <app-lifecycle-diagram [current]="a.state"></app-lifecycle-diagram>
+    </section>
+
+    <section class="card">
+      <h2>Versions</h2>
+      <table class="versions-table" data-testid="versions">
+        <thead>
+          <tr>
+            <th>Version</th>
+            <th>State</th>
+            <th>Summary</th>
+            <th>Enforcement</th>
+            <th>Severity</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let v of versions()">
+            <td class="numeric">v{{ v.version }}</td>
+            <td>
+              <span class="badge badge-{{ v.state }}">{{ LIFECYCLE_LABEL[v.state] }}</span>
+            </td>
+            <td>{{ v.summary }}</td>
+            <td>{{ v.enforcement }}</td>
+            <td>{{ v.severity }}</td>
+            <td class="actions">
+              <a
+                *ngIf="v.state === 'Draft'"
+                class="btn-link"
+                [routerLink]="['/policies', v.policyId, 'versions', v.id, 'edit']"
+                [attr.data-testid]="'edit-' + v.id">
+                Edit
+              </a>
+              <button
+                *ngIf="hasLegalTransitions(v)"
+                type="button"
+                class="btn-link"
+                (click)="openTransition(v)"
+                [attr.data-testid]="'transition-' + v.id">
+                Transition…
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  </ng-container>
+
+  <app-lifecycle-transition-modal
+    *ngIf="transitioningVersion() as tv"
+    [version]="tv"
+    (closed)="onModalClosed($event)">
+  </app-lifecycle-transition-modal>
+</div>

@@ -87,7 +87,11 @@
     </thead>
     <tbody>
       <tr *ngFor="let p of policies()">
-        <td><span class="name">{{ p.name }}</span></td>
+        <td>
+          <a class="name" [routerLink]="['/policies', p.id]" [attr.data-testid]="'detail-' + p.id">
+            {{ p.name }}
+          </a>
+        </td>
         <td>{{ p.description || '—' }}</td>
         <td class="numeric">{{ p.versionCount }}</td>
         <td>

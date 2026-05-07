@@ -1,0 +1,137 @@
+/* Copyright (c) Rivoli AI 2026. All rights reserved. */
+
+.page { display: flex; flex-direction: column; gap: 16px; }
+
+.back a {
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 13px;
+}
+.back a:hover { color: var(--primary); }
+
+.page-header h1.title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin: 0 0 4px;
+}
+
+.policy-name { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+.active-pill {
+  font-size: 0.7em;
+  background: #e6f4ea;
+  color: var(--success);
+  border: 1px solid #b6e0c2;
+  border-radius: 12px;
+  padding: 2px 10px;
+  font-weight: 500;
+}
+
+.active-pill.draft {
+  background: var(--background);
+  color: var(--text-secondary);
+  border-color: var(--border);
+}
+
+.subtitle { margin: 0; color: var(--text-secondary); }
+
+.loading,
+.banner-error {
+  padding: 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  text-align: center;
+}
+
+.loading {
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  color: var(--text-secondary);
+}
+
+.banner-error {
+  background: #fce8e6;
+  border: 1px solid #f0a99a;
+  color: var(--error);
+  text-align: left;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.card h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.versions-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.versions-table th,
+.versions-table td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.versions-table th {
+  background: var(--background);
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.versions-table tbody tr:last-child td { border-bottom: none; }
+
+.versions-table .numeric {
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+.versions-table .actions {
+  display: flex;
+  gap: 8px;
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.badge-Draft { background: #fce8e6; color: var(--error); }
+.badge-Active { background: #e6f4ea; color: var(--success); }
+.badge-WindingDown { background: #fff4e5; color: #a85d00; }
+.badge-Retired { background: var(--background); color: var(--text-secondary); }
+
+.btn-link {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  color: var(--primary);
+  font: inherit;
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.btn-link:hover { text-decoration: underline; }

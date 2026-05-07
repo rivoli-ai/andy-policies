@@ -62,6 +62,23 @@ export interface UpdatePolicyVersionRequest {
   rulesJson: string;
 }
 
+/** Body for the lifecycle transition endpoints (publish / winding-down / retire). */
+export interface LifecycleTransitionBody {
+  rationale: string;
+}
+
+/**
+ * Maps a target lifecycle state to the action-shaped path segment used by
+ * `PolicyVersionsLifecycleController`. `Draft` is intentionally null —
+ * versions are born Draft, never transitioned to it.
+ */
+const TRANSITION_PATH_SEGMENTS: Record<LifecycleState, string | null> = {
+  Active: 'publish',
+  WindingDown: 'winding-down',
+  Retired: 'retire',
+  Draft: null,
+};
+
 /** Filters accepted by `GET /api/policies`. The server has no full-text search;
  *  `namePrefix` does prefix matching only. No `state=` filter exists; per-row
  *  `activeVersionId == null` means "all versions are still draft" client-side. */
@@ -134,6 +151,36 @@ export class ApiService {
     return this.http.put<PolicyVersionDto>(
       `${this.baseUrl}/policies/${id}/versions/${versionId}`,
       request,
+    );
+  }
+
+  /** P9.4 (#69) — list all versions of a policy. */
+  listPolicyVersions(id: string): Observable<PolicyVersionDto[]> {
+    return this.http.get<PolicyVersionDto[]>(
+      `${this.baseUrl}/policies/${id}/versions`,
+    );
+  }
+
+  /**
+   * P9.4 (#69) — transition a version to a new lifecycle state.
+   * Routes to the action-shaped endpoint that the server exposes
+   * (`publish` / `winding-down` / `retire`). The server is the
+   * authoritative gate for legality — illegal transitions return 409
+   * regardless of what the client requested.
+   */
+  transitionPolicyVersion(
+    id: string,
+    versionId: string,
+    targetState: LifecycleState,
+    rationale: string,
+  ): Observable<PolicyVersionDto> {
+    const segment = TRANSITION_PATH_SEGMENTS[targetState];
+    if (!segment) {
+      throw new Error(`No endpoint exists for transition to '${targetState}'.`);
+    }
+    return this.http.post<PolicyVersionDto>(
+      `${this.baseUrl}/policies/${id}/versions/${versionId}/${segment}`,
+      { rationale },
     );
   }
 

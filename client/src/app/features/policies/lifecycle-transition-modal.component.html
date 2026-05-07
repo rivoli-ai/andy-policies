@@ -1,0 +1,66 @@
+<!-- Copyright (c) Rivoli AI 2026. All rights reserved. -->
+<div class="overlay" (click)="cancel()" data-testid="overlay">
+  <div
+    class="modal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="lifecycle-modal-title"
+    (click)="$event.stopPropagation()">
+    <header class="modal-header">
+      <h2 id="lifecycle-modal-title">Transition lifecycle</h2>
+      <p class="subtitle">
+        Currently <strong>{{ LIFECYCLE_LABEL[version.state] }}</strong> ·
+        v{{ version.version }}
+      </p>
+    </header>
+
+    <app-lifecycle-diagram [current]="version.state"></app-lifecycle-diagram>
+
+    <form [formGroup]="form" (ngSubmit)="submit()" class="form" data-testid="form">
+      <div *ngIf="hasNoTargets()" class="banner-info" data-testid="terminal">
+        No further transitions available — version is in <strong>{{ LIFECYCLE_LABEL[version.state] }}</strong>.
+      </div>
+
+      <label *ngIf="!hasNoTargets()" class="field">
+        <span>Target state</span>
+        <select formControlName="targetState" class="input" data-testid="target">
+          <option *ngFor="let s of legalTargets()" [value]="s">
+            {{ LIFECYCLE_LABEL[s] }} — {{ TRANSITION_HINT[s] }}
+          </option>
+        </select>
+      </label>
+
+      <label *ngIf="!hasNoTargets()" class="field">
+        <span>
+          Rationale
+          <em>(required, min 10 chars — recorded in the audit chain)</em>
+        </span>
+        <textarea
+          formControlName="rationale"
+          class="input rationale"
+          rows="3"
+          data-testid="rationale"
+          placeholder="Why is this transition happening?"></textarea>
+      </label>
+
+      <div *ngIf="errorMessage()" class="banner-error" role="alert" data-testid="banner">
+        {{ errorMessage() }}
+      </div>
+
+      <footer class="modal-footer">
+        <button type="button" class="btn-secondary" (click)="cancel()" [disabled]="submitting()">
+          Cancel
+        </button>
+        <button
+          type="submit"
+          class="btn-primary"
+          *ngIf="!hasNoTargets()"
+          [disabled]="form.invalid || submitting()"
+          data-testid="submit">
+          <span *ngIf="!submitting()">Confirm transition</span>
+          <span *ngIf="submitting()">Submitting…</span>
+        </button>
+      </footer>
+    </form>
+  </div>
+</div>

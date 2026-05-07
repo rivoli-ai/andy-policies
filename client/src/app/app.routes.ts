@@ -34,6 +34,14 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'policies/:id',
+    loadComponent: () =>
+      import('./features/policies/policy-detail.component').then(
+        (m) => m.PolicyDetailComponent
+      ),
+    canActivate: [authGuard],
+  },
+  {
     path: 'policies/:id/versions/:vId/edit',
     loadComponent: () =>
       import('./features/policies/policy-editor.component').then(
