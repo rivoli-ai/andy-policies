@@ -11,7 +11,7 @@ import {
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import {
   ApiService,
@@ -24,6 +24,8 @@ import { LifecycleTransitionModalComponent } from './lifecycle-transition-modal.
 import { LIFECYCLE_GRAPH, LIFECYCLE_LABEL } from './lifecycle-graph';
 import { PermissionsService } from '../../core/auth/permissions.service';
 import { RationaleModalComponent } from './rationale-modal.component';
+import { ProposeOverrideModalComponent } from '../overrides/propose-override-modal.component';
+import { OverrideDto } from '../../shared/services/api.service';
 
 /**
  * P9.4 (rivoli-ai/andy-policies#69) — minimum viable policy detail page.
@@ -42,6 +44,7 @@ import { RationaleModalComponent } from './rationale-modal.component';
     LifecycleDiagramComponent,
     LifecycleTransitionModalComponent,
     RationaleModalComponent,
+    ProposeOverrideModalComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './policy-detail.component.html',
@@ -50,6 +53,7 @@ import { RationaleModalComponent } from './rationale-modal.component';
 export class PolicyDetailComponent {
   private readonly api = inject(ApiService);
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
   private readonly perms = inject(PermissionsService);
 
@@ -69,6 +73,14 @@ export class PolicyDetailComponent {
   readonly proposingVersion = signal<PolicyVersionDto | null>(null);
   readonly proposeError = signal<string | null>(null);
   readonly canPropose = this.perms.canPropose;
+
+  // #200 — propose-override flow. Distinct from propose-for-publish
+  // (which marks the *current* draft ready for review): an override
+  // creates a new Override row scoped to a Principal/Cohort and is
+  // approved separately via the Overrides manager.
+  readonly proposingOverrideFor = signal<PolicyVersionDto | null>(null);
+  readonly canProposeOverride = computed(() =>
+    this.perms.has('andy-policies:override:propose'));
 
   readonly activeVersion = computed<PolicyVersionDto | null>(() => {
     const list = this.versions();
@@ -106,6 +118,38 @@ export class PolicyDetailComponent {
   closePropose(): void {
     this.proposingVersion.set(null);
     this.proposeError.set(null);
+  }
+
+  /** Show "Propose override" only when we have :override:propose
+   *  AND the version is not Retired (server refuses Retired). */
+  canProposeOverrideFor(v: PolicyVersionDto): boolean {
+    return v.state !== 'Retired';
+  }
+
+  /** Other versions of *this* policy that can serve as the
+   *  Replace target. Excludes Retired (server refuses) and the
+   *  version being overridden itself (replacing v1 with v1 is a
+   *  no-op). The modal further constrains the dropdown to whatever
+   *  list we hand it. */
+  replacementCandidatesFor(v: PolicyVersionDto): PolicyVersionDto[] {
+    return this.versions()
+      .filter(c => c.id !== v.id && c.state !== 'Retired');
+  }
+
+  openProposeOverride(version: PolicyVersionDto): void {
+    if (!this.canProposeOverride()) return;
+    this.proposingOverrideFor.set(version);
+  }
+
+  onProposeOverrideClosed(created: OverrideDto | null): void {
+    this.proposingOverrideFor.set(null);
+    if (created) {
+      // Per #200's acceptance: navigate to /overrides on 201 (vs.
+      // refresh-inline-list — there's no inline override list on the
+      // detail page today). Pre-filter by `state=Proposed` so the
+      // user lands on the row they just created.
+      this.router.navigate(['/overrides'], { queryParams: { state: 'Proposed' } });
+    }
   }
 
   onProposeConfirmed(rationale: string): void {

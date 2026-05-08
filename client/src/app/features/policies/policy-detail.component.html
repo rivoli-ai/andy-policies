@@ -81,6 +81,14 @@
                 [attr.data-testid]="'transition-' + v.id">
                 Transition…
               </button>
+              <button
+                *ngIf="canProposeOverrideFor(v) && canProposeOverride()"
+                type="button"
+                class="btn-link"
+                (click)="openProposeOverride(v)"
+                [attr.data-testid]="'propose-override-' + v.id">
+                Propose override…
+              </button>
             </td>
           </tr>
         </tbody>
@@ -110,4 +118,11 @@
     (confirmed)="onProposeConfirmed($event)"
     (cancelled)="closePropose()">
   </app-rationale-modal>
+
+  <app-propose-override-modal
+    *ngIf="proposingOverrideFor() as ov"
+    [version]="ov"
+    [replacementCandidates]="replacementCandidatesFor(ov)"
+    (closed)="onProposeOverrideClosed($event)">
+  </app-propose-override-modal>
 </div>
