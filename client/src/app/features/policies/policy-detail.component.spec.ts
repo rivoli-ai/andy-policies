@@ -1,13 +1,15 @@
 // Copyright (c) Rivoli AI 2026. All rights reserved.
 
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
+import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 import {
   ApiService,
+  OverrideDto,
   PolicyDto,
   PolicyVersionDto,
 } from '../../shared/services/api.service';
+import { PermissionsService } from '../../core/auth/permissions.service';
 import { PolicyDetailComponent } from './policy-detail.component';
 
 describe('PolicyDetailComponent (P9.4)', () => {
@@ -135,5 +137,103 @@ describe('PolicyDetailComponent (P9.4)', () => {
     expect(component.transitioningVersion()).toBeNull();
     expect(component.versions().find(v => v.id === 'vid-2')!.state).toBe('Active');
     expect(api.getPolicy).toHaveBeenCalledWith('pid-1');
+  });
+
+  // ----- #200: Propose-override button + flow ------------------------
+
+  it('Propose-override button is hidden when canProposeOverride() is false', () => {
+    build();
+    const perms = TestBed.inject(PermissionsService);
+    perms.setForTesting([]);
+    fixture.detectChanges();
+
+    const btn = fixture.nativeElement
+      .querySelector('[data-testid="propose-override-vid-2"]');
+    expect(btn).toBeNull(
+      'no override:propose permission → button absent from the DOM');
+  });
+
+  it('Propose-override button shows on non-Retired versions when permitted', () => {
+    build();
+    const perms = TestBed.inject(PermissionsService);
+    perms.setForTesting(['andy-policies:override:propose']);
+    fixture.detectChanges();
+
+    const draftBtn = fixture.nativeElement
+      .querySelector('[data-testid="propose-override-vid-2"]');
+    const activeBtn = fixture.nativeElement
+      .querySelector('[data-testid="propose-override-vid-active"]');
+    expect(draftBtn).toBeTruthy();
+    expect(activeBtn).toBeTruthy();
+  });
+
+  it('Propose-override button is hidden on Retired versions', () => {
+    build();
+    const perms = TestBed.inject(PermissionsService);
+    perms.setForTesting(['andy-policies:override:propose']);
+    component.versions.set([{ ...draftV2, id: 'vid-old', state: 'Retired' }]);
+    fixture.detectChanges();
+
+    const btn = fixture.nativeElement
+      .querySelector('[data-testid="propose-override-vid-old"]');
+    expect(btn).toBeNull(
+      'server refuses overrides on Retired versions; UI matches');
+  });
+
+  it('replacementCandidatesFor excludes the version itself and Retired peers', () => {
+    build();
+    component.versions.set([
+      activeV1,
+      draftV2,
+      { ...draftV2, id: 'vid-retired', state: 'Retired' },
+    ]);
+
+    const candidates = component.replacementCandidatesFor(draftV2);
+    const ids = candidates.map(c => c.id);
+    expect(ids).toContain(activeV1.id);
+    expect(ids).not.toContain(draftV2.id);
+    expect(ids).not.toContain('vid-retired');
+  });
+
+  it('onProposeOverrideClosed(created) navigates to /overrides with state=Proposed', () => {
+    build();
+    const router = TestBed.inject(Router);
+    const navSpy = spyOn(router, 'navigate');
+    component.proposingOverrideFor.set(draftV2);
+
+    const created: OverrideDto = {
+      id: 'oid-1',
+      policyVersionId: draftV2.id,
+      scopeKind: 'Principal',
+      scopeRef: 'user:bob',
+      effect: 'Exempt',
+      replacementPolicyVersionId: null,
+      proposerSubjectId: 'user:alice',
+      approverSubjectId: null,
+      state: 'Proposed',
+      proposedAt: '2026-05-08T00:00:00Z',
+      approvedAt: null,
+      expiresAt: '2026-05-09T00:00:00Z',
+      rationale: 'reasoning',
+      revocationReason: null,
+    };
+
+    component.onProposeOverrideClosed(created);
+
+    expect(component.proposingOverrideFor()).toBeNull();
+    expect(navSpy).toHaveBeenCalledWith(
+      ['/overrides'], { queryParams: { state: 'Proposed' } });
+  });
+
+  it('onProposeOverrideClosed(null) clears the modal without navigating', () => {
+    build();
+    const router = TestBed.inject(Router);
+    const navSpy = spyOn(router, 'navigate');
+    component.proposingOverrideFor.set(draftV2);
+
+    component.onProposeOverrideClosed(null);
+
+    expect(component.proposingOverrideFor()).toBeNull();
+    expect(navSpy).not.toHaveBeenCalled();
   });
 });

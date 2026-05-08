@@ -174,6 +174,21 @@ export interface RevokeOverrideRequest {
   revocationReason: string;
 }
 
+/** Body for `POST /api/overrides`. Server enforces the Effect ↔
+ *  ReplacementPolicyVersionId invariant: Replace requires non-null,
+ *  Exempt requires null (mirrored client-side in the propose modal
+ *  for fast feedback). `expiresAt` must be at least 1 minute in the
+ *  future per the server's MinimumLifetime check. */
+export interface ProposeOverrideRequest {
+  policyVersionId: string;
+  scopeKind: OverrideScopeKind;
+  scopeRef: string;
+  effect: OverrideEffect;
+  replacementPolicyVersionId: string | null;
+  expiresAt: string;
+  rationale: string;
+}
+
 /** Subset of RFC 6902 operations we expect in `AuditEventDto.fieldDiff`. */
 export interface Rfc6902Op {
   op: 'add' | 'remove' | 'replace' | 'move' | 'copy' | 'test';
@@ -404,6 +419,16 @@ export class ApiService {
     if (query.scopeRef) params = params.set('scopeRef', query.scopeRef);
     if (query.policyVersionId) params = params.set('policyVersionId', query.policyVersionId);
     return this.http.get<OverrideDto[]>(`${this.baseUrl}/overrides`, { params });
+  }
+
+  /** P9.6 follow-up #200 — propose a new override against a specific
+   *  policy version. Server returns 201 + `OverrideDto` (state=Proposed)
+   *  on success; 400 on Effect/Replacement invariant violation;
+   *  403 when the experimental gate is off OR the caller lacks
+   *  `andy-policies:override:propose`; 404 when the target version
+   *  doesn't exist. */
+  proposeOverride(request: ProposeOverrideRequest): Observable<OverrideDto> {
+    return this.http.post<OverrideDto>(`${this.baseUrl}/overrides`, request);
   }
 
   /** Approve takes no body — server records the approver's subject id from

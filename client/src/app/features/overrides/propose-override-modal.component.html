@@ -1,0 +1,108 @@
+<!-- Copyright (c) Rivoli AI 2026. All rights reserved. -->
+<div class="propose-override-modal-backdrop" (click)="cancel()">
+  <div class="propose-override-modal" (click)="$event.stopPropagation()">
+    <header>
+      <h2>Propose override</h2>
+      <p class="subtitle">
+        Override v{{ version.version }} for a specific principal or cohort.
+        Server records you as proposer; an approver (different subject) commits.
+      </p>
+    </header>
+
+    <form [formGroup]="form" (ngSubmit)="submit()">
+      <fieldset>
+        <legend>Scope</legend>
+
+        <label>
+          <span>Scope kind</span>
+          <select formControlName="scopeKind" data-testid="scopeKind">
+            <option value="Principal">Principal</option>
+            <option value="Cohort">Cohort</option>
+          </select>
+        </label>
+
+        <label>
+          <span>Scope ref</span>
+          <input
+            type="text"
+            formControlName="scopeRef"
+            data-testid="scopeRef"
+            placeholder="user:alice or cohort:beta-readers"
+            maxlength="256" />
+          <small *ngIf="form.controls.scopeRef.touched && form.controls.scopeRef.invalid">
+            Scope ref is required (max 256 chars).
+          </small>
+        </label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Effect</legend>
+
+        <label>
+          <span>Effect</span>
+          <select formControlName="effect" data-testid="effect">
+            <option value="Exempt">Exempt</option>
+            <option value="Replace">Replace</option>
+          </select>
+        </label>
+
+        <label *ngIf="isReplace()">
+          <span>Replacement version</span>
+          <select
+            formControlName="replacementPolicyVersionId"
+            data-testid="replacementPolicyVersionId">
+            <option [ngValue]="null">— select a version —</option>
+            <option *ngFor="let c of replacementCandidates" [ngValue]="c.id">
+              v{{ c.version }} ({{ c.state }})
+            </option>
+          </select>
+          <small *ngIf="form.errors?.['replacementRequired']">
+            Replace requires a replacement version.
+          </small>
+        </label>
+      </fieldset>
+
+      <label>
+        <span>Expires at</span>
+        <input
+          type="datetime-local"
+          formControlName="expiresAt"
+          data-testid="expiresAt" />
+      </label>
+
+      <label>
+        <span>Rationale</span>
+        <textarea
+          formControlName="rationale"
+          rows="3"
+          data-testid="rationale"
+          placeholder="Why is this override justified? (recorded in the audit chain)"
+          maxlength="2000"></textarea>
+        <small *ngIf="form.controls.rationale.touched && form.controls.rationale.invalid">
+          Rationale is required (min {{ minRationaleLengthVal }} chars).
+        </small>
+      </label>
+
+      <p *ngIf="errorMessage()" class="error-banner" data-testid="error-banner">
+        {{ errorMessage() }}
+      </p>
+
+      <div class="actions">
+        <button
+          type="button"
+          class="btn-secondary"
+          (click)="cancel()"
+          [disabled]="submitting()">
+          Cancel
+        </button>
+        <button
+          type="submit"
+          class="btn-primary"
+          [disabled]="form.invalid || submitting()"
+          data-testid="submit">
+          {{ submitting() ? 'Proposing…' : 'Propose override' }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
