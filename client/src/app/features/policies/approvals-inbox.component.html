@@ -1,0 +1,83 @@
+<!-- Copyright (c) Rivoli AI 2026. All rights reserved. -->
+<section class="approvals-inbox">
+  <header>
+    <h1>Approvals inbox</h1>
+    <p class="subtitle">
+      Drafts marked ready for review. Auto-refreshes every 30 seconds.
+    </p>
+  </header>
+
+  <p *ngIf="errorMessage()" class="error-banner">{{ errorMessage() }}</p>
+
+  <p *ngIf="loading() && !hasRows()" class="muted">Loading…</p>
+
+  <p *ngIf="!loading() && !hasRows() && !errorMessage()" class="muted">
+    Nothing waiting. The inbox is empty.
+  </p>
+
+  <table *ngIf="hasRows()" class="inbox-table" data-testid="inbox-table">
+    <thead>
+      <tr>
+        <th scope="col">Policy</th>
+        <th scope="col">Version</th>
+        <th scope="col">Proposer</th>
+        <th scope="col">Created</th>
+        <th scope="col">Enforcement</th>
+        <th scope="col">Severity</th>
+        <th scope="col" class="actions-col">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let r of rows()">
+        <td>
+          <a [routerLink]="['/policies', r.policyId]">{{ r.policyId }}</a>
+        </td>
+        <td>v{{ r.version }}</td>
+        <td>{{ r.proposerSubjectId }}</td>
+        <td>{{ r.createdAt | date: 'short' }}</td>
+        <td>{{ r.enforcement }}</td>
+        <td>{{ r.severity }}</td>
+        <td class="actions-col">
+          <button
+            *ngIf="canPublish()"
+            type="button"
+            class="btn-primary"
+            data-testid="approve-button"
+            (click)="openApprove(r)">
+            Approve
+          </button>
+          <button
+            *ngIf="canReject()"
+            type="button"
+            class="btn-secondary"
+            data-testid="reject-button"
+            (click)="openReject(r)">
+            Reject
+          </button>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<app-rationale-modal
+  *ngIf="modalKind() === 'approve' && activeRow() as row"
+  [title]="'Approve v' + row.version"
+  [subtitle]="'Approving will publish this draft as the new Active version.'"
+  [placeholder]="'Why is this approved? (recorded in the audit chain)'"
+  [confirmLabel]="'Approve & publish'"
+  [errorMessage]="modalError()"
+  (confirmed)="onModalConfirmed($event)"
+  (cancelled)="closeModal()">
+</app-rationale-modal>
+
+<app-rationale-modal
+  *ngIf="modalKind() === 'reject' && activeRow() as row"
+  [title]="'Reject v' + row.version"
+  [subtitle]="'Rejecting reverts to Draft so the author can edit and re-propose.'"
+  [placeholder]="'Why is this rejected? (recorded in the audit chain — the author sees this)'"
+  [confirmLabel]="'Reject'"
+  [errorMessage]="modalError()"
+  (confirmed)="onModalConfirmed($event)"
+  (cancelled)="closeModal()">
+</app-rationale-modal>

@@ -22,6 +22,8 @@ import { BindingsManagerComponent } from './bindings-manager.component';
 import { LifecycleDiagramComponent } from './lifecycle-diagram.component';
 import { LifecycleTransitionModalComponent } from './lifecycle-transition-modal.component';
 import { LIFECYCLE_GRAPH, LIFECYCLE_LABEL } from './lifecycle-graph';
+import { PermissionsService } from '../../core/auth/permissions.service';
+import { RationaleModalComponent } from './rationale-modal.component';
 
 /**
  * P9.4 (rivoli-ai/andy-policies#69) — minimum viable policy detail page.
@@ -39,6 +41,7 @@ import { LIFECYCLE_GRAPH, LIFECYCLE_LABEL } from './lifecycle-graph';
     BindingsManagerComponent,
     LifecycleDiagramComponent,
     LifecycleTransitionModalComponent,
+    RationaleModalComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './policy-detail.component.html',
@@ -48,6 +51,7 @@ export class PolicyDetailComponent {
   private readonly api = inject(ApiService);
   private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly perms = inject(PermissionsService);
 
   readonly LIFECYCLE_LABEL = LIFECYCLE_LABEL;
 
@@ -57,6 +61,14 @@ export class PolicyDetailComponent {
   readonly errorMessage = signal<string | null>(null);
 
   readonly transitioningVersion = signal<PolicyVersionDto | null>(null);
+
+  // P9.3 (#68) — propose-for-publish flow. The button only appears
+  // for Draft versions when the user has :propose; the modal collects
+  // the rationale and posts it. Approver-side approve/reject lives
+  // in the inbox, not here.
+  readonly proposingVersion = signal<PolicyVersionDto | null>(null);
+  readonly proposeError = signal<string | null>(null);
+  readonly canPropose = this.perms.canPropose;
 
   readonly activeVersion = computed<PolicyVersionDto | null>(() => {
     const list = this.versions();
@@ -76,6 +88,58 @@ export class PolicyDetailComponent {
 
   openTransition(version: PolicyVersionDto): void {
     this.transitioningVersion.set(version);
+  }
+
+  /** Show the Propose button only for Draft versions that aren't
+   *  already ReadyForReview. The :propose permission gate is layered
+   *  on the button itself in the template. */
+  canProposeVersion(version: PolicyVersionDto): boolean {
+    return version.state === 'Draft' && !version.readyForReview;
+  }
+
+  openPropose(version: PolicyVersionDto): void {
+    if (!this.canPropose()) return;
+    this.proposingVersion.set(version);
+    this.proposeError.set(null);
+  }
+
+  closePropose(): void {
+    this.proposingVersion.set(null);
+    this.proposeError.set(null);
+  }
+
+  onProposeConfirmed(rationale: string): void {
+    const v = this.proposingVersion();
+    if (!v) return;
+    this.proposeError.set(null);
+    this.api
+      .proposePolicyVersion(v.policyId, v.id, rationale)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: updated => {
+          this.versions.update(vs =>
+            vs.map(curr => (curr.id === updated.id ? updated : curr)),
+          );
+          this.closePropose();
+        },
+        error: (err: HttpErrorResponse) => {
+          if (err.status === 403) {
+            this.proposeError.set('Permission denied.');
+            return;
+          }
+          if (err.status === 409) {
+            this.proposeError.set(
+              'Cannot propose — the version is no longer in Draft. Refresh the page.');
+            return;
+          }
+          const body = err.error;
+          this.proposeError.set(
+            (typeof body?.detail === 'string' && body.detail)
+              || (typeof body?.title === 'string' && `${body.title} (${err.status}).`)
+              || `Unexpected error (${err.status}).`,
+          );
+        },
+      });
   }
 
   onModalClosed(updated: PolicyVersionDto | null): void {

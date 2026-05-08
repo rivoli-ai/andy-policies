@@ -60,6 +60,20 @@
                 Edit
               </a>
               <button
+                *ngIf="canProposeVersion(v) && canPropose()"
+                type="button"
+                class="btn-link"
+                (click)="openPropose(v)"
+                [attr.data-testid]="'propose-' + v.id">
+                Propose for review
+              </button>
+              <span
+                *ngIf="v.state === 'Draft' && v.readyForReview"
+                class="ready-tag"
+                [attr.data-testid]="'ready-' + v.id">
+                Awaiting approver
+              </span>
+              <button
                 *ngIf="hasLegalTransitions(v)"
                 type="button"
                 class="btn-link"
@@ -85,4 +99,15 @@
     [version]="tv"
     (closed)="onModalClosed($event)">
   </app-lifecycle-transition-modal>
+
+  <app-rationale-modal
+    *ngIf="proposingVersion() as pv"
+    [title]="'Propose v' + pv.version + ' for review'"
+    [subtitle]="'Marks the draft as ready for an approver to review.'"
+    [placeholder]="'What changed and why is this ready? (recorded in the audit chain)'"
+    [confirmLabel]="'Propose for review'"
+    [errorMessage]="proposeError()"
+    (confirmed)="onProposeConfirmed($event)"
+    (cancelled)="closePropose()">
+  </app-rationale-modal>
 </div>
