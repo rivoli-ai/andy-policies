@@ -16,6 +16,8 @@
     { "code": "andy-policies:policy:author",     "name": "Author drafts",            "resourceType": "policy"   },
     { "code": "andy-policies:policy:publish",    "name": "Publish a draft",          "resourceType": "policy"   },
     { "code": "andy-policies:policy:transition", "name": "Wind-down / retire",       "resourceType": "policy"   },
+    { "code": "andy-policies:policy:propose",    "name": "Propose a draft for review","resourceType": "policy"   },
+    { "code": "andy-policies:policy:reject",     "name": "Reject a proposed draft",  "resourceType": "policy"   },
     { "code": "andy-policies:binding:read",      "name": "Read bindings",            "resourceType": "binding"  },
     { "code": "andy-policies:binding:manage",    "name": "Create / delete bindings", "resourceType": "binding"  },
     { "code": "andy-policies:scope:read",        "name": "Read scope tree",          "resourceType": "scope"    },
@@ -48,6 +50,7 @@
       "permissionCodes": [
         "andy-policies:policy:read",
         "andy-policies:policy:author",
+        "andy-policies:policy:propose",
         "andy-policies:binding:read",
         "andy-policies:scope:read",
         "andy-policies:override:read",
@@ -64,6 +67,7 @@
       "permissionCodes": [
         "andy-policies:policy:read",
         "andy-policies:policy:publish",
+        "andy-policies:policy:reject",
         "andy-policies:policy:transition",
         "andy-policies:binding:read",
         "andy-policies:binding:manage",

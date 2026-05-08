@@ -30,10 +30,14 @@ namespace Andy.Policies.Api.Controllers;
 public sealed class PolicyVersionsLifecycleController : ControllerBase
 {
     private readonly ILifecycleTransitionService _transitions;
+    private readonly IPolicyService _policies;
 
-    public PolicyVersionsLifecycleController(ILifecycleTransitionService transitions)
+    public PolicyVersionsLifecycleController(
+        ILifecycleTransitionService transitions,
+        IPolicyService policies)
     {
         _transitions = transitions;
+        _policies = policies;
     }
 
     /// <summary>
@@ -86,6 +90,66 @@ public sealed class PolicyVersionsLifecycleController : ControllerBase
         [FromBody] LifecycleTransitionRequest body,
         CancellationToken ct)
         => ExecuteAsync(id, versionId, LifecycleState.Retired, body, ct);
+
+    /// <summary>
+    /// #216 — author marks a Draft as ready for an approver to review.
+    /// Sets <c>ReadyForReview = true</c>; idempotent on already-proposed
+    /// drafts. Returns 409 if the version is past Draft.
+    /// </summary>
+    [HttpPost("propose")]
+    [Authorize(Policy = "andy-policies:policy:propose")]
+    [ProducesResponseType(typeof(PolicyVersionDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<PolicyVersionDto>> Propose(
+        Guid id, Guid versionId,
+        [FromBody] LifecycleTransitionRequest? body,
+        CancellationToken ct)
+    {
+        var subjectId = User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? User.Identity?.Name;
+        if (string.IsNullOrEmpty(subjectId))
+        {
+            return Unauthorized();
+        }
+
+        var dto = await _policies.ProposeDraftAsync(
+            id, versionId, body?.Rationale, subjectId, ct);
+        return Ok(dto);
+    }
+
+    /// <summary>
+    /// #216 — approver bounces a Proposed draft back to plain Draft. Per
+    /// option (a) of the design fork: revert-to-draft, not terminal-state.
+    /// Clears <c>ReadyForReview</c> and records the rejection rationale
+    /// in the audit chain. Returns 400 on empty rationale; 409 if the
+    /// version is past Draft.
+    /// </summary>
+    [HttpPost("reject")]
+    [Authorize(Policy = "andy-policies:policy:reject")]
+    [ProducesResponseType(typeof(PolicyVersionDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<PolicyVersionDto>> Reject(
+        Guid id, Guid versionId,
+        [FromBody] LifecycleTransitionRequest body,
+        CancellationToken ct)
+    {
+        var subjectId = User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? User.Identity?.Name;
+        if (string.IsNullOrEmpty(subjectId))
+        {
+            return Unauthorized();
+        }
+
+        var dto = await _policies.RejectDraftAsync(
+            id, versionId, body?.Rationale ?? string.Empty, subjectId, ct);
+        return Ok(dto);
+    }
 
     private async Task<ActionResult<PolicyVersionDto>> ExecuteAsync(
         Guid id, Guid versionId, LifecycleState target,

@@ -35,4 +35,6 @@ public record PolicyVersionDto(
     DateTimeOffset CreatedAt,
     string CreatedBySubjectId,
     string ProposerSubjectId,
-    uint Revision = 0);
+    uint Revision = 0,
+    string? PublisherSubjectId = null,
+    bool ReadyForReview = false);
