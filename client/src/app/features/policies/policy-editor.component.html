@@ -106,13 +106,22 @@
 
       <label class="field rules">
         <span>Rules JSON</span>
-        <textarea
-          formControlName="rulesJson"
-          class="input rules-editor"
-          rows="14"
-          spellcheck="false"
-          autocomplete="off"
-          data-testid="rules"></textarea>
+        <!--
+          #192 — Monaco editor with JSON-mode + schema-aware diagnostics
+          (squiggles for shape violations, hover, completions). The
+          underlying form value is still bound by formControlName — the
+          editor implements ControlValueAccessor — so the existing
+          jsonValidator + save flow is unchanged. Schema is fetched
+          on (onInit) and wired into monaco.languages.json.jsonDefaults.
+        -->
+        <div class="monaco-host" data-testid="rules">
+          <ngx-monaco-editor
+            formControlName="rulesJson"
+            class="monaco-editor-host"
+            [options]="monacoOptions"
+            (onInit)="onMonacoEditorInit()">
+          </ngx-monaco-editor>
+        </div>
         <small *ngIf="rulesJsonError() as msg" class="hint error" data-testid="rules-error">
           {{ msg }}
         </small>

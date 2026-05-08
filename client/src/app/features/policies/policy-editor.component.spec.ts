@@ -4,6 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angular/router';
 import { Subject, of, throwError } from 'rxjs';
 import { HttpErrorResponse } from '@angular/common/http';
+import { provideMonacoEditor } from 'ngx-monaco-editor-v2';
 import {
   ApiService,
   CreatePolicyRequest,
@@ -62,6 +63,13 @@ describe('PolicyEditorComponent (P9.2)', () => {
             snapshot: { paramMap: convertToParamMap(routeParams) },
           },
         },
+        // #192 — Monaco's `NGX_MONACO_EDITOR_CONFIG` token is provided
+        // app-wide in app.config.ts; specs need their own copy so the
+        // editor's DI tree resolves. baseUrl doesn't matter here since
+        // Karma doesn't load the AMD chunks (the editor view never
+        // actually renders in jsdom — `automaticLayout` no-ops, and
+        // ControlValueAccessor still works for form binding).
+        provideMonacoEditor({ baseUrl: '/assets/monaco/vs' }),
       ],
     });
 
@@ -204,6 +212,73 @@ describe('PolicyEditorComponent (P9.2)', () => {
       // Update body must NOT carry a name/description (server doesn't accept it).
       expect((req as any).name).toBeUndefined();
       expect((req as any).description).toBeUndefined();
+    });
+  });
+
+  // #192 — Monaco wiring. The editor itself isn't exercised in jsdom
+  // (no AMD loader, no canvas) — we test the `onMonacoEditorInit`
+  // callback in isolation against a fake monaco global.
+  describe('Monaco schema wiring (#192)', () => {
+    let fakeSetDiagnostics: jasmine.Spy;
+
+    beforeEach(() => {
+      build();
+      api.getPolicy.and.returnValue(of(samplePolicy));
+      api.getPolicyVersion.and.returnValue(of(sampleDraftVersion));
+      (api as any).getRulesSchema = jasmine.createSpy('getRulesSchema');
+
+      fakeSetDiagnostics = jasmine.createSpy('setDiagnosticsOptions');
+      // Stand up a minimal `window.monaco` shape so the callback can
+      // call setDiagnosticsOptions without exploding.
+      (window as any).monaco = {
+        languages: {
+          json: {
+            jsonDefaults: { setDiagnosticsOptions: fakeSetDiagnostics },
+          },
+        },
+      };
+
+      fixture = TestBed.createComponent(PolicyEditorComponent);
+      component = fixture.componentInstance;
+      fixture.detectChanges();
+    });
+
+    afterEach(() => {
+      delete (window as any).monaco;
+    });
+
+    it('fetches the schema and feeds it to monaco.languages.json.jsonDefaults', () => {
+      const fakeSchema = { type: 'object', additionalProperties: true };
+      (api as any).getRulesSchema.and.returnValue(of(fakeSchema));
+
+      component.onMonacoEditorInit();
+
+      expect((api as any).getRulesSchema).toHaveBeenCalledTimes(1);
+      expect(fakeSetDiagnostics).toHaveBeenCalledTimes(1);
+      const arg = fakeSetDiagnostics.calls.mostRecent().args[0];
+      expect(arg.validate).toBeTrue();
+      expect(arg.schemas[0].uri).toBe(
+        'https://andy-policies/schemas/rules.json');
+      expect(arg.schemas[0].schema).toBe(fakeSchema);
+    });
+
+    it('schema fetch failure is non-fatal — setDiagnosticsOptions is not called', () => {
+      const failure = new HttpErrorResponse({ status: 503 });
+      (api as any).getRulesSchema.and.returnValue(throwError(() => failure));
+
+      component.onMonacoEditorInit();
+
+      expect(fakeSetDiagnostics).not.toHaveBeenCalled();
+    });
+
+    it('does nothing if monaco global is missing (defensive guard)', () => {
+      delete (window as any).monaco;
+      const fakeSchema = { type: 'object' };
+      (api as any).getRulesSchema.and.returnValue(of(fakeSchema));
+
+      component.onMonacoEditorInit();
+
+      expect((api as any).getRulesSchema).not.toHaveBeenCalled();
     });
   });
 });

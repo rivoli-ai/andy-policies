@@ -508,6 +508,20 @@ export class ApiService {
     return this.http.delete<void>(`${this.baseUrl}/bundles/${id}`, { params });
   }
 
+  // --- Schemas (#191 #192) ---
+
+  /**
+   * Fetch the rules-DSL JSON Schema served at `/api/schemas/rules.json`.
+   * Anonymous endpoint — strong ETag + 5-minute Cache-Control on the
+   * server side, so repeat calls are cheap. Used by the Monaco editor
+   * (#192) to wire schema-aware diagnostics. Type is intentionally
+   * `unknown` because the schema is permissive today (`type: object,
+   * additionalProperties: true`) and Monaco accepts any JSON.
+   */
+  getRulesSchema(): Observable<unknown> {
+    return this.http.get<unknown>(`${this.baseUrl}/schemas/rules.json`);
+  }
+
   // --- Publish workflow (P9.3 #68 / backend #216) ---
 
   /**

@@ -100,6 +100,21 @@
   resize: vertical;
 }
 
+// #192 — Monaco editor host. Fixed height matches the previous
+// 14-row textarea visually so the form layout doesn't shift when
+// the editor mounts.
+.monaco-host {
+  height: 320px;
+  border: 1px solid var(--border, #ddd);
+  border-radius: 4px;
+  overflow: hidden;
+
+  .monaco-editor-host {
+    display: block;
+    height: 100%;
+  }
+}
+
 .hint {
   font-size: 12px;
   color: var(--text-secondary);

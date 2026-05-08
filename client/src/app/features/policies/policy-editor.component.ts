@@ -21,6 +21,7 @@ import {
   Validators,
 } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { MonacoEditorModule } from 'ngx-monaco-editor-v2';
 import {
   ApiService,
   CreatePolicyRequest,
@@ -59,7 +60,13 @@ interface EditorForm {
 @Component({
   selector: 'app-policy-editor',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink, ScopeChipInputComponent],
+  imports: [
+    CommonModule,
+    ReactiveFormsModule,
+    RouterLink,
+    ScopeChipInputComponent,
+    MonacoEditorModule,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './policy-editor.component.html',
   styleUrls: ['./policy-editor.component.scss'],
@@ -83,6 +90,23 @@ export class PolicyEditorComponent {
 
   readonly enforcementOptions: Enforcement[] = ['MUST', 'SHOULD', 'MAY'];
   readonly severityOptions: Severity[] = ['info', 'moderate', 'critical'];
+
+  /** Monaco editor options. `automaticLayout` keeps the editor sized
+   *  to its container even after route changes / fieldset folds; the
+   *  rest is best-fit defaults for editing a small JSON document. */
+  readonly monacoOptions = {
+    theme: 'vs',
+    language: 'json',
+    automaticLayout: true,
+    minimap: { enabled: false },
+    scrollBeyondLastLine: false,
+    fontSize: 13,
+    tabSize: 2,
+  };
+
+  /** Schema id wired into Monaco's diagnostics. Stable URL — the
+   *  server's `$id` matches and Monaco uses it for hover/completions. */
+  private static readonly RulesSchemaId = 'https://andy-policies/schemas/rules.json';
 
   readonly form: FormGroup<EditorForm> = this.fb.group<EditorForm>({
     name: this.fb.control('', [
@@ -202,6 +226,44 @@ export class PolicyEditorComponent {
 
   cancel(): void {
     this.router.navigate(['/policies']);
+  }
+
+  /**
+   * Wire schema-aware diagnostics into Monaco's JSON language service.
+   * Fired by `(onInit)` from the editor wrapper — at that point the
+   * `monaco` global is on `window` (loaded via the AMD loader from
+   * `/assets/monaco/vs`). We fetch the schema lazily; on failure the
+   * editor still works (no schema diagnostics, basic syntax highlight
+   * + JSON.parse-level errors from the form validator).
+   */
+  onMonacoEditorInit(): void {
+    const monaco = (window as unknown as { monaco?: typeof import('monaco-editor') }).monaco;
+    if (!monaco) return; // defensive — should always be present after onInit fires
+
+    this.api
+      .getRulesSchema()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: schema => {
+          monaco.languages.json.jsonDefaults.setDiagnosticsOptions({
+            validate: true,
+            allowComments: false,
+            // Bind the schema to any `inmemory://` URI Monaco creates for
+            // unsaved buffers — that covers every model the editor
+            // creates here, since the editor isn't backed by a real file.
+            schemas: [{
+              uri: PolicyEditorComponent.RulesSchemaId,
+              fileMatch: ['*'],
+              schema,
+            }],
+          });
+        },
+        error: () => {
+          // Non-critical — fall back to plain JSON editing without
+          // schema hints. The form-level jsonValidator still catches
+          // syntax errors at save time.
+        },
+      });
   }
 
   private loadForEdit(policyId: string, versionId: string): void {
