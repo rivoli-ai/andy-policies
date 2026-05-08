@@ -131,6 +131,17 @@ public class AppDbContext : DbContext
 
             entity.Property(v => v.Revision).IsRequired();
 
+            // #216 — author-driven "ready for review" flag, default false.
+            // Composite index on (State, ReadyForReview) so the approver-inbox
+            // query `/api/policies/pending-approval`
+            // (State == Draft && ReadyForReview == true) is single-scan as the
+            // table grows. We could narrow further with a partial index but
+            // SQLite's `boolean = TRUE` filter literal is non-portable to
+            // Postgres's actual-boolean storage; the composite index produces
+            // the same plan in practice and stays portable.
+            entity.Property(v => v.ReadyForReview).IsRequired().HasDefaultValue(false);
+            entity.HasIndex(v => new { v.State, v.ReadyForReview }, "ix_policy_versions_pending_approval");
+
             entity.HasOne(v => v.Policy)
                 .WithMany(p => p.Versions)
                 .HasForeignKey(v => v.PolicyId)

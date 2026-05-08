@@ -137,6 +137,27 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+  /api/auth/permissions:
+    get:
+      tags:
+        - Auth
+      summary: "Return the permission codes the current authenticated subject is\r\nallowed to exercise on this service. Result is cached for 60s\r\nkeyed on the subject id; flagged off the manifest's permission\r\ncatalog so a new permission shows up in the response the moment\r\nit's added to `config/registration.json`."
+      operationId: Auth_Permissions
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /api/bindings:
     post:
       tags:
@@ -1412,6 +1433,66 @@ paths:
             text/json:
               schema:
                 $ref: '#/components/schemas/PolicyVersionDto'
+  /api/Policies/pending-approval:
+    get:
+      tags:
+        - Policies
+      summary: "#216 — approver inbox feed: Draft versions where\r\n`ReadyForReview = true`, ordered most-recently-created\r\nfirst. Authz on `:publish` rather than `:read` because\r\nonly an approver should see this list; viewers stick to the\r\nregular per-policy version listing."
+      operationId: Policies_ListPendingApproval
+      parameters:
+        - name: skip
+          in: query
+          schema:
+            type: integer
+            format: int32
+        - name: take
+          in: query
+          schema:
+            type: integer
+            format: int32
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PolicyVersionDto'
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PolicyVersionDto'
+            text/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PolicyVersionDto'
+        '401':
+          description: Unauthorized
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   '/api/Policies/{id}':
     get:
       tags:
@@ -1836,6 +1917,128 @@ paths:
         - PolicyVersionsLifecycle
       summary: "Tombstone a version. Stamps `RetiredAt`; subsequent transitions are\r\nrejected by the matrix."
       operationId: PolicyVersionsLifecycle_Retire
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: versionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LifecycleTransitionRequest'
+          text/json:
+            schema:
+              $ref: '#/components/schemas/LifecycleTransitionRequest'
+          application/*+json:
+            schema:
+              $ref: '#/components/schemas/LifecycleTransitionRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyVersionDto'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  '/api/policies/{id}/versions/{versionId}/propose':
+    post:
+      tags:
+        - PolicyVersionsLifecycle
+      summary: "#216 — author marks a Draft as ready for an approver to review.\r\nSets `ReadyForReview = true`; idempotent on already-proposed\r\ndrafts. Returns 409 if the version is past Draft."
+      operationId: PolicyVersionsLifecycle_Propose
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: versionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LifecycleTransitionRequest'
+          text/json:
+            schema:
+              $ref: '#/components/schemas/LifecycleTransitionRequest'
+          application/*+json:
+            schema:
+              $ref: '#/components/schemas/LifecycleTransitionRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyVersionDto'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  '/api/policies/{id}/versions/{versionId}/reject':
+    post:
+      tags:
+        - PolicyVersionsLifecycle
+      summary: "#216 — approver bounces a Proposed draft back to plain Draft. Per\r\noption (a) of the design fork: revert-to-draft, not terminal-state.\r\nClears `ReadyForReview` and records the rejection rationale\r\nin the audit chain. Returns 400 on empty rationale; 409 if the\r\nversion is past Draft."
+      operationId: PolicyVersionsLifecycle_Reject
       parameters:
         - name: id
           in: path
@@ -2901,6 +3104,11 @@ components:
         revision:
           type: integer
           format: int32
+        publisherSubjectId:
+          type: string
+          nullable: true
+        readyForReview:
+          type: boolean
       additionalProperties: false
       description: "Wire-format projection of a `PolicyVersion`. Enum-shaped fields are\r\nserialised in the casing required by ADR 0001 §6:\r\n<list type=\"bullet\"><item><term>Enforcement</term><description>uppercase RFC 2119 tokens (`MUST` / `SHOULD` / `MAY`).</description></item><item><term>Severity</term><description>lowercase (`info` / `moderate` / `critical`).</description></item><item><term>State</term><description>PascalCase (`Draft` / `Active` / `WindingDown` / `Retired`) — matches DB storage and consumer-visible lifecycle labels.</description></item></list>\r\nService layer performs the casing conversion; controllers pass the DTO through unchanged.\r\n\n`Revision` is the optimistic-concurrency token (P9 follow-up #194,\r\n2026-05-07). On Postgres + SQLite alike it's a manually-bumped `uint`;\r\nEF raises `DbUpdateConcurrencyException` when the loaded version's\r\n`Revision` diverges from what's on disk. UI flows that present a\r\nversion DTO and let the user save later should round-trip the value via\r\n`UpdatePolicyVersionRequest.ExpectedRevision` and the lifecycle\r\ntransition request's `ExpectedRevision`; mismatch returns 412.\r\n"
     ProblemDetails:
@@ -3127,6 +3335,8 @@ security:
 tags:
   - name: Audit
     description: "REST surface for the catalog audit chain (P6.5+). This file\r\nscaffolds the `verify` endpoint (P6.5, story\r\nrivoli-ai/andy-policies#45); list / get / export endpoints\r\nfollow in P6.6+."
+  - name: Auth
+    description: "#216 — caller-permission introspection (P9.3 prerequisite). Answers\r\nthe question the SPA needs to gate button visibility: \"what\r\npermissions does the current subject have on this service?\""
   - name: Bindings
     description: "REST surface for `Binding` mutation, single-id read, and target-side\r\nquery (P3.3, story rivoli-ai/andy-policies#21). Delegates to\r\nAndy.Policies.Application.Interfaces.IBindingService from P3.2 — same service powering MCP\r\n(P3.5), gRPC (P3.6), and CLI (P3.7). Service exceptions are mapped by\r\nthe global `PolicyExceptionHandler` (already covers\r\nAndy.Policies.Application.Exceptions.NotFoundException,\r\nAndy.Policies.Application.Exceptions.ConflictException, and\r\nAndy.Policies.Application.Exceptions.ValidationException; the\r\nAndy.Policies.Application.Exceptions.BindingRetiredVersionException\r\ninherits from Andy.Policies.Application.Exceptions.ConflictException so\r\nthe existing 409 mapping catches it)."
   - name: Bundles

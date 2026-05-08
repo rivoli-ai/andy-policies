@@ -59,6 +59,28 @@ public class PoliciesController : ControllerBase
         return Ok(results);
     }
 
+    /// <summary>
+    /// #216 — approver inbox feed: Draft versions where
+    /// <c>ReadyForReview = true</c>, ordered most-recently-created
+    /// first. Authz on <c>:publish</c> rather than <c>:read</c> because
+    /// only an approver should see this list; viewers stick to the
+    /// regular per-policy version listing.
+    /// </summary>
+    [HttpGet("pending-approval")]
+    [Authorize(Policy = "andy-policies:policy:publish")]
+    [ProducesResponseType(typeof(IReadOnlyList<PolicyVersionDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<IReadOnlyList<PolicyVersionDto>>> ListPendingApproval(
+        [FromQuery] int? skip,
+        [FromQuery] int? take,
+        CancellationToken ct)
+    {
+        var rows = await _policies.ListPendingApprovalAsync(
+            skip ?? 0, take ?? 50, ct);
+        return Ok(rows);
+    }
+
     [HttpGet("{id:guid}")]
     [Authorize(Policy = "andy-policies:policy:read")]
     [RequiresBundlePin]

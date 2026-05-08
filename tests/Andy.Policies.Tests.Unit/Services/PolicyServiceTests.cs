@@ -346,4 +346,101 @@ public class PolicyServiceTests
         var after = await service.GetPolicyAsync(v1.PolicyId);
         Assert.Equal(v1.Id, after!.ActiveVersionId);
     }
+
+    // ----- Propose / Reject / ListPendingApproval (#216) ---------------
+
+    [Fact]
+    public async Task ProposeDraftAsync_FlipsReadyForReview_AndIsIdempotent()
+    {
+        using var db = CreateInMemoryDb();
+        var service = new PolicyService(db);
+        var draft = await service.CreateDraftAsync(MinimalCreate("propose-1"), "author");
+
+        var proposed = await service.ProposeDraftAsync(
+            draft.PolicyId, draft.Id, "rationale", "author");
+
+        Assert.True(proposed.ReadyForReview,
+            "ReadyForReview must flip true on first propose");
+
+        // Idempotent: re-proposing returns the row unchanged and does not
+        // double-flip. The contract documented on IPolicyService says
+        // "succeeds without an additional audit event" — here we just
+        // assert state stability; the audit-skip is verified separately.
+        var second = await service.ProposeDraftAsync(
+            draft.PolicyId, draft.Id, "rationale", "author");
+        Assert.True(second.ReadyForReview);
+        Assert.Equal(proposed.Revision, second.Revision);
+    }
+
+    [Fact]
+    public async Task ProposeDraftAsync_NonDraftState_ThrowsConflict()
+    {
+        using var db = CreateInMemoryDb();
+        var service = new PolicyService(db);
+        var draft = await service.CreateDraftAsync(MinimalCreate("propose-2"), "author");
+
+        // Force out of Draft (skip the lifecycle service — this test is
+        // about service-level state-gate refusal, not the transition path).
+        var entity = await db.PolicyVersions.FirstAsync(v => v.Id == draft.Id);
+        entity.State = LifecycleState.Active;
+        await db.SaveChangesAsync();
+
+        await Assert.ThrowsAsync<ConflictException>(() =>
+            service.ProposeDraftAsync(draft.PolicyId, draft.Id, "r", "author"));
+    }
+
+    [Fact]
+    public async Task RejectDraftAsync_ClearsReadyForReview_AndRequiresRationale()
+    {
+        using var db = CreateInMemoryDb();
+        var service = new PolicyService(db);
+        var draft = await service.CreateDraftAsync(MinimalCreate("reject-1"), "author");
+        await service.ProposeDraftAsync(draft.PolicyId, draft.Id, "ready", "author");
+
+        // Empty rationale: must throw — audit needs the reason.
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            service.RejectDraftAsync(draft.PolicyId, draft.Id, "   ", "approver"));
+
+        var rejected = await service.RejectDraftAsync(
+            draft.PolicyId, draft.Id, "needs more detail", "approver");
+        Assert.False(rejected.ReadyForReview);
+        // Reject reverts to plain Draft; option (a) — no terminal Rejected state.
+        Assert.Equal("Draft", rejected.State);
+    }
+
+    [Fact]
+    public async Task RejectDraftAsync_WhenNotReadyForReview_IsNoOp()
+    {
+        using var db = CreateInMemoryDb();
+        var service = new PolicyService(db);
+        var draft = await service.CreateDraftAsync(MinimalCreate("reject-2"), "author");
+
+        // Not yet proposed — reject is idempotent / no-op, no exception.
+        var result = await service.RejectDraftAsync(
+            draft.PolicyId, draft.Id, "any", "approver");
+        Assert.False(result.ReadyForReview);
+    }
+
+    [Fact]
+    public async Task ListPendingApprovalAsync_ReturnsOnlyDraftWithReadyForReview()
+    {
+        using var db = CreateInMemoryDb();
+        var service = new PolicyService(db);
+
+        var d1 = await service.CreateDraftAsync(MinimalCreate("pending-1"), "author");
+        var d2 = await service.CreateDraftAsync(MinimalCreate("pending-2"), "author");
+        var d3 = await service.CreateDraftAsync(MinimalCreate("pending-3"), "author");
+
+        // d1 proposed, d2 not, d3 proposed-then-published.
+        await service.ProposeDraftAsync(d1.PolicyId, d1.Id, "r", "author");
+        await service.ProposeDraftAsync(d3.PolicyId, d3.Id, "r", "author");
+
+        var d3Entity = await db.PolicyVersions.FirstAsync(v => v.Id == d3.Id);
+        d3Entity.State = LifecycleState.Active;
+        await db.SaveChangesAsync();
+
+        var pending = await service.ListPendingApprovalAsync(skip: 0, take: 50);
+        Assert.Single(pending);
+        Assert.Equal(d1.Id, pending[0].Id);
+    }
 }

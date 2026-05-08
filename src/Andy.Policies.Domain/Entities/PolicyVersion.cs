@@ -86,6 +86,17 @@ public class PolicyVersion
     public string? PublishedBySubjectId { get; set; }
 
     /// <summary>
+    /// Author-driven \"this draft is ready for an approver to look at\" flag (#216).
+    /// Set by <c>POST .../propose</c>; cleared by <c>POST .../reject</c> or
+    /// (implicitly) when the version transitions out of Draft. Filtered on by
+    /// the approver inbox query <c>GET /api/policies/pending-approval</c>.
+    /// Distinct from <see cref="ProposerSubjectId"/>: that one stamps the
+    /// authorial subject at draft creation; this one is the explicit handoff
+    /// signal toward an approver.
+    /// </summary>
+    public bool ReadyForReview { get; set; }
+
+    /// <summary>
     /// Timestamp set when this version transitions to <see cref="LifecycleState.Retired"/>.
     /// P2's lifecycle service stamps it inside the transition transaction; never modified
     /// after retirement. Null for versions that never reached Retired.

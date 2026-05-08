@@ -271,7 +271,10 @@ public sealed class LifecycleTransitionService : ILifecycleTransitionService
         v.RulesJson,
         v.CreatedAt,
         v.CreatedBySubjectId,
-        v.ProposerSubjectId);
+        v.ProposerSubjectId,
+        v.Revision,
+        v.PublishedBySubjectId,
+        v.ReadyForReview);
 
     private static string ToEnforcementWire(EnforcementLevel level) => level switch
     {

@@ -29,7 +29,11 @@ public class PolicyVersionsLifecycleControllerActorClaimTests
         ClaimsPrincipal principal)
     {
         var stub = new RecordingTransitionService();
-        var controller = new PolicyVersionsLifecycleController(stub)
+        // The propose/reject paths added in #216 don't reach the
+        // IPolicyService dependency from any test in this class —
+        // each [Fact] exercises Publish / WindDown / Retire, which
+        // route through ILifecycleTransitionService only.
+        var controller = new PolicyVersionsLifecycleController(stub, policies: null!)
         {
             ControllerContext = new ControllerContext
             {

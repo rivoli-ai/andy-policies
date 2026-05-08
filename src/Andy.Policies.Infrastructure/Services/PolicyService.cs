@@ -342,6 +342,119 @@ public sealed partial class PolicyService : IPolicyService
             active?.Id);
     }
 
+    public async Task<PolicyVersionDto> ProposeDraftAsync(
+        Guid policyId, Guid versionId, string? rationale, string subjectId, CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(subjectId);
+
+        var version = await _db.PolicyVersions.FirstOrDefaultAsync(
+            v => v.PolicyId == policyId && v.Id == versionId, ct)
+            ?? throw new NotFoundException($"PolicyVersion {versionId} not found under policy {policyId}.");
+
+        if (version.State != LifecycleState.Draft)
+        {
+            // Only Draft versions can be proposed for review. Active /
+            // WindingDown / Retired don't have a "needs review" notion.
+            throw new ConflictException(
+                $"PolicyVersion {version.Id} is in state {version.State}; only Draft versions can be proposed.");
+        }
+
+        // Idempotent: re-proposing an already-proposed draft is a no-op
+        // on both the row and the audit chain. The UI may double-click
+        // the button under flaky network; we don't want to spam the
+        // chain with duplicate `policy.draft.proposed` events.
+        if (version.ReadyForReview)
+        {
+            return ToVersionDto(version);
+        }
+
+        version.MutateDraftField(() =>
+        {
+            version.ReadyForReview = true;
+        });
+        await _db.SaveChangesAsync(ct);
+
+        if (_audit is not null)
+        {
+            await _audit.AppendAsync(
+                "policy.draft.proposed", version.Id, subjectId, rationale, ct)
+                .ConfigureAwait(false);
+        }
+
+        return ToVersionDto(version);
+    }
+
+    public async Task<PolicyVersionDto> RejectDraftAsync(
+        Guid policyId, Guid versionId, string rationale, string subjectId, CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(subjectId);
+        if (string.IsNullOrWhiteSpace(rationale))
+        {
+            // Rejection always requires a rationale — the audit chain is
+            // the only place an author finds out *why* a proposal bounced.
+            // Independent of the rationale-required setting because the
+            // wire shape says so (see #216 reject semantics).
+            throw new ValidationException("Rationale is required and may not be empty or whitespace.");
+        }
+
+        var version = await _db.PolicyVersions.FirstOrDefaultAsync(
+            v => v.PolicyId == policyId && v.Id == versionId, ct)
+            ?? throw new NotFoundException($"PolicyVersion {versionId} not found under policy {policyId}.");
+
+        if (version.State != LifecycleState.Draft)
+        {
+            throw new ConflictException(
+                $"PolicyVersion {version.Id} is in state {version.State}; reject is the proposal-time bounce only.");
+        }
+
+        // Idempotent: rejecting a draft that wasn't ReadyForReview is a
+        // no-op. We still want callers to get back the current row, but
+        // we don't write an audit event for the empty transition.
+        if (!version.ReadyForReview)
+        {
+            return ToVersionDto(version);
+        }
+
+        version.MutateDraftField(() =>
+        {
+            version.ReadyForReview = false;
+        });
+        await _db.SaveChangesAsync(ct);
+
+        if (_audit is not null)
+        {
+            await _audit.AppendAsync(
+                "policy.draft.rejected", version.Id, subjectId, rationale, ct)
+                .ConfigureAwait(false);
+        }
+
+        return ToVersionDto(version);
+    }
+
+    public async Task<IReadOnlyList<PolicyVersionDto>> ListPendingApprovalAsync(
+        int skip, int take, CancellationToken ct = default)
+    {
+        var clampedSkip = Math.Max(0, skip);
+        var clampedTake = Math.Clamp(take, 1, MaxPageSize);
+
+        // SQLite cannot ORDER BY DateTimeOffset (same posture as the
+        // OverrideExpiryReaper / bundle list paths). Pull the filtered
+        // set, then order client-side. The filter is bounded by the
+        // composite index on (State, ReadyForReview) so the candidate
+        // pool stays small even on a large catalog.
+        var rows = await _db.PolicyVersions.AsNoTracking()
+            .Where(v => v.State == LifecycleState.Draft && v.ReadyForReview)
+            .ToListAsync(ct);
+
+        return rows
+            .OrderByDescending(v => v.CreatedAt)
+            .ThenBy(v => v.Id)
+            .Skip(clampedSkip)
+            .Take(clampedTake)
+            .Select(ToVersionDto)
+            .ToList();
+    }
+
     private static PolicyVersionDto ToVersionDto(PolicyVersion v) => new(
         v.Id,
         v.PolicyId,
@@ -355,7 +468,9 @@ public sealed partial class PolicyService : IPolicyService
         v.CreatedAt,
         v.CreatedBySubjectId,
         v.ProposerSubjectId,
-        v.Revision);
+        v.Revision,
+        v.PublishedBySubjectId,
+        v.ReadyForReview);
 
     /// <summary>ADR 0001 §6: uppercase RFC 2119 tokens on the wire.</summary>
     private static string ToEnforcementWire(EnforcementLevel level) => level switch

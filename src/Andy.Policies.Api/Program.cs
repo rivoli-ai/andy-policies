@@ -62,6 +62,7 @@ string[] rbacPermissionCodes =
 {
     "andy-policies:policy:read",        "andy-policies:policy:author",
     "andy-policies:policy:publish",     "andy-policies:policy:transition",
+    "andy-policies:policy:propose",     "andy-policies:policy:reject",
     "andy-policies:binding:read",       "andy-policies:binding:manage",
     "andy-policies:scope:read",         "andy-policies:scope:manage",
     "andy-policies:override:read",      "andy-policies:override:propose",
