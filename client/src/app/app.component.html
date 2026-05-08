@@ -5,6 +5,12 @@
     <div class="nav-links">
       <a routerLink="/dashboard" routerLinkActive="active">Dashboard</a>
       <a routerLink="/policies" routerLinkActive="active">Policies</a>
+      <a *ngIf="permissions.canPublish()"
+         routerLink="/approvals"
+         routerLinkActive="active"
+         data-testid="nav-approvals">
+        Approvals
+      </a>
       <a routerLink="/overrides" routerLinkActive="active">Overrides</a>
       <a routerLink="/audit" routerLinkActive="active">Audit</a>
       <a routerLink="/bundles" routerLinkActive="active">Bundles</a>

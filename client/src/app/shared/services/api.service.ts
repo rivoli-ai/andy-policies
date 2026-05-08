@@ -26,7 +26,16 @@ export interface PolicyDto {
 }
 
 /** Wire shape matching `PolicyVersionDto`. Enforcement uppercase RFC 2119,
- *  severity lowercase, state PascalCase per ADR 0001 §6. */
+ *  severity lowercase, state PascalCase per ADR 0001 §6.
+ *  `revision` (#194) round-trips as an optimistic-concurrency token —
+ *  callers preserve it across edit and pass it back via
+ *  `expectedRevision` on publish/update so a stale tab gets a 412
+ *  instead of overwriting concurrent work.
+ *  `publisherSubjectId` (#216) is null until the version transitions to
+ *  Active; populated on the same write that flips State.
+ *  `readyForReview` (#216) is the author-driven "this draft is ready
+ *  for an approver" handoff signal — only meaningful while
+ *  `state === 'Draft'`. */
 export interface PolicyVersionDto {
   id: string;
   policyId: string;
@@ -40,6 +49,9 @@ export interface PolicyVersionDto {
   createdAt: string;
   createdBySubjectId: string;
   proposerSubjectId: string;
+  revision?: number;
+  publisherSubjectId?: string | null;
+  readyForReview?: boolean;
 }
 
 /** Body for `POST /api/policies` (create policy + first draft version). */
@@ -62,9 +74,13 @@ export interface UpdatePolicyVersionRequest {
   rulesJson: string;
 }
 
-/** Body for the lifecycle transition endpoints (publish / winding-down / retire). */
+/** Body for the lifecycle transition endpoints (publish / winding-down / retire).
+ *  `expectedRevision` (#194) is optional optimistic-concurrency: when supplied,
+ *  the server returns 412 if the version's revision has advanced (e.g. a
+ *  concurrent edit landed between inbox load and approve). */
 export interface LifecycleTransitionBody {
   rationale: string;
+  expectedRevision?: number;
 }
 
 /** P9.5 (#70) — bind strength enum, matches `Andy.Policies.Domain.Enums.BindStrength`. */
@@ -112,11 +128,11 @@ export interface CreateBindingRequest {
 }
 
 /**
- * P9.6 (#88) — Override lifecycle states. Note: the server has only four states
- * (no Rejected); the only ways out of `Proposed` are `Approved` (via approve)
- * or `Revoked` (via revoke). Spec asked for a Reject endpoint that doesn't exist.
+ * P9.6 (#88) — Override lifecycle states. Reject (#201) added in PR #213:
+ * `Proposed` can now also terminate as `Rejected` (distinct from `Revoked`,
+ * which fires from `Approved`). The audit chain distinguishes the two.
  */
-export type OverrideState = 'Proposed' | 'Approved' | 'Revoked' | 'Expired';
+export type OverrideState = 'Proposed' | 'Approved' | 'Revoked' | 'Expired' | 'Rejected';
 
 /** Mirrors `Andy.Policies.Domain.Enums.OverrideScopeKind`. */
 export type OverrideScopeKind = 'Principal' | 'Cohort';
@@ -344,14 +360,18 @@ export class ApiService {
     versionId: string,
     targetState: LifecycleState,
     rationale: string,
+    expectedRevision?: number,
   ): Observable<PolicyVersionDto> {
     const segment = TRANSITION_PATH_SEGMENTS[targetState];
     if (!segment) {
       throw new Error(`No endpoint exists for transition to '${targetState}'.`);
     }
+    const body: LifecycleTransitionBody = expectedRevision != null
+      ? { rationale, expectedRevision }
+      : { rationale };
     return this.http.post<PolicyVersionDto>(
       `${this.baseUrl}/policies/${id}/versions/${versionId}/${segment}`,
-      { rationale },
+      body,
     );
   }
 
@@ -461,5 +481,70 @@ export class ApiService {
     let params = new HttpParams();
     if (rationale) params = params.set('rationale', rationale);
     return this.http.delete<void>(`${this.baseUrl}/bundles/${id}`, { params });
+  }
+
+  // --- Publish workflow (P9.3 #68 / backend #216) ---
+
+  /**
+   * Returns the current subject's effective permission codes for this
+   * service. The browser must NEVER call andy-rbac directly — this is
+   * the firewall (#103). Response is cached server-side for 60s
+   * keyed on subject id, and `PermissionsService` caches it client-side
+   * for the lifetime of the SPA session (refreshed at login).
+   */
+  getMyPermissions(): Observable<string[]> {
+    return this.http.get<string[]>(`${this.baseUrl}/auth/permissions`);
+  }
+
+  /**
+   * Author flips `ReadyForReview = true` on a Draft version. Idempotent
+   * server-side (re-proposing an already-proposed draft is a no-op
+   * without an extra audit event). Returns 409 if the version is past
+   * Draft.
+   */
+  proposePolicyVersion(
+    policyId: string,
+    versionId: string,
+    rationale: string,
+  ): Observable<PolicyVersionDto> {
+    return this.http.post<PolicyVersionDto>(
+      `${this.baseUrl}/policies/${policyId}/versions/${versionId}/propose`,
+      { rationale },
+    );
+  }
+
+  /**
+   * Approver bounces a Proposed draft back to plain Draft (option (a)
+   * reject semantics: revert-to-draft, not terminal-state). Server
+   * requires a non-empty rationale — the audit chain is the only
+   * place an author finds out *why* the proposal bounced.
+   */
+  rejectPolicyVersion(
+    policyId: string,
+    versionId: string,
+    rationale: string,
+  ): Observable<PolicyVersionDto> {
+    return this.http.post<PolicyVersionDto>(
+      `${this.baseUrl}/policies/${policyId}/versions/${versionId}/reject`,
+      { rationale },
+    );
+  }
+
+  /**
+   * Approver inbox feed. Returns Draft versions where
+   * `readyForReview === true`, ordered most-recently-created first.
+   * The route is gated on `andy-policies:policy:publish`.
+   */
+  listPendingApprovals(
+    skip?: number,
+    take?: number,
+  ): Observable<PolicyVersionDto[]> {
+    let params = new HttpParams();
+    if (skip != null) params = params.set('skip', skip.toString());
+    if (take != null) params = params.set('take', take.toString());
+    return this.http.get<PolicyVersionDto[]>(
+      `${this.baseUrl}/policies/pending-approval`,
+      { params },
+    );
   }
 }

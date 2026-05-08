@@ -2,6 +2,7 @@
 
 import { Routes } from '@angular/router';
 import { authGuard } from './core/guards/auth.guard';
+import { canPublishGuard } from './core/guards/can-publish.guard';
 
 export const routes: Routes = [
   {
@@ -48,6 +49,14 @@ export const routes: Routes = [
         (m) => m.PolicyEditorComponent
       ),
     canActivate: [authGuard],
+  },
+  {
+    path: 'approvals',
+    loadComponent: () =>
+      import('./features/policies/approvals-inbox.component').then(
+        (m) => m.ApprovalsInboxComponent
+      ),
+    canActivate: [authGuard, canPublishGuard],
   },
   {
     path: 'overrides',
