@@ -46,6 +46,7 @@ nav:
     - 0004 Scope hierarchy: adr/0004-scope-hierarchy.md
     - 0005 Overrides: adr/0005-overrides.md
     - 0006 Audit hash chain: adr/0006-audit-hash-chain.md
+    - 0006.1 Audit retention: adr/0006.1-audit-retention.md
     - 0007 Edit RBAC: adr/0007-edit-rbac.md
     - 0008 Bundle pinning: adr/0008-bundle-pinning.md
     - 0010 Embedded mode: adr/0010-embedded-mode.md

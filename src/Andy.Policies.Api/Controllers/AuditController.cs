@@ -45,11 +45,19 @@ public sealed class AuditController : ControllerBase
 
     private readonly IAuditChain _chain;
     private readonly IAuditQuery _query;
+    private readonly IAuditRetentionPolicy _retention;
+    private readonly TimeProvider _clock;
 
-    public AuditController(IAuditChain chain, IAuditQuery query)
+    public AuditController(
+        IAuditChain chain,
+        IAuditQuery query,
+        IAuditRetentionPolicy retention,
+        TimeProvider clock)
     {
         _chain = chain;
         _query = query;
+        _retention = retention;
+        _clock = clock;
     }
 
     /// <summary>
@@ -172,8 +180,15 @@ public sealed class AuditController : ControllerBase
                 code: "audit.list.invalid_cursor");
         }
 
+        // ADR 0006.1: when the caller omits `from`, default it to the
+        // staleness threshold derived from andy.policies.auditRetentionDays.
+        // An explicit caller-supplied `from` always wins, even when it
+        // predates the threshold — operators routinely need to dig into
+        // older rows for incident response.
+        var effectiveFrom = from ?? _retention.GetStalenessThreshold(_clock.GetUtcNow());
+
         var page = await _query.QueryAsync(
-            new AuditQueryFilter(actor, from, to, entityType, entityId, action, after, size),
+            new AuditQueryFilter(actor, effectiveFrom, to, entityType, entityId, action, after, size),
             ct);
         return Ok(page);
     }

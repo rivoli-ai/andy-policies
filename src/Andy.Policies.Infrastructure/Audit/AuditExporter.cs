@@ -26,11 +26,13 @@ public sealed class AuditExporter : IAuditExporter
 
     private readonly AppDbContext _db;
     private readonly TimeProvider _clock;
+    private readonly IAuditRetentionPolicy _retention;
 
-    public AuditExporter(AppDbContext db, TimeProvider clock)
+    public AuditExporter(AppDbContext db, TimeProvider clock, IAuditRetentionPolicy retention)
     {
         _db = db;
         _clock = clock;
+        _retention = retention;
     }
 
     public async Task WriteNdjsonAsync(
@@ -45,6 +47,12 @@ public sealed class AuditExporter : IAuditExporter
             if (fromSeq is { } f) query = query.Where(e => e.Seq >= f);
             if (toSeq is { } t) query = query.Where(e => e.Seq <= t);
             query = query.OrderBy(e => e.Seq);
+
+            // ADR 0006.1: events with Timestamp < staleThreshold get
+            // a "stale": true marker on their NDJSON line. When
+            // retention is disabled (setting = 0), threshold is null
+            // and no event is flagged.
+            var staleThreshold = _retention.GetStalenessThreshold(_clock.GetUtcNow());
 
             long count = 0;
             long firstSeq = 0;
@@ -63,7 +71,8 @@ public sealed class AuditExporter : IAuditExporter
                 lastSeq = ev.Seq;
                 terminalHashHex = Convert.ToHexString(ev.Hash).ToLowerInvariant();
 
-                await writer.WriteLineAsync(SerializeEventLine(ev)).ConfigureAwait(false);
+                var stale = staleThreshold is { } threshold && ev.Timestamp < threshold;
+                await writer.WriteLineAsync(SerializeEventLine(ev, stale)).ConfigureAwait(false);
             }
 
             // Always emit a summary line, even on an empty range —
@@ -84,7 +93,7 @@ public sealed class AuditExporter : IAuditExporter
         }
     }
 
-    private static string SerializeEventLine(AuditEvent ev)
+    private static string SerializeEventLine(AuditEvent ev, bool stale)
     {
         // Embed the patch document as parsed JSON, not as a
         // string, so the bundle line-by-line is interchangeable
@@ -92,6 +101,32 @@ public sealed class AuditExporter : IAuditExporter
         // already understands.
         using var diffDoc = JsonDocument.Parse(
             string.IsNullOrEmpty(ev.FieldDiffJson) ? "[]" : ev.FieldDiffJson);
+
+        // Only emit the stale field when true. ADR 0006.1 §1 keeps
+        // the marker advisory; absence reads as "fresh" without
+        // adding a boolean column to every non-retention export.
+        if (stale)
+        {
+            var staleLine = new
+            {
+                type = "event",
+                id = ev.Id,
+                seq = ev.Seq,
+                prevHashHex = Convert.ToHexString(ev.PrevHash).ToLowerInvariant(),
+                hashHex = Convert.ToHexString(ev.Hash).ToLowerInvariant(),
+                timestamp = ev.Timestamp,
+                actorSubjectId = ev.ActorSubjectId,
+                actorRoles = ev.ActorRoles,
+                action = ev.Action,
+                entityType = ev.EntityType,
+                entityId = ev.EntityId,
+                fieldDiff = diffDoc.RootElement,
+                rationale = ev.Rationale,
+                stale = true,
+            };
+            return JsonSerializer.Serialize(staleLine, WireOptions);
+        }
+
         var line = new
         {
             type = "event",

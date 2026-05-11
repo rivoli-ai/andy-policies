@@ -189,7 +189,7 @@
       {
         "key": "andy.policies.auditRetentionDays",
         "displayName": "Audit Retention Days",
-        "description": "Audit log retention in days. Use 0 for indefinite.",
+        "description": "Metadata-only retention window (ADR 0006.1). Sets the default `from` filter on GET /api/audit list queries and flags older events with `stale: true` in NDJSON exports. Use 0 for unbounded (the shipped default). The audit chain is append-only — this setting NEVER deletes, archives, or moves rows, and /api/audit/verify always reads the full chain.",
         "category": "Audit",
         "dataType": "Integer",
         "defaultValue": "0",
