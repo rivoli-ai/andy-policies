@@ -59,6 +59,8 @@ public static class AuditTools
         "array; hashes travel as lowercase hex.")]
     public static async Task<string> List(
         IAuditQuery query,
+        IAuditRetentionPolicy retention,
+        TimeProvider clock,
         [Description("Filter by actor subject id (exact match)")] string? actor = null,
         [Description("Filter by entity type, e.g. Policy, Override")] string? entityType = null,
         [Description("Filter by entity id (exact match)")] string? entityId = null,
@@ -106,8 +108,12 @@ public static class AuditTools
             return "policy.audit.invalid_argument: cursor is not a recognised base64-JSON token.";
         }
 
+        // ADR 0006.1: default `from` to the retention threshold when
+        // the caller omits it. Explicit `from` always wins.
+        var effectiveFrom = fromDt ?? retention.GetStalenessThreshold(clock.GetUtcNow());
+
         var page = await query.QueryAsync(
-            new AuditQueryFilter(actor, fromDt, toDt, entityType, entityId, action, cursorAfter, pageSize),
+            new AuditQueryFilter(actor, effectiveFrom, toDt, entityType, entityId, action, cursorAfter, pageSize),
             ct).ConfigureAwait(false);
         return JsonSerializer.Serialize(page, DtoJsonOptions);
     }

@@ -162,6 +162,11 @@ builder.Services.AddScoped<Andy.Policies.Application.Interfaces.IAuditQuery, And
 // Scoped because AuditExporter depends on the scoped AppDbContext;
 // the exporter itself is read-only (no transactions).
 builder.Services.AddScoped<Andy.Policies.Application.Interfaces.IAuditExporter, Andy.Policies.Infrastructure.Audit.AuditExporter>();
+// ADR 0006.1 / #110: andy.policies.auditRetentionDays consumer.
+// Singleton so the OTel gauge registers once; the underlying
+// ISettingsSnapshot is itself a singleton refreshed by the
+// andy-settings hosted refresh service.
+builder.Services.AddSingleton<Andy.Policies.Application.Interfaces.IAuditRetentionPolicy, Andy.Policies.Infrastructure.Settings.AuditRetentionPolicy>();
 // P6.3 (#43): RFC 6902 JSON Patch diff generator. Singleton
 // because the implementation is pure + caches reflection
 // metadata per type; injected into every mutating service so
@@ -296,6 +301,7 @@ builder.Services.AddOpenTelemetry()
                .AddMeter(Andy.Policies.Infrastructure.Services.AndySettingsRationalePolicy.MeterName)
                .AddMeter(Andy.Policies.Infrastructure.BackgroundServices.OverrideExpiryReaper.MeterName)
                .AddMeter(Andy.Policies.Infrastructure.Settings.ExperimentalOverridesGate.MeterName)
+               .AddMeter(Andy.Policies.Infrastructure.Settings.AuditRetentionPolicy.MeterName)
                .AddMeter(Andy.Policies.Infrastructure.Services.Rbac.HttpRbacChecker.MeterName);
         if (!string.IsNullOrEmpty(otlpEndpoint))
             metrics.AddOtlpExporter(o => o.Endpoint = new Uri(otlpEndpoint));

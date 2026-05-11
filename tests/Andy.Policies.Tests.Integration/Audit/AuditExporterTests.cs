@@ -43,8 +43,14 @@ public class AuditExporterTests
         var db = new AppDbContext(options);
         db.Database.Migrate();
         var chain = new AuditChain(db, TimeProvider.System);
-        var exporter = new AuditExporter(db, TimeProvider.System);
+        var exporter = new AuditExporter(db, TimeProvider.System, NoRetention.Instance);
         return (db, chain, exporter, conn);
+    }
+
+    private sealed class NoRetention : IAuditRetentionPolicy
+    {
+        public static readonly NoRetention Instance = new();
+        public DateTimeOffset? GetStalenessThreshold(DateTimeOffset now) => null;
     }
 
     private static async Task SeedAsync(IAuditChain chain, int count)

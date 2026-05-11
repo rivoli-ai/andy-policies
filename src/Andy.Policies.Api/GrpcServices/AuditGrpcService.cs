@@ -48,12 +48,21 @@ public class AuditGrpcService : Andy.Policies.Api.Protos.AuditService.AuditServi
     private readonly IAuditQuery _query;
     private readonly IAuditChain _chain;
     private readonly IAuditExporter _exporter;
+    private readonly IAuditRetentionPolicy _retention;
+    private readonly TimeProvider _clock;
 
-    public AuditGrpcService(IAuditQuery query, IAuditChain chain, IAuditExporter exporter)
+    public AuditGrpcService(
+        IAuditQuery query,
+        IAuditChain chain,
+        IAuditExporter exporter,
+        IAuditRetentionPolicy retention,
+        TimeProvider clock)
     {
         _query = query;
         _chain = chain;
         _exporter = exporter;
+        _retention = retention;
+        _clock = clock;
     }
 
     public override async Task<ListAuditResponse> ListAudit(
@@ -86,10 +95,15 @@ public class AuditGrpcService : Andy.Policies.Api.Protos.AuditService.AuditServi
             throw new RpcException(new Status(StatusCode.InvalidArgument, $"cursor: {ex.Message}"));
         }
 
+        // ADR 0006.1: default `from` to the retention threshold when
+        // the caller omits it (proto unset → from is null). Explicit
+        // `from` always wins.
+        var effectiveFrom = from ?? _retention.GetStalenessThreshold(_clock.GetUtcNow());
+
         var page = await _query.QueryAsync(
             new AuditQueryFilter(
                 Actor: NullIfEmpty(request.Actor),
-                From: from,
+                From: effectiveFrom,
                 To: to,
                 EntityType: NullIfEmpty(request.EntityType),
                 EntityId: NullIfEmpty(request.EntityId),

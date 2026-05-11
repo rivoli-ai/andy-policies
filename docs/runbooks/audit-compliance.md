@@ -139,16 +139,23 @@ What the chain *cannot* prove:
 
 ## 5. How long are events kept?
 
-**Forever, in v1.** The chain is never truncated. The setting
-`andy.policies.auditRetentionDays` exists in andy-settings but
-governs *export-freshness warnings* (P6.7) — whether the operator
-console flags a chain that hasn't been exported in N days. It
-does **not** delete rows.
+**Forever.** The chain is never truncated. The setting
+`andy.policies.auditRetentionDays` is **metadata-only** per
+[ADR 0006.1](../adr/0006.1-audit-retention.md):
 
-If retention enforcement (true row removal) is required for a
-specific deployment, raise it as an ADR amendment to ADR 0006.
-The current design's chain-as-source-of-truth invariant
-explicitly excludes retention truncation.
+- Sets the default `from` window on `GET /api/audit` list queries.
+  Callers may pass an explicit `?from=` to retrieve older events.
+- Flags events older than `now() - retentionDays` with
+  `"stale": true` in P6.7 NDJSON exports.
+- Has **no effect** on `/api/audit/verify` — verification always
+  reads the full chain (narrowing scope would defeat the
+  integrity contract).
+- Does **not** delete, archive, or relocate rows. Increasing
+  retention does not free disk space.
+
+The shipped default is `0` (unbounded). Cold-storage tiering for
+deployments where catalog volume outgrows a single table is
+deferred to a future ADR.
 
 ## 6. PII in audit diffs
 
