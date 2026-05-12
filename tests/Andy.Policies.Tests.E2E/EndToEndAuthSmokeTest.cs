@@ -65,6 +65,14 @@ public sealed class EndToEndAuthSmokeTest : IAsyncLifetime
     private const string TestUserPassword = "Test123!";
     private const string TestUserWellKnownId = "00000000-0000-0000-0000-000000000001";
 
+    // Companion no-permissions user seeded by andy-auth's DbSeeder (#95 upstream).
+    // Deliberately not bound to any role in andy-rbac, so any [Authorize(Policy=...)]
+    // endpoint should return 403 for this subject (per PermissionEvaluator's
+    // "Subject not found" fail-closed branch).
+    private const string ViewerUserEmail = "viewer@andy.local";
+    private const string ViewerUserPassword = "Test123!";
+    private const string ViewerUserWellKnownId = "00000000-0000-0000-0000-000000000002";
+
     private readonly HttpClient _http = new();
 
     public Task InitializeAsync() => Task.CompletedTask;
@@ -254,6 +262,86 @@ public sealed class EndToEndAuthSmokeTest : IAsyncLifetime
         Assert.True(hasAdminOnPolicies,
             $"Expected test user ({TestUserEmail}) to have admin role on andy-policies after manifest seeding. " +
             $"Roles found: {roles}");
+    }
+
+    [Fact]
+    [Trait("Category", "E2E")]
+    public async Task UserWithAdminRole_CanCreatePolicy_Returns201()
+    {
+        if (!E2EEnabled) return;
+
+        // P7 acceptance criterion (#109): a JWT for a user *with* the
+        // andy-policies admin role can mutate the catalog. test@andy.local
+        // gets admin bound via manifest testUserRole (see
+        // AndyRbac_TestUser_HasAdminRoleBindingForPolicies).
+        using var flow = new AuthorizationCodeFlow(
+            authBaseUrl: AuthBaseUrl,
+            clientId: WebClientId,
+            redirectUri: WebRedirectUri,
+            scope: Audience);
+
+        var token = await flow.AcquireUserAccessTokenAsync(TestUserEmail, TestUserPassword);
+        Assert.False(string.IsNullOrEmpty(token), "andy-auth returned an empty access_token for admin user");
+
+        var slug = $"e2e-admin-{Guid.NewGuid():N}".Substring(0, 18);
+        var create = new CreatePolicyRequest(
+            Name: slug,
+            Description: "Created by UserWithAdminRole_CanCreatePolicy_Returns201",
+            Summary: "rbac-admin-smoke",
+            Enforcement: "Must",
+            Severity: "Critical",
+            Scopes: new[] { "prod" },
+            RulesJson: "{}");
+
+        var req = new HttpRequestMessage(HttpMethod.Post, $"{PoliciesBaseUrl}/api/policies")
+        {
+            Content = JsonContent.Create(create),
+        };
+        req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var res = await _http.SendAsync(req);
+        Assert.Equal(HttpStatusCode.Created, res.StatusCode);
+    }
+
+    [Fact]
+    [Trait("Category", "E2E")]
+    public async Task UserWithoutAdminRole_CannotCreatePolicy_Returns403()
+    {
+        if (!E2EEnabled) return;
+
+        // P7 acceptance criterion (#109): a JWT for an authenticated user
+        // *without* the andy-policies admin role is rejected at the RBAC
+        // gate. viewer@andy.local is seeded by andy-auth (#95) with no
+        // role binding in andy-rbac; PermissionEvaluator returns
+        // "Subject not found" → RbacAuthorizationHandler fails the policy
+        // → ASP.NET returns 403.
+        using var flow = new AuthorizationCodeFlow(
+            authBaseUrl: AuthBaseUrl,
+            clientId: WebClientId,
+            redirectUri: WebRedirectUri,
+            scope: Audience);
+
+        var token = await flow.AcquireUserAccessTokenAsync(ViewerUserEmail, ViewerUserPassword);
+        Assert.False(string.IsNullOrEmpty(token), "andy-auth returned an empty access_token for viewer user");
+
+        var slug = $"e2e-viewer-{Guid.NewGuid():N}".Substring(0, 18);
+        var create = new CreatePolicyRequest(
+            Name: slug,
+            Description: "Should be rejected by RBAC",
+            Summary: "rbac-deny-smoke",
+            Enforcement: "Must",
+            Severity: "Critical",
+            Scopes: new[] { "prod" },
+            RulesJson: "{}");
+
+        var req = new HttpRequestMessage(HttpMethod.Post, $"{PoliciesBaseUrl}/api/policies")
+        {
+            Content = JsonContent.Create(create),
+        };
+        req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var res = await _http.SendAsync(req);
+        Assert.Equal(HttpStatusCode.Forbidden, res.StatusCode);
     }
 
     private async Task<string> AcquireAccessTokenAsync()
