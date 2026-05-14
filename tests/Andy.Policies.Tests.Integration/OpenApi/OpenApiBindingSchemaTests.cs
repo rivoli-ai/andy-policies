@@ -107,14 +107,16 @@ public class OpenApiBindingSchemaTests : IClassFixture<PoliciesApiFactory>
     }
 
     [Fact]
-    public async Task SwaggerJson_BindingTargetType_ExposesAllFiveValues()
+    public async Task SwaggerJson_BindingTargetType_ExposesAllSixValues()
     {
         using var doc = await LoadSwaggerAsync();
         var schema = doc.RootElement
             .GetProperty("components").GetProperty("schemas").GetProperty("BindingTargetType");
 
         // JsonStringEnumConverter emits an "enum" with the string members.
+        // SD4.2 (#1182) added Agent so the canonical agent → policy seed
+        // bindings can encode the agent slug in TargetRef.
         var values = schema.GetProperty("enum").EnumerateArray().Select(e => e.GetString()).ToList();
-        values.Should().BeEquivalentTo("Template", "Repo", "ScopeNode", "Tenant", "Org");
+        values.Should().BeEquivalentTo("Template", "Repo", "ScopeNode", "Tenant", "Org", "Agent");
     }
 }

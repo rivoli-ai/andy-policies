@@ -1,0 +1,37 @@
+{
+  "$comment": "SD4.2 (rivoli-ai/andy-policies#1182) — default policy bindings for the six seeded agents from SD2 at org-wide (root) scope. Each row creates a Binding(TargetType=Agent, TargetRef='agent:{slug}') against the v1 Active version of the named policy. The seeder dedupes by (policyVersionId, targetType, targetRef) and is idempotent across reruns. Agent slugs and policy slugs are validated against this fixture — andy-policies never calls andy-agents at seed time.",
+  "agents": [
+    "triage",
+    "research",
+    "planning",
+    "coding",
+    "validation",
+    "review"
+  ],
+  "bindings": [
+    { "agent": "triage",     "policy": "read-only",    "bindStrength": "Mandatory" },
+    { "agent": "research",   "policy": "read-only",    "bindStrength": "Mandatory" },
+    { "agent": "review",     "policy": "read-only",    "bindStrength": "Mandatory" },
+
+    { "agent": "planning",   "policy": "draft-only",   "bindStrength": "Mandatory" },
+
+    { "agent": "coding",     "policy": "write-branch", "bindStrength": "Mandatory" },
+    { "agent": "coding",     "policy": "sandboxed",    "bindStrength": "Mandatory" },
+
+    { "agent": "validation", "policy": "sandboxed",    "bindStrength": "Mandatory" },
+    { "agent": "validation", "policy": "no-prod",      "bindStrength": "Mandatory" },
+
+    { "agent": "triage",     "policy": "no-prod",      "bindStrength": "Mandatory" },
+    { "agent": "research",   "policy": "no-prod",      "bindStrength": "Mandatory" },
+    { "agent": "planning",   "policy": "no-prod",      "bindStrength": "Mandatory" },
+    { "agent": "coding",     "policy": "no-prod",      "bindStrength": "Mandatory" },
+    { "agent": "review",     "policy": "no-prod",      "bindStrength": "Mandatory" },
+
+    { "agent": "triage",     "policy": "high-risk",    "bindStrength": "Mandatory" },
+    { "agent": "research",   "policy": "high-risk",    "bindStrength": "Mandatory" },
+    { "agent": "planning",   "policy": "high-risk",    "bindStrength": "Mandatory" },
+    { "agent": "coding",     "policy": "high-risk",    "bindStrength": "Mandatory" },
+    { "agent": "validation", "policy": "high-risk",    "bindStrength": "Mandatory" },
+    { "agent": "review",     "policy": "high-risk",    "bindStrength": "Mandatory" }
+  ]
+}

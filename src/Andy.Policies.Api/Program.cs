@@ -566,7 +566,18 @@ if (!string.IsNullOrEmpty(connectionString))
 // --- Seed stock policies (P1.3, #73) ---
 // Idempotent. Runs in every environment after migrations have applied; if the
 // schema is missing the underlying AnyAsync probe throws and boot fails loudly.
-await app.Services.EnsureSeedDataAsync();
+//
+// Opt-out: tests that need a hermetic catalog can set
+// `Policies:Seed:Enabled=false` (or env `POLICIES__SEED__ENABLED=false`) on
+// their WebApplicationFactory. The load test in
+// OverrideExpiryReaperLoadTests does this so the per-boot allocations from
+// SD4's six-policy + nineteen-binding seed don't push the 200MB heap-delta
+// budget over the edge on the shared CI runner.
+var seedEnabled = app.Configuration.GetValue("Policies:Seed:Enabled", defaultValue: true);
+if (seedEnabled)
+{
+    await app.Services.EnsureSeedDataAsync();
+}
 
 app.Run();
 

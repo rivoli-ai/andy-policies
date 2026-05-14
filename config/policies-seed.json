@@ -1,0 +1,112 @@
+{
+  "$comment": "SD4.1 (rivoli-ai/andy-policies#1181) — six canonical lifecycle policies seeded in Active state at root scope. Slugs are immutable; severity, enforcement, scopes, rulesJson and description shape the v1 row written by Andy.Policies.Infrastructure.Data.PolicySeeder. Re-running the seeder against a populated catalog is a no-op (idempotency contract from the SD4 parent body).",
+  "policies": [
+    {
+      "id": "read-only",
+      "name": "read-only",
+      "description": "Read-only repository access. The agent may read files, list refs, and inspect history but cannot mutate the working tree, push commits, or invoke shell tools. Use for triage, research, and review intents.",
+      "severity": "info",
+      "enforcement": "MUST",
+      "scopes": [],
+      "rulesJson": {
+        "intent": "read-only",
+        "allow": ["fs.read", "git.read", "search", "review.comment"],
+        "deny": ["fs.write", "git.write", "git.push", "shell.exec", "container.exec"],
+        "approvers": []
+      }
+    },
+    {
+      "id": "draft-only",
+      "name": "draft-only",
+      "description": "The agent may produce drafts, comments, and plans but may not finalise, publish, merge, or deploy. Use for planning agents whose output is advisory and reviewed before any side effect ships.",
+      "severity": "info",
+      "enforcement": "MUST",
+      "scopes": ["template"],
+      "rulesJson": {
+        "intent": "draft-only",
+        "allow": ["draft.create", "draft.update", "comment.create", "plan.propose"],
+        "deny": ["draft.publish", "merge", "deploy", "release.cut"],
+        "approvers": []
+      }
+    },
+    {
+      "id": "write-branch",
+      "name": "write-branch",
+      "description": "The agent may mutate files and create commits, but only on a feature branch matching the goal's branch pattern. Pushes to the repo's default branch (main/master) are denied. Use for coding agents working inside a sandboxed task.",
+      "severity": "moderate",
+      "enforcement": "SHOULD",
+      "scopes": ["repo"],
+      "rulesJson": {
+        "intent": "write-branch",
+        "allow": ["fs.write", "git.commit", "git.push:feature/*"],
+        "deny": ["git.push:main", "git.push:master", "git.push:release/*"],
+        "branchPattern": "^(feature|fix|chore|spike)/.+",
+        "approvers": []
+      }
+    },
+    {
+      "id": "sandboxed",
+      "name": "sandboxed",
+      "description": "All execution must happen inside the container/sandbox the task provides. The host filesystem outside the workspace is read-only, network egress is policy-scoped, and resource caps (CPU, memory, wall-clock) are enforced by the runtime.",
+      "severity": "moderate",
+      "enforcement": "MUST",
+      "scopes": ["tool", "container"],
+      "rulesJson": {
+        "intent": "sandboxed",
+        "allow": ["container.exec", "fs.write:/workspace/**"],
+        "deny": ["fs.write:/host/**", "network.egress:!allowlist"],
+        "resourceCaps": {
+          "cpu": "2",
+          "memoryMiB": 4096,
+          "wallClockSeconds": 1800
+        },
+        "approvers": []
+      }
+    },
+    {
+      "id": "no-prod",
+      "name": "no-prod",
+      "description": "Universal guardrail: any operation targeting prod or release-tagged services is denied regardless of agent intent. Block at consumer admission; never warn-and-proceed.",
+      "severity": "critical",
+      "enforcement": "MUST",
+      "scopes": ["prod"],
+      "rulesJson": {
+        "intent": "guardrail",
+        "deny": [
+          "endpoint:*://prod.*",
+          "endpoint:*://*.prod.rivoli.ai",
+          "service:env=prod",
+          "tag:prod",
+          "tag:release"
+        ],
+        "approvers": []
+      }
+    },
+    {
+      "id": "high-risk",
+      "name": "high-risk",
+      "description": "Universal guardrail: dangerous operations — force-push, schema migration, secret rotation, mass delete — require typed-confirmation approver chain. Consumers (Conductor ActionBus, andy-tasks gates) MUST surface the confirmation prompt and capture the maintainer's approval before invocation.",
+      "severity": "critical",
+      "enforcement": "MUST",
+      "scopes": [],
+      "rulesJson": {
+        "intent": "guardrail",
+        "dangerousActions": [
+          "git.push.force",
+          "schema.migrate",
+          "secret.rotate",
+          "delete.bulk",
+          "tenant.delete"
+        ],
+        "requireTypedConfirmation": true,
+        "approvers": [
+          {
+            "role": "maintainer",
+            "minApprovals": 1,
+            "selfApprovalForbidden": true
+          }
+        ]
+      }
+    }
+  ]
+}
