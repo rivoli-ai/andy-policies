@@ -2402,6 +2402,7 @@ components:
         - ScopeNode
         - Tenant
         - Org
+        - Agent
       type: string
     BundleContentsBindingDto:
       type: object

@@ -41,8 +41,11 @@ public class SeedOnStartupTests : IClassFixture<PoliciesApiFactory>
     }
 
     [Fact]
-    public async Task OnFirstBoot_EveryStockPolicyHasOneDraftVersionAtVersionOne()
+    public async Task OnFirstBoot_EveryStockPolicyHasOneActiveVersionAtVersionOne()
     {
+        // SD4.1 #1181: the seed lands in Active state directly so SD4.2's
+        // BindingSeeder (and downstream consumers) can attach to v1 on
+        // first boot without driving the Draft -> Active lifecycle dance.
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
@@ -52,9 +55,11 @@ public class SeedOnStartupTests : IClassFixture<PoliciesApiFactory>
         Assert.All(versions, v =>
         {
             Assert.Equal(1, v.Version);
-            Assert.Equal(LifecycleState.Draft, v.State);
+            Assert.Equal(LifecycleState.Active, v.State);
+            Assert.NotNull(v.PublishedAt);
             Assert.Equal(PolicySeeder.SeedSubjectId, v.CreatedBySubjectId);
             Assert.Equal(PolicySeeder.SeedSubjectId, v.ProposerSubjectId);
+            Assert.Equal(PolicySeeder.SeedSubjectId, v.PublishedBySubjectId);
         });
     }
 

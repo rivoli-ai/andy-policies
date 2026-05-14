@@ -9,7 +9,7 @@ namespace Andy.Policies.Domain.Enums;
 /// rivoli-ai/andy-policies#19). The enum is persisted by ordinal to
 /// <c>int</c> via EF's <c>HasConversion&lt;int&gt;</c>, so the numeric values
 /// MUST stay stable across renames — existing rows on disk depend on
-/// <c>1..5</c>.
+/// <c>1..6</c>.
 /// </summary>
 public enum BindingTargetType
 {
@@ -32,4 +32,17 @@ public enum BindingTargetType
 
     /// <summary>Organisation id (canonical TargetRef shape <c>"org:{guid}"</c>).</summary>
     Org = 5,
+
+    /// <summary>
+    /// Agent slug from andy-agents (canonical TargetRef shape
+    /// <c>"agent:{slug}"</c>). Introduced by SD4.2
+    /// (rivoli-ai/andy-policies#1182, parent epic SD #1171) so the default
+    /// policy-binding seed can pin per-agent policies (e.g.
+    /// <c>coding</c> → <c>write-branch</c>, <c>sandboxed</c>) at org-wide
+    /// scope. Agents are flat — there is no hierarchy walk for this
+    /// target type — so the tighten-only validator skips it (its
+    /// scope-type mapping returns null). Persisted ordinal 6; never
+    /// renumber.
+    /// </summary>
+    Agent = 6,
 }
