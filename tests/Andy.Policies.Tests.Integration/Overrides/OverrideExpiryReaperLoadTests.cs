@@ -68,6 +68,18 @@ public class OverrideExpiryReaperLoadTests : IDisposable
                     ["Database:Provider"] = "Sqlite",
                     ["AndyAuth:Authority"] = "https://test-auth.invalid",
                     ["AndySettings:ApiBaseUrl"] = "https://test-settings.invalid",
+                    // SD4 (#1171): skip the six-policy + nineteen-binding
+                    // boot-seed for this load test. The test's heap-delta
+                    // assertion (line 210, 200MB cap) measures retained
+                    // memory between two GC.GetTotalMemory(forceFullCollection)
+                    // calls bracketing 5,000 reaper sweeps. The seed itself
+                    // is irrelevant to what this test exercises — it builds
+                    // its own one-policy / 10K-override fixture — and on the
+                    // shared ubuntu CI runner the seed's allocations (JSON,
+                    // EF Core query plan caches for Binding/PolicyVersion,
+                    // change-tracker entries) push the delta ~30MB over budget.
+                    // Local macOS runners stay under the bound either way.
+                    ["Policies:Seed:Enabled"] = "false",
                 });
             });
             builder.ConfigureServices(services =>
