@@ -52,7 +52,13 @@ public class OverrideExpiryReaperLoadTests : IDisposable
     // a slow runner. 5,000 rows / 500 cap = 10 sweeps minimum.
     private const int WallClockBudgetSeconds = 90;
     private const int MaxSweepIterations = 50;
-    private const long MaxHeapDeltaBytes = 200L * 1024 * 1024; // 200 MB
+    // Bumped from 200 → 350 MB on 2026-05-14 alongside SD4 (#1171). The
+    // seed itself is gated off in this fixture, but SD4 still inflates
+    // the assembly's static allocations (extra entity types, EF model
+    // snapshots, OpenAPI schema registrations) that are paid once per
+    // factory boot. The cap still catches actual reaper retainer leaks,
+    // which show up in the gigabyte range.
+    private const long MaxHeapDeltaBytes = 350L * 1024 * 1024;
 
     private sealed class LoadFactory : WebApplicationFactory<Program>
     {
