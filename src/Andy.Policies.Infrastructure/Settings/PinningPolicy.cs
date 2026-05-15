@@ -4,6 +4,7 @@
 using System.Diagnostics.Metrics;
 using Andy.Policies.Application.Interfaces;
 using Andy.Settings.Client;
+using Microsoft.Extensions.Configuration;
 
 namespace Andy.Policies.Infrastructure.Settings;
 
@@ -46,12 +47,31 @@ public sealed class PinningPolicy : IPinningPolicy, IDisposable
     /// surfaces every toggle gauge.</summary>
     public const string MeterName = "Andy.Policies.PinningPolicy";
 
+    /// <summary>Static-config override key. When set to "false" via
+    /// IConfiguration (env <c>AndyPolicies__BundleVersionPinning=false</c>
+    /// or appsettings), the snapshot read is short-circuited and
+    /// pinning is reported as not-required. Lets host environments
+    /// (e.g. single-user Conductor embedded mode) opt out without
+    /// having to seed andy-settings with the same key, which would
+    /// otherwise require a chicken-and-egg M2M call during startup.
+    /// Operators with a real andy-settings store should leave this
+    /// unset and toggle via the admin UI.</summary>
+    public const string StaticOverrideKey = "AndyPolicies:BundleVersionPinning";
+
     private readonly ISettingsSnapshot _snapshot;
+    private readonly bool? _staticOverride;
     private readonly Meter _meter;
 
     public PinningPolicy(ISettingsSnapshot snapshot)
+        : this(snapshot, staticOverride: null) { }
+
+    public PinningPolicy(ISettingsSnapshot snapshot, IConfiguration configuration)
+        : this(snapshot, ParseOverride(configuration[StaticOverrideKey])) { }
+
+    private PinningPolicy(ISettingsSnapshot snapshot, bool? staticOverride)
     {
         _snapshot = snapshot;
+        _staticOverride = staticOverride;
         _meter = new Meter(MeterName);
         _meter.CreateObservableGauge(
             name: "andy_policies_bundle_version_pinning_required",
@@ -59,7 +79,11 @@ public sealed class PinningPolicy : IPinningPolicy, IDisposable
             description: "Current value of andy.policies.bundleVersionPinning (1 = required, 0 = optional).");
     }
 
-    public bool IsPinningRequired => _snapshot.GetBool(SettingKey) ?? ManifestDefault;
+    public bool IsPinningRequired =>
+        _staticOverride ?? _snapshot.GetBool(SettingKey) ?? ManifestDefault;
+
+    private static bool? ParseOverride(string? raw) =>
+        bool.TryParse(raw, out var b) ? b : null;
 
     public void Dispose() => _meter.Dispose();
 }

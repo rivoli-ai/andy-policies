@@ -96,7 +96,13 @@ public sealed class HttpRbacChecker : IRbacChecker
         try
         {
             var req = new RbacCheckRequest(subjectId, permissionCode, groups, resourceInstanceId);
-            using var resp = await _http.PostAsJsonAsync("/api/check", req, WireFormat, ct).ConfigureAwait(false);
+            // Relative — no leading slash — so it appends to BaseAddress.
+            // BaseAddress under Conductor is `http://localhost:9100/rbac/`
+            // (the unified proxy). A leading slash would resolve against
+            // the authority root and strip the /rbac/ prefix, causing the
+            // request to land on the wrong route and the fail-closed
+            // branch to fire on every check.
+            using var resp = await _http.PostAsJsonAsync("api/check", req, WireFormat, ct).ConfigureAwait(false);
             if (!resp.IsSuccessStatusCode)
             {
                 _log.LogWarning(
