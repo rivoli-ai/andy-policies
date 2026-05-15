@@ -225,7 +225,13 @@ builder.Services.AddMemoryCache();
 // fix in Andy.Rbac.Client for consumers that use IRbacClient).
 builder.Services.AddAndyAuthM2M(builder.Configuration);
 
-builder.Services.AddHttpClient<
+// The bearer handler is only attached when AndyAuth.ClientId is set —
+// in production (embedded mode) Conductor sets it; in tests the
+// WebApplicationFactory only sets Authority. Without ClientId, the
+// ClientCredentialsTokenProvider has nothing to mint and would throw
+// before HttpRbacChecker's transport-error fail-closed branch ran,
+// surfacing 500 on every authorization integration test.
+var rbacClientBuilder = builder.Services.AddHttpClient<
     Andy.Policies.Application.Interfaces.IRbacChecker,
     Andy.Policies.Infrastructure.Services.Rbac.HttpRbacChecker>((sp, client) =>
 {
@@ -235,8 +241,12 @@ builder.Services.AddHttpClient<
             "AndyRbac:BaseUrl is not configured at HttpClient build time.");
     client.BaseAddress = new Uri(url);
     client.Timeout = TimeSpan.FromSeconds(3);
-})
-.AddHttpMessageHandler<Andy.Auth.M2MClient.ServiceBearerHandler>();
+});
+
+if (!string.IsNullOrWhiteSpace(builder.Configuration["AndyAuth:ClientId"]))
+{
+    rbacClientBuilder.AddHttpMessageHandler<Andy.Auth.M2MClient.ServiceBearerHandler>();
+}
 // --- Registration manifest (P10.3, #38) ---
 // Embedded mode (docker-compose.embedded.yml) sets
 // Registration:AutoRegister=true so andy-policies self-registers its
