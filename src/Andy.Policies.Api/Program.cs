@@ -192,7 +192,10 @@ builder.Services.AddScoped<Andy.Policies.Application.Interfaces.IBundleDiffServi
 // snapshot rows into PolicyDto/PolicyVersionDto for /api/policies*
 // dispatched via ?bundleId=. The gate filter is registered
 // alongside AddControllers below.
-builder.Services.AddSingleton<Andy.Policies.Application.Interfaces.IPinningPolicy, Andy.Policies.Infrastructure.Settings.PinningPolicy>();
+builder.Services.AddSingleton<Andy.Policies.Application.Interfaces.IPinningPolicy>(sp =>
+    new Andy.Policies.Infrastructure.Settings.PinningPolicy(
+        sp.GetRequiredService<Andy.Settings.Client.ISettingsSnapshot>(),
+        sp.GetRequiredService<IConfiguration>()));
 builder.Services.AddScoped<Andy.Policies.Application.Interfaces.IBundleBackedPolicyReader, Andy.Policies.Infrastructure.Services.BundleBackedPolicyReader>();
 builder.Services.AddSingleton<Andy.Policies.Api.Filters.BundlePinningFilter>();
 
