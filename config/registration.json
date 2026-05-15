@@ -26,7 +26,7 @@
       "displayName": "Andy Policies API",
       "description": "Service-to-service client for Andy Policies",
       "grantTypes": ["authorization_code", "refresh_token", "client_credentials"],
-      "scopes": ["email", "profile", "roles", "scp:urn:andy-policies-api"]
+      "scopes": ["email", "profile", "roles", "scp:urn:andy-policies-api", "scp:urn:andy-rbac-api"]
     },
     "webClient": {
       "clientId": "andy-policies-web",
