@@ -1,6 +1,7 @@
 // Copyright (c) Rivoli AI 2026. All rights reserved.
 // Licensed under the Apache License, Version 2.0.
 
+using Andy.Auth.M2MClient;
 using Andy.Policies.Application.Interfaces;
 using Andy.Policies.Infrastructure.Data;
 using Andy.Policies.Infrastructure.Services;
@@ -213,6 +214,17 @@ if (string.IsNullOrWhiteSpace(builder.Configuration["AndyRbac:BaseUrl"]))
         "before starting the API. There is no production fallback.");
 }
 builder.Services.AddMemoryCache();
+
+// M2M Bearer for outbound /api/check calls. Without this, andy-rbac's
+// [Authorize] middleware rejects the call before HttpRbacChecker's
+// fail-closed path even sees a 401, surfacing 403 on every Conductor
+// panel that gates on [RequirePermission(...)]. The shared
+// Andy.Auth.M2MClient binds AndyAuthM2MOptions from the "AndyAuth"
+// configuration section and registers ServiceBearerHandler +
+// IServiceTokenProvider. Mirrors rivoli-ai/andy-rbac#75 (the same
+// fix in Andy.Rbac.Client for consumers that use IRbacClient).
+builder.Services.AddAndyAuthM2M(builder.Configuration);
+
 builder.Services.AddHttpClient<
     Andy.Policies.Application.Interfaces.IRbacChecker,
     Andy.Policies.Infrastructure.Services.Rbac.HttpRbacChecker>((sp, client) =>
@@ -223,7 +235,8 @@ builder.Services.AddHttpClient<
             "AndyRbac:BaseUrl is not configured at HttpClient build time.");
     client.BaseAddress = new Uri(url);
     client.Timeout = TimeSpan.FromSeconds(3);
-});
+})
+.AddHttpMessageHandler<Andy.Auth.M2MClient.ServiceBearerHandler>();
 // --- Registration manifest (P10.3, #38) ---
 // Embedded mode (docker-compose.embedded.yml) sets
 // Registration:AutoRegister=true so andy-policies self-registers its

@@ -14,7 +14,8 @@
 
   <ItemGroup>
     <PackageReference Include="Andy.Auth" Version="2025.11.17-rc.1" />
-    <PackageReference Include="Andy.Rbac.Client" Version="1.0.0" />
+    <PackageReference Include="Andy.Auth.M2MClient" Version="2026.5.13-rc.189" />
+    <PackageReference Include="Andy.Rbac.Client" Version="2026.5.15-rc.60" />
     <PackageReference Include="Grpc.AspNetCore" Version="2.62.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.11" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.11" />
