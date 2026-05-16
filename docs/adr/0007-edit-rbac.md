@@ -23,7 +23,7 @@ The Phase 0 review also flagged a fifth item — **cache invalidation strategy**
 
 ### 1. Delegation: call andy-rbac, don't re-implement locally
 
-`IRbacChecker.CheckAsync(subject, permission, resourceInstanceId, ct)` is implemented by `HttpRbacChecker` in `src/Andy.Policies.Infrastructure/Rbac/`, which:
+`IRbacChecker.CheckAsync(subject, permission, resourceInstanceId, ct)` is implemented by `HttpRbacChecker` in `src/Andy.Policies.Infrastructure/Services/Rbac/`, which:
 
 - Sends `POST {AndyRbac:BaseUrl}/api/check` with body `{SubjectId, Permission, Groups, ResourceInstanceId}`
 - Returns the `{Allowed, Reason}` response body verbatim

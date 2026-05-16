@@ -62,7 +62,7 @@ Rejected: SHA-3-256 (no ecosystem pay-off for the complexity tax); SHA-512 (128 
 
 Authoritative normative reference: [RFC 8785 (March 2020)](https://datatracker.ietf.org/doc/html/rfc8785).
 
-Required properties enforced in `src/Andy.Policies.Infrastructure/Audit/CanonicalJson.cs`:
+Required properties enforced in `src/Andy.Policies.Shared/Auditing/CanonicalJson.cs`:
 
 - **UTF-8 without BOM** (§3.2.1)
 - **Lexicographic key ordering** at every object level (§3.2.3) — sort by UTF-16 code units per ES2015 `Array.prototype.sort`
