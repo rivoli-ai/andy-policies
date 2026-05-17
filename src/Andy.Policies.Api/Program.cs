@@ -518,14 +518,20 @@ if (!string.IsNullOrEmpty(pathBase))
 app.UseRouting();
 
 // --- Middleware ---
-// Swagger document + UI are exposed in Development and the integration-test
-// "Testing" environment. The OpenAPI document drives the committed
-// `docs/openapi/andy-policies-v1.yaml` and the CI drift check (P1.9, #79).
+// HC.8.1 of rivoli-ai/conductor#1245: expose the OpenAPI document in
+// every environment so Conductor's in-app Help Center can ingest
+// /openapi.json from the bundled service. The Swagger UI stays gated
+// to Development + Testing — the OpenAPI document also drives the
+// committed `docs/openapi/andy-policies-v1.yaml` and the CI drift
+// check (P1.9, #79).
+app.UseSwagger();
 if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testing"))
 {
-    app.UseSwagger();
     app.UseSwaggerUI();
 }
+// Stable alias so every andy-* service exposes the same path.
+app.MapGet("/openapi.json", () => Results.Redirect("/swagger/v1/swagger.json"))
+    .ExcludeFromDescription();
 
 app.UseExceptionHandler();
 
