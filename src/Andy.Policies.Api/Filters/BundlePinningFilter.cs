@@ -80,19 +80,25 @@ public sealed class BundlePinningFilter : IAsyncActionFilter, IDisposable
             && !string.IsNullOrWhiteSpace(values.ToString());
         if (hasBundle)
         {
-            _decisionsCounter.Add(1, new KeyValuePair<string, object?>("decision", "pass"));
+            _decisionsCounter.Add(1,
+                new KeyValuePair<string, object?>("andy.policies.decision", "pass"),
+                new KeyValuePair<string, object?>("decision", "pass")); // deprecated; OT7 / #1265
             await next().ConfigureAwait(false);
             return;
         }
 
         if (!_pinning.IsPinningRequired)
         {
-            _decisionsCounter.Add(1, new KeyValuePair<string, object?>("decision", "pass-pinning-off"));
+            _decisionsCounter.Add(1,
+                new KeyValuePair<string, object?>("andy.policies.decision", "pass-pinning-off"),
+                new KeyValuePair<string, object?>("decision", "pass-pinning-off")); // deprecated; OT7 / #1265
             await next().ConfigureAwait(false);
             return;
         }
 
-        _decisionsCounter.Add(1, new KeyValuePair<string, object?>("decision", "block"));
+        _decisionsCounter.Add(1,
+            new KeyValuePair<string, object?>("andy.policies.decision", "block"),
+            new KeyValuePair<string, object?>("decision", "block")); // deprecated; OT7 / #1265
         var problem = new ProblemDetails
         {
             Status = StatusCodes.Status400BadRequest,
