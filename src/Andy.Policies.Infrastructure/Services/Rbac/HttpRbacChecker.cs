@@ -139,7 +139,12 @@ public sealed class HttpRbacChecker : IRbacChecker
 
     private RbacDecision FailClosed()
     {
-        _checkCounter.Add(1, new KeyValuePair<string, object?>("result", "fail_closed"));
+        // OT7 (rivoli-ai/conductor#1265). `result` → `andy.rbac.result`
+        // per docs/semconv-compliance.md. Legacy `result` dual-emits
+        // during the 0.2.4 transition window.
+        _checkCounter.Add(1,
+            new KeyValuePair<string, object?>("andy.rbac.result", "fail_closed"),
+            new KeyValuePair<string, object?>("result", "fail_closed")); // deprecated; removed in 0.3.0
         return new RbacDecision(false, FailClosedReason);
     }
 

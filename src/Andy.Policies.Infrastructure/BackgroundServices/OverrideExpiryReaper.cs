@@ -139,7 +139,9 @@ public sealed class OverrideExpiryReaper : BackgroundService
             }
             catch (Exception ex)
             {
-                _failuresCounter.Add(1, new KeyValuePair<string, object?>("phase", "sweep"));
+                _failuresCounter.Add(1,
+                    new KeyValuePair<string, object?>("andy.policies.phase", "sweep"),
+                    new KeyValuePair<string, object?>("phase", "sweep")); // deprecated; removed in Andy.Telemetry 0.3.0 (OT7 / #1265)
                 _log.LogError(ex, "OverrideExpiryReaper sweep failed; will retry next tick");
             }
 
@@ -206,21 +208,27 @@ public sealed class OverrideExpiryReaper : BackgroundService
             {
                 // Race: row was deleted (or never visible to this scope's
                 // tracker). Safe to skip — the next sweep will retry.
-                _failuresCounter.Add(1, new KeyValuePair<string, object?>("phase", "row"));
+                _failuresCounter.Add(1,
+                    new KeyValuePair<string, object?>("andy.policies.phase", "row"),
+                    new KeyValuePair<string, object?>("phase", "row")); // deprecated; removed in 0.3.0 (OT7 / #1265)
             }
             catch (ConflictException)
             {
                 // Race: another actor revoked the override between scan
                 // and expire, or someone bumped ExpiresAt forward.
                 // The reaper is idempotent — continue with the next id.
-                _failuresCounter.Add(1, new KeyValuePair<string, object?>("phase", "row"));
+                _failuresCounter.Add(1,
+                    new KeyValuePair<string, object?>("andy.policies.phase", "row"),
+                    new KeyValuePair<string, object?>("phase", "row")); // deprecated; removed in 0.3.0 (OT7 / #1265)
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 // Per-row exceptions must not abort the sweep — a single
                 // poison row would otherwise stall every subsequent
                 // expiry. Log + count + continue.
-                _failuresCounter.Add(1, new KeyValuePair<string, object?>("phase", "row"));
+                _failuresCounter.Add(1,
+                    new KeyValuePair<string, object?>("andy.policies.phase", "row"),
+                    new KeyValuePair<string, object?>("phase", "row")); // deprecated; removed in 0.3.0 (OT7 / #1265)
                 _log.LogWarning(ex,
                     "OverrideExpiryReaper failed to expire {OverrideId}; continuing", id);
             }
