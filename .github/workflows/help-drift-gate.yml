@@ -1,0 +1,80 @@
+# HC.5.2 of rivoli-ai/conductor#1245.
+#
+# Fails a PR if config/registration.json changes its contract surface
+# (settings.definitions, rbac.roles, rbac.resourceTypes) without a
+# matching touch under docs/help/. The Conductor in-app Help Center
+# ingests both files at build time, so drift here means users read
+# help that doesn't match the service they're configuring.
+#
+# Escape hatch: include "[skip help-drift]" in any commit message on
+# the PR for legitimate cases where the docs PR is intentionally
+# split out (e.g. release-train coordination).
+
+name: Help Drift Gate
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  help-drift:
+    name: Check registration.json vs docs/help drift
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute base ref
+        id: base
+        run: echo "ref=origin/${{ github.event.pull_request.base.ref }}" >> "$GITHUB_OUTPUT"
+
+      - name: Detect contract drift
+        env:
+          BASE: ${{ steps.base.outputs.ref }}
+          MANIFEST: config/registration.json
+        run: |
+          set -euo pipefail
+
+          if ! git diff --name-only "$BASE...HEAD" | grep -q "^${MANIFEST}$"; then
+            echo "::notice::No change to ${MANIFEST}; skipping drift check."
+            exit 0
+          fi
+
+          # Escape hatch — explicit opt-out via commit message marker.
+          if git log --format=%B "$BASE..HEAD" | grep -qF "[skip help-drift]"; then
+            echo "::notice::PR opted out of help-drift gate via [skip help-drift] commit marker."
+            exit 0
+          fi
+
+          # Project the three contract sections, sorted, into a canonical shape
+          # so re-orderings + comment lines don't trigger false positives.
+          PROJECT='
+            {
+              settings: ((.settings.definitions // []) | sort_by(.key // "")),
+              roles: ((.rbac.roles // []) | sort_by(.code // "")),
+              resourceTypes: ((.rbac.resourceTypes // []) | sort_by(.code // ""))
+            }
+          '
+
+          git show "$BASE:$MANIFEST" 2>/dev/null | jq -S "$PROJECT" > /tmp/base-sections.json || echo '{}' > /tmp/base-sections.json
+          jq -S "$PROJECT" "$MANIFEST" > /tmp/head-sections.json
+
+          if diff -q /tmp/base-sections.json /tmp/head-sections.json > /dev/null; then
+            echo "::notice::${MANIFEST} changed but settings/roles/resourceTypes are identical; no help update required."
+            exit 0
+          fi
+
+          if git diff --name-only "$BASE...HEAD" | grep -q "^docs/help/"; then
+            echo "::notice::Contract sections changed and docs/help/ was updated. ✓"
+            exit 0
+          fi
+
+          echo "::error::Contract sections in ${MANIFEST} changed (settings/roles/resourceTypes) but docs/help/ was not updated."
+          echo ""
+          echo "What changed (canonical projection):"
+          diff -u /tmp/base-sections.json /tmp/head-sections.json | head -60 || true
+          echo ""
+          echo "Update docs/help/overview.md (or add a new article) so the in-app Help Center stays in sync."
+          echo "If the docs PR is intentionally split out, add '[skip help-drift]' to a commit message in this PR."
+          exit 1
