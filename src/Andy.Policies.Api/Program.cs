@@ -2,13 +2,13 @@
 // Licensed under the Apache License, Version 2.0.
 
 using Andy.Auth.M2MClient;
+using Andy.Policies.Api.Telemetry;
 using Andy.Policies.Application.Interfaces;
 using Andy.Policies.Infrastructure.Data;
 using Andy.Policies.Infrastructure.Services;
 using Andy.Settings.Client;
+using Andy.Telemetry;
 using Microsoft.EntityFrameworkCore;
-using OpenTelemetry.Metrics;
-using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -306,32 +306,37 @@ builder.Services.AddDataProtection();
 builder.Services.AddExceptionHandler<Andy.Policies.Api.ExceptionHandlers.PolicyExceptionHandler>();
 builder.Services.AddProblemDetails();
 
-// --- OpenTelemetry ---
-var otelServiceName = builder.Configuration["OpenTelemetry:ServiceName"] ?? "andy-policies-api";
-var otlpEndpoint = builder.Configuration["OpenTelemetry:OtlpEndpoint"];
+// --- OpenTelemetry (via Andy.Telemetry) ---
+// OT5 (rivoli-ai/conductor#1263). Replaces the per-service OpenTelemetry
+// hand-roll with the shared library so every Andy service shares the same
+// attribute set, propagator stack, and OTLP export config. UnifiedProxy
+// already emits server-side request spans, so AspNetCore instrumentation
+// stays off here to avoid double-counting.
+builder.Services.AddAndyTelemetry(builder.Configuration, o =>
+{
+    if (string.IsNullOrWhiteSpace(o.ServiceName))
+        o.ServiceName = Environment.GetEnvironmentVariable("OTEL_SERVICE_NAME") ?? "andy-policies";
+    if (string.IsNullOrWhiteSpace(o.OtlpEndpoint))
+        o.OtlpEndpoint = Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT");
+    if (string.IsNullOrWhiteSpace(o.Protocol) || o.Protocol == "grpc")
+    {
+        var envProtocol = Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_PROTOCOL");
+        if (!string.IsNullOrWhiteSpace(envProtocol))
+            o.Protocol = envProtocol;
+    }
+    o.ActivitySources.Add(PoliciesTelemetry.ActivitySourceName);
+    o.Meters.Add(PoliciesTelemetry.MeterName);
+    o.Meters.Add(Andy.Policies.Infrastructure.Services.AndySettingsRationalePolicy.MeterName);
+    o.Meters.Add(Andy.Policies.Infrastructure.BackgroundServices.OverrideExpiryReaper.MeterName);
+    o.Meters.Add(Andy.Policies.Infrastructure.Settings.ExperimentalOverridesGate.MeterName);
+    o.Meters.Add(Andy.Policies.Infrastructure.Settings.AuditRetentionPolicy.MeterName);
+    o.Meters.Add(Andy.Policies.Infrastructure.Services.Rbac.HttpRbacChecker.MeterName);
+    o.EnableAspNetCoreInstrumentation = false;
+    o.EnableHttpClientInstrumentation = true;
+});
+// EF Core tracing is service-specific (not bundled in Andy.Telemetry).
 builder.Services.AddOpenTelemetry()
-    .ConfigureResource(res => res.AddService(otelServiceName))
-    .WithTracing(tracing =>
-    {
-        tracing.AddAspNetCoreInstrumentation()
-               .AddHttpClientInstrumentation()
-               .AddEntityFrameworkCoreInstrumentation();
-        if (!string.IsNullOrEmpty(otlpEndpoint))
-            tracing.AddOtlpExporter(o => o.Endpoint = new Uri(otlpEndpoint));
-    })
-    .WithMetrics(metrics =>
-    {
-        metrics.AddAspNetCoreInstrumentation()
-               .AddHttpClientInstrumentation()
-               .AddRuntimeInstrumentation()
-               .AddMeter(Andy.Policies.Infrastructure.Services.AndySettingsRationalePolicy.MeterName)
-               .AddMeter(Andy.Policies.Infrastructure.BackgroundServices.OverrideExpiryReaper.MeterName)
-               .AddMeter(Andy.Policies.Infrastructure.Settings.ExperimentalOverridesGate.MeterName)
-               .AddMeter(Andy.Policies.Infrastructure.Settings.AuditRetentionPolicy.MeterName)
-               .AddMeter(Andy.Policies.Infrastructure.Services.Rbac.HttpRbacChecker.MeterName);
-        if (!string.IsNullOrEmpty(otlpEndpoint))
-            metrics.AddOtlpExporter(o => o.Endpoint = new Uri(otlpEndpoint));
-    });
+    .WithTracing(t => t.AddEntityFrameworkCoreInstrumentation());
 
 // --- Swagger ---
 builder.Services.AddControllers(options =>
@@ -551,6 +556,11 @@ app.MapMcp("/mcp")
 // --- Health check ---
 app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }))
     .AllowAnonymous();
+
+// --- Prometheus metrics scraping (via Andy.Telemetry) ---
+// OT5 (rivoli-ai/conductor#1263). Exposes /metrics for the Conductor
+// scraper; OTLP push is independent.
+app.MapAndyTelemetry();
 
 app.MapFallbackToFile("index.html");
 

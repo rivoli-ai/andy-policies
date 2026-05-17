@@ -16,6 +16,7 @@
     <PackageReference Include="Andy.Auth" Version="2025.11.17-rc.1" />
     <PackageReference Include="Andy.Auth.M2MClient" Version="2026.5.13-rc.189" />
     <PackageReference Include="Andy.Rbac.Client" Version="2026.5.15-rc.60" />
+    <PackageReference Include="Andy.Telemetry" Version="0.2.1" />
     <PackageReference Include="Grpc.AspNetCore" Version="2.62.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.11" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.11" />
@@ -25,17 +26,10 @@
     </PackageReference>
     <PackageReference Include="ModelContextProtocol" Version="0.4.0-preview.3" />
     <PackageReference Include="ModelContextProtocol.AspNetCore" Version="0.4.0-preview.3" />
-    <!-- Bumped from 1.9.0 to fix GHSA-4625-4j76-fww9 (OTLP exporter
-         disk-retry temp-path local blob injection). The fix shipped in
-         the Exporter at 1.15.3; the sibling Instrumentation/Hosting
-         packages bump in lockstep to keep the OpenTelemetry core
-         dependency coherent. -->
-    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.15.3" />
-    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.15.3" />
-    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.15.2" />
+    <!-- OT5 (rivoli-ai/conductor#1263): tracing/metrics via Andy.Telemetry.
+         EF Core tracing stays here — the shared library deliberately doesn't
+         bundle it (service-specific). -->
     <PackageReference Include="OpenTelemetry.Instrumentation.EntityFrameworkCore" Version="1.15.1-beta.1" />
-    <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.15.1" />
-    <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" Version="1.15.1" />
     <PackageReference Include="Serilog.AspNetCore" Version="8.0.3" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.8.1" />
   </ItemGroup>
