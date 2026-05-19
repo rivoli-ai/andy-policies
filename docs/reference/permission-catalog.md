@@ -14,6 +14,7 @@ Application code: `andy-policies`
 | `scope` | Scope Node | yes |
 | `bundle` | Policy Bundle | yes |
 | `audit` | Audit Event | yes |
+| `plan` | Plan Evaluation | no |
 | `settings` | Settings | no |
 
 ## Permissions
@@ -41,6 +42,7 @@ Application code: `andy-policies`
 | `andy-policies:audit:read` | Read audit events | `audit` |
 | `andy-policies:audit:export` | Export audit chain | `audit` |
 | `andy-policies:audit:verify` | Verify audit chain | `audit` |
+| `andy-policies:plan:evaluate` | Evaluate a plan | `plan` |
 
 ## Roles
 
@@ -54,6 +56,6 @@ Application code: `andy-policies`
 
 ## Counts
 
-- Resource types: 7
-- Permissions: 21
+- Resource types: 8
+- Permissions: 22
 - Roles: 5
