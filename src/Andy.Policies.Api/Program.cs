@@ -72,6 +72,12 @@ string[] rbacPermissionCodes =
     "andy-policies:bundle:read",        "andy-policies:bundle:create",
     "andy-policies:bundle:delete",      "andy-policies:audit:read",
     "andy-policies:audit:export",       "andy-policies:audit:verify",
+    // rivoli-ai/andy-policies#232 (SP.4.2): andy-tasks calls
+    // POST /api/policies/evaluate-plan on plan finalize via M2M. Code
+    // listed here so AddAuthorization registers the named policy; the
+    // RBAC manifest entry is added alongside the existing
+    // andy-policies:* set.
+    "andy-policies:plan:evaluate",
 };
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<
@@ -250,6 +256,50 @@ if (!string.IsNullOrWhiteSpace(builder.Configuration["AndyAuth:ClientId"]))
 {
     rbacClientBuilder.AddHttpMessageHandler<Andy.Auth.M2MClient.ServiceBearerHandler>();
 }
+
+// rivoli-ai/andy-policies#232 (SP.4.2): outbound to andy-tasks for
+// plan-evaluation goal fetches. AndyTasks:BaseUrl is OPTIONAL in
+// modes that don't ship andy-tasks (embedded-only deployments) —
+// missing config means the plan-eval endpoint registers but returns
+// 503 (handled by the client mapping a transport error to null →
+// controller 404). Production stacks set it via appsettings or
+// AndyTasks__BaseUrl. The ServiceBearerHandler attaches the same
+// Andy.Auth.M2MClient bearer that the RBAC client uses.
+var tasksClientBuilder = builder.Services.AddHttpClient<
+    Andy.Policies.Application.PlanEvaluation.ITasksPlanClient,
+    Andy.Policies.Infrastructure.Services.PlanEvaluation.HttpTasksPlanClient>((sp, client) =>
+{
+    var cfg = sp.GetRequiredService<Microsoft.Extensions.Configuration.IConfiguration>();
+    var url = cfg["AndyTasks:BaseUrl"]
+        ?? "http://localhost:5500"; // dev-only fallback; production must override
+    client.BaseAddress = new Uri(url);
+    client.Timeout = TimeSpan.FromSeconds(5);
+});
+if (!string.IsNullOrWhiteSpace(builder.Configuration["AndyAuth:ClientId"]))
+{
+    tasksClientBuilder.AddHttpMessageHandler<Andy.Auth.M2MClient.ServiceBearerHandler>();
+}
+
+// rivoli-ai/andy-policies#232: plan-aware predicate registry. Order
+// is registration order; the evaluator iterates predicates in the
+// order DI hands them back, so the wire response surfaces them in a
+// stable, documented order (matches the issue body).
+builder.Services.AddSingleton<Andy.Policies.Application.PlanEvaluation.IPlanPredicate,
+    Andy.Policies.Infrastructure.Services.PlanEvaluation.AllTasksReadOnlyPredicate>();
+builder.Services.AddSingleton<Andy.Policies.Application.PlanEvaluation.IPlanPredicate,
+    Andy.Policies.Infrastructure.Services.PlanEvaluation.WorkspaceIsSandboxPredicate>();
+builder.Services.AddSingleton<Andy.Policies.Application.PlanEvaluation.IPlanPredicate,
+    Andy.Policies.Infrastructure.Services.PlanEvaluation.NoProductionDeployPredicate>();
+builder.Services.AddSingleton<Andy.Policies.Application.PlanEvaluation.IPlanPredicate,
+    Andy.Policies.Infrastructure.Services.PlanEvaluation.AllAgentsApprovedPredicate>();
+builder.Services.AddSingleton<Andy.Policies.Application.PlanEvaluation.IPlanPredicate,
+    Andy.Policies.Infrastructure.Services.PlanEvaluation.RespectsCostBudgetPredicate>();
+// PlanEvaluator is scoped because it depends on the scoped DbContext
+// (loading RulesJson by version id) and the scoped binding resolver.
+// The 5-minute idempotency cache lives on the singleton IMemoryCache
+// already registered above.
+builder.Services.AddScoped<Andy.Policies.Application.PlanEvaluation.IPlanEvaluator,
+    Andy.Policies.Infrastructure.Services.PlanEvaluation.PlanEvaluator>();
 // --- Registration manifest (P10.3, #38) ---
 // Embedded mode (docker-compose.embedded.yml) sets
 // Registration:AutoRegister=true so andy-policies self-registers its

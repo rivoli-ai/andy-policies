@@ -9,6 +9,7 @@
     { "code": "scope",    "name": "Scope Node",      "supportsInstances": true  },
     { "code": "bundle",   "name": "Policy Bundle",   "supportsInstances": true  },
     { "code": "audit",    "name": "Audit Event",     "supportsInstances": true  },
+    { "code": "plan",     "name": "Plan Evaluation", "supportsInstances": false },
     { "code": "settings", "name": "Settings",        "supportsInstances": false }
   ],
   "permissions": [
@@ -32,7 +33,8 @@
     { "code": "andy-policies:bundle:delete",     "name": "Soft-delete a bundle",     "resourceType": "bundle"   },
     { "code": "andy-policies:audit:read",        "name": "Read audit events",        "resourceType": "audit"    },
     { "code": "andy-policies:audit:export",      "name": "Export audit chain",       "resourceType": "audit"    },
-    { "code": "andy-policies:audit:verify",      "name": "Verify audit chain",       "resourceType": "audit"    }
+    { "code": "andy-policies:audit:verify",      "name": "Verify audit chain",       "resourceType": "audit"    },
+    { "code": "andy-policies:plan:evaluate",     "name": "Evaluate a plan",          "resourceType": "plan"     }
   ],
   "roles": [
     {
