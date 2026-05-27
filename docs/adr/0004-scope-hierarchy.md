@@ -8,7 +8,7 @@ P4.5 #33, P4.6 #34, P4.7 #36) shipped ahead of this ADR's acceptance
 because the aggregate shape and resolution semantics were already pinned
 in the per-story specs. This ADR captures the decisions authoritatively
 for downstream readers (Conductor's ActionBus, andy-tasks per-task
-gates, andy-mcp-gateway tool policy).
+gates, andy-mcp-proxy tool policy).
 
 Supersedes: nothing. Companion to:
 
@@ -27,7 +27,7 @@ Supersedes: nothing. Companion to:
 ## Context
 
 Epic P4 introduces the hierarchical scope graph that consumers — Conductor,
-andy-tasks, andy-mcp-gateway — use to ask "which policies apply to this
+andy-tasks, andy-mcp-proxy — use to ask "which policies apply to this
 target?" with structural awareness, not just byte-exact match. The model
 has to balance four concerns:
 

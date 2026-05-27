@@ -8,7 +8,7 @@ Related: ADR 0001 policy-versioning (#92), ADR 0006 audit-hash-chain (#54 — pr
 
 ## Context
 
-Epic P8 (rivoli-ai/andy-policies#8) introduces bundle pinning. A `Bundle` is a frozen, materialized snapshot of the live catalog (active `PolicyVersion`s × live `Binding`s × approved `Override`s × all `ScopeNode`s) addressed by a single `bundleId`. Consumers — Conductor's admission gate, andy-tasks per-task gates, andy-mcp-gateway tool policy — pin a bundle id and receive identical answers across catalog mutations until they explicitly re-pin.
+Epic P8 (rivoli-ai/andy-policies#8) introduces bundle pinning. A `Bundle` is a frozen, materialized snapshot of the live catalog (active `PolicyVersion`s × live `Binding`s × approved `Override`s × all `ScopeNode`s) addressed by a single `bundleId`. Consumers — Conductor's admission gate, andy-tasks per-task gates, andy-mcp-proxy tool policy — pin a bundle id and receive identical answers across catalog mutations until they explicitly re-pin.
 
 Without bundle pinning, a Conductor admission decision made at `T` would yield a different answer at `T+5min` if a publish landed between the two reads. That violates the reproducibility consumers need for release-pinning, replay debugging, and compliance reporting. The README's headline framing — *"consumers pin a bundle version for reproducibility"* — only holds if the bundle is genuinely frozen end to end.
 

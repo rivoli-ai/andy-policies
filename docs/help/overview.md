@@ -12,7 +12,7 @@ Andy Policies is the governance policy catalog for the Andy ecosystem. It stores
 ## What it does
 
 - Stores policies with structured fields (id, version, status, applies-to, content, effective-from).
-- Tracks policy lifecycle: `draft → review → active → deprecated → archived`.
+- Tracks policy lifecycle: `draft → active → winding-down → retired`.
 - Records every read and every status transition in an audit log retained per the org's retention setting.
 - Serves policies to consumers (Conductor, agents) over a versioned HTTP API; consumers cache by version.
 - Surfaces a diff view between policy versions for review.
@@ -34,5 +34,5 @@ Policy retention, audit log retention, and review-required toggles live under `a
 ## Troubleshooting
 
 - **A policy isn't being applied** — verify the consuming service queries the right `applies-to` scope and check its cached version is current.
-- **Edit blocked with "must go through review"** — the policy is in `active`. Either move it to `draft` (revoking the active version) or publish a new version.
+- **Edit blocked with "must go through review"** — the policy is in `active`. Publish a new version (the prior `Active` auto-transitions to `WindingDown`).
 - **Audit gaps** — Policies logs every access; gaps usually mean the audit subscriber lost its NATS connection. Restart the consumer.

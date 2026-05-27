@@ -12,7 +12,7 @@ Andy Policies est le catalogue de politiques de gouvernance de l'écosystème An
 ## Ce qu'il fait
 
 - Stocke les politiques avec des champs structurés (id, version, statut, applies-to, content, effective-from).
-- Suit le cycle de vie des politiques : `draft → review → active → deprecated → archived`.
+- Suit le cycle de vie des politiques : `draft → active → winding-down → retired`.
 - Enregistre chaque lecture et chaque transition de statut dans un journal d'audit retenu selon le réglage de rétention de l'organisation.
 - Sert les politiques aux consommateurs (Conductor, agents) via une API HTTP versionnée ; les consommateurs mettent en cache par version.
 - Expose une vue de diff entre versions de politique pour révision.
@@ -34,5 +34,5 @@ La rétention de politique, la rétention du journal d'audit et les bascules de 
 ## Dépannage
 
 - **Une politique n'est pas appliquée** — vérifiez que le service consommateur interroge la bonne portée `applies-to` et vérifiez que sa version en cache est à jour.
-- **Édition bloquée avec « doit passer par révision »** — la politique est en `active`. Soit déplacez-la en `draft` (révoquant la version active), soit publiez une nouvelle version.
+- **Édition bloquée avec « doit passer par révision »** — la politique est en `active`. Publiez une nouvelle version (la version `Active` précédente passe automatiquement en `WindingDown`).
 - **Lacunes d'audit** — Policies enregistre chaque accès ; les lacunes signifient habituellement que l'abonné d'audit a perdu sa connexion NATS. Redémarrez le consommateur.

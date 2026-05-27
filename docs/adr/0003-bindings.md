@@ -27,7 +27,7 @@ Epic P3 (rivoli-ai/andy-policies#3) introduces the third
 governance-catalog entity: a metadata link between an immutable
 `PolicyVersion` and a foreign target (template, repo, scope node,
 tenant, org). Consumers — Conductor's ActionBus, andy-tasks per-task
-gates, andy-mcp-gateway tool policy — need to ask "which policies apply
+gates, andy-mcp-proxy tool policy — need to ask "which policies apply
 to this target?" and get back a stable, reproducible answer.
 
 The binding model has to balance four concerns:
