@@ -157,3 +157,7 @@ may add a drift guard if hand-authored stays brittle.
 - [Per-task compliance evaluation](reference/evaluate-task.md) — the structured
   `ComplianceAssessment` (violations + risk tier/score) that conductor#1945
   injects into andy-docs under `role:Audit`.
+- [Compliance/audit injection into andy-docs](reference/compliance-audit-injection.md)
+  — how the assessment **and** this hash-chained export segment are written into
+  andy-docs as `role:Audit` documents (the seq-range bounding, idempotency, and
+  best-effort/non-blocking contract).

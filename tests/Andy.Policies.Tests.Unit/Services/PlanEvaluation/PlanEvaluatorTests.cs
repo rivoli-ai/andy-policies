@@ -325,6 +325,7 @@ public class PlanEvaluatorTests
         var eval = new PlanEvaluator(
             tasks, bindings, dbCtx,
             (predicates ?? AllPredicates), new ComplianceScorer(),
+            new NoopAuditPublisher(),
             cache, NullLogger<PlanEvaluator>.Instance);
         return (eval, cache);
     }
@@ -423,5 +424,16 @@ public class PlanEvaluatorTests
         public Task<EffectivePolicySetDto> ResolveForTargetAsync(
             BindingTargetType targetType, string targetRef, CancellationToken ct = default)
             => Task.FromResult(new EffectivePolicySetDto(null, _policies));
+    }
+
+    private sealed class NoopAuditPublisher : IComplianceAuditPublisher
+    {
+        public Task<ComplianceAuditPublishResult> PublishPlanAsync(
+            Guid goalId, string planVersion, ComplianceAssessment assessment, CancellationToken ct = default)
+            => Task.FromResult(ComplianceAuditPublishResult.SkippedResult);
+
+        public Task<ComplianceAuditPublishResult> PublishTaskAsync(
+            Guid goalId, Guid taskId, string planVersion, ComplianceAssessment assessment, CancellationToken ct = default)
+            => Task.FromResult(ComplianceAuditPublishResult.SkippedResult);
     }
 }

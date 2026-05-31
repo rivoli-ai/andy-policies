@@ -285,6 +285,38 @@ if (!string.IsNullOrWhiteSpace(builder.Configuration["AndyAuth:ClientId"]))
     tasksClientBuilder.AddHttpMessageHandler<Andy.Auth.M2MClient.ServiceBearerHandler>();
 }
 
+// rivoli-ai/conductor#1945 (TX F7.2): andy-docs compliance/audit
+// injection. On plan-finalize + per-task eval the PlanEvaluator publishes
+// the structured ComplianceAssessment (#1944) + a hash-chained
+// audit-export segment into andy-docs as role:Audit documents via
+// docs.put. Ships dark — ComplianceAudit:Enabled defaults to false so the
+// publisher is wired but inert until an operator flips it on. AndyDocs
+// :BaseUrl is OPTIONAL (embedded-only stacks may not ship andy-docs); a
+// failed/missing-config put degrades best-effort and never blocks the
+// policy decision. Same Andy.Auth.M2MClient bearer the RBAC/tasks clients
+// use (run-scoped token per andy-docs Epic Y5).
+builder.Services.Configure<Andy.Policies.Application.PlanEvaluation.ComplianceAuditPublisherOptions>(
+    builder.Configuration.GetSection(
+        Andy.Policies.Application.PlanEvaluation.ComplianceAuditPublisherOptions.SectionName));
+var docsClientBuilder = builder.Services.AddHttpClient<
+    Andy.Policies.Application.Interfaces.IDocsClient,
+    Andy.Policies.Infrastructure.Docs.HttpDocsClient>((sp, client) =>
+{
+    var cfg = sp.GetRequiredService<Microsoft.Extensions.Configuration.IConfiguration>();
+    var url = cfg["AndyDocs:BaseUrl"]
+        ?? "http://localhost:5400"; // dev-only fallback; production must override
+    client.BaseAddress = new Uri(url);
+    client.Timeout = TimeSpan.FromSeconds(10);
+});
+if (!string.IsNullOrWhiteSpace(builder.Configuration["AndyAuth:ClientId"]))
+{
+    docsClientBuilder.AddHttpMessageHandler<Andy.Auth.M2MClient.ServiceBearerHandler>();
+}
+// Scoped: depends on the scoped AppDbContext (chain-head seq lookup).
+builder.Services.AddScoped<
+    Andy.Policies.Application.PlanEvaluation.IComplianceAuditPublisher,
+    Andy.Policies.Infrastructure.Docs.ComplianceAuditPublisher>();
+
 // rivoli-ai/andy-policies#232: plan-aware predicate registry. Order
 // is registration order; the evaluator iterates predicates in the
 // order DI hands them back, so the wire response surfaces them in a

@@ -57,6 +57,7 @@ public sealed class PlanEvaluator : IPlanEvaluator
     private readonly AppDbContext _db;
     private readonly IEnumerable<IPlanPredicate> _predicates;
     private readonly IComplianceScorer _scorer;
+    private readonly IComplianceAuditPublisher _auditPublisher;
     private readonly IMemoryCache _cache;
     private readonly ILogger<PlanEvaluator> _log;
     private readonly TimeProvider _clock;
@@ -67,6 +68,7 @@ public sealed class PlanEvaluator : IPlanEvaluator
         AppDbContext db,
         IEnumerable<IPlanPredicate> predicates,
         IComplianceScorer scorer,
+        IComplianceAuditPublisher auditPublisher,
         IMemoryCache cache,
         ILogger<PlanEvaluator> log,
         TimeProvider? clock = null)
@@ -76,6 +78,7 @@ public sealed class PlanEvaluator : IPlanEvaluator
         _db = db;
         _predicates = predicates;
         _scorer = scorer;
+        _auditPublisher = auditPublisher;
         _cache = cache;
         _log = log;
         _clock = clock ?? TimeProvider.System;
@@ -104,6 +107,16 @@ public sealed class PlanEvaluator : IPlanEvaluator
         {
             AbsoluteExpirationRelativeToNow = IdempotencyTtl,
         });
+
+        // rivoli-ai/conductor#1945 (TX F7.2): inject the structured
+        // assessment + tamper-evident audit-chain segment into andy-docs
+        // under role:Audit, linked to the goal. Best-effort — the
+        // publisher swallows + degrades on failure, never altering the
+        // decision. Only on cache miss so a re-eval doesn't re-publish.
+        var assessment = ProjectAssessment(core);
+        await _auditPublisher
+            .PublishPlanAsync(view.GoalId, view.PlanVersion, assessment, ct)
+            .ConfigureAwait(false);
 
         return response;
     }
@@ -136,18 +149,7 @@ public sealed class PlanEvaluator : IPlanEvaluator
         var scopedView = ScopeToTask(view, task);
         var core = await EvaluateCoreAsync(scopedView, ct).ConfigureAwait(false);
 
-        var scored = core.Violations
-            .Select(v => new ScoredViolation(v.Wire, v.Criticality))
-            .ToList();
-        var risk = _scorer.Score(scored);
-
-        var assessment = new ComplianceAssessment(
-            Decision: core.Decision,
-            RiskTier: risk.Tier,
-            RiskScore: risk.Score,
-            Violations: core.Violations.Select(v => v.Wire).ToList(),
-            Predicates: core.PredicateTrace,
-            EvaluatedAt: _clock.GetUtcNow());
+        var assessment = ProjectAssessment(core);
 
         var response = new EvaluateTaskResponse(goalId, taskId, assessment);
 
@@ -156,7 +158,40 @@ public sealed class PlanEvaluator : IPlanEvaluator
             AbsoluteExpirationRelativeToNow = IdempotencyTtl,
         });
 
+        // rivoli-ai/conductor#1945 (TX F7.2): inject the structured
+        // assessment + tamper-evident audit-chain segment into andy-docs
+        // under role:Audit, linked to the goal AND the task. Best-effort
+        // — never alters the decision. Only on cache miss.
+        await _auditPublisher
+            .PublishTaskAsync(goalId, taskId, view.PlanVersion, assessment, ct)
+            .ConfigureAwait(false);
+
         return response;
+    }
+
+    /// <summary>
+    /// Project the shared evaluation core into the structured
+    /// <see cref="ComplianceAssessment"/> — fold the scored violations
+    /// through <see cref="IComplianceScorer"/> for the aggregate tier +
+    /// score. Used by both the per-task surface (its wire response) and
+    /// the plan-finalize surface (the audit injection per
+    /// rivoli-ai/conductor#1945; plan-finalize's own wire response stays
+    /// the binary <see cref="EvaluatePlanResponse"/>).
+    /// </summary>
+    private ComplianceAssessment ProjectAssessment(EvaluationCore core)
+    {
+        var scored = core.Violations
+            .Select(v => new ScoredViolation(v.Wire, v.Criticality))
+            .ToList();
+        var risk = _scorer.Score(scored);
+
+        return new ComplianceAssessment(
+            Decision: core.Decision,
+            RiskTier: risk.Tier,
+            RiskScore: risk.Score,
+            Violations: core.Violations.Select(v => v.Wire).ToList(),
+            Predicates: core.PredicateTrace,
+            EvaluatedAt: _clock.GetUtcNow());
     }
 
     private static PlanEvaluationGoalView ScopeToTask(
