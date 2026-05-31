@@ -324,7 +324,8 @@ public class PlanEvaluatorTests
         var dbCtx = db ?? InMemoryDbFixture.Create();
         var eval = new PlanEvaluator(
             tasks, bindings, dbCtx,
-            (predicates ?? AllPredicates), cache, NullLogger<PlanEvaluator>.Instance);
+            (predicates ?? AllPredicates), new ComplianceScorer(),
+            cache, NullLogger<PlanEvaluator>.Instance);
         return (eval, cache);
     }
 

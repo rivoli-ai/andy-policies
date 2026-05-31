@@ -78,6 +78,11 @@ string[] rbacPermissionCodes =
     // RBAC manifest entry is added alongside the existing
     // andy-policies:* set.
     "andy-policies:plan:evaluate",
+    // rivoli-ai/conductor#1944 (TX F7.1): per-task / per-run compliance
+    // evaluation during execution. Sibling of plan:evaluate so the
+    // cockpit's execution-time gate can be scoped independently of the
+    // plan-finalize gate.
+    "andy-policies:plan:evaluate-task",
 };
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<
@@ -294,6 +299,10 @@ builder.Services.AddSingleton<Andy.Policies.Application.PlanEvaluation.IPlanPred
     Andy.Policies.Infrastructure.Services.PlanEvaluation.AllAgentsApprovedPredicate>();
 builder.Services.AddSingleton<Andy.Policies.Application.PlanEvaluation.IPlanPredicate,
     Andy.Policies.Infrastructure.Services.PlanEvaluation.RespectsCostBudgetPredicate>();
+// rivoli-ai/conductor#1944 (TX F7.1): deterministic risk fold for the
+// per-task compliance assessment. Stateless — registered as a singleton.
+builder.Services.AddSingleton<Andy.Policies.Application.PlanEvaluation.IComplianceScorer,
+    Andy.Policies.Infrastructure.Services.PlanEvaluation.ComplianceScorer>();
 // PlanEvaluator is scoped because it depends on the scoped DbContext
 // (loading RulesJson by version id) and the scoped binding resolver.
 // The 5-minute idempotency cache lives on the singleton IMemoryCache

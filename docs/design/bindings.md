@@ -129,6 +129,17 @@ deduplicated, ordered list of `ResolvedBindingDto`s:
 `?mode=hierarchy` flag on the same endpoint, so consumers don't have to
 move when it ships.
 
+### Per-task evaluation reuses the workspace anchor (TX F7.1, conductor#1944)
+
+`POST /api/policies/evaluate-task` resolves the **same** effective policy
+set the plan got: it anchors on the workspace's `scope:{containerId}` ref
+via `IBindingResolutionService.ResolveForTargetAsync(ScopeNode, …)`,
+identical to `evaluate-plan`. The task-scoped anchor does **not** differ
+from the workspace scope anchor — only the *predicate inputs* are narrowed
+(the goal view's `Tasks` list is filtered to the single requested task)
+before the predicates run. No new `TargetRef` shape and no per-task binding
+target is introduced. See [`reference/evaluate-task.md`](../reference/evaluate-task.md).
+
 ## Surface parity
 
 | Surface | Operation                                                                    | Story |
