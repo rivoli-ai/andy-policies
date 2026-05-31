@@ -2285,8 +2285,157 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+  '/api/policies/evaluate-task':
+    post:
+      tags:
+        - PlanEvaluation
+      summary: Per-task / per-run compliance evaluation (rivoli-ai/conductor#1944, TX F7.1).
+      description: >-
+        Re-evaluates a single task (or agent run) of a goal against the
+        workspace's effective policies during execution and returns a
+        structured ComplianceAssessment: the typed violations plus an
+        aggregate risk tier and numeric score, not just the binary
+        plan-finalize decision string. Reuses the same binding-resolution
+        and predicate pipeline as /api/policies/evaluate-plan (no forked
+        evaluator). Idempotent for 5 minutes per (goalId, taskId,
+        planVersion); a replanned goal (new planVersion) busts the cache.
+      operationId: EvaluateTask
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EvaluateTaskRequest'
+      responses:
+        '200':
+          description: The structured compliance assessment for the task.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EvaluateTaskResponse'
+        '400':
+          description: Missing body, empty goalId, or empty taskId.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Principal lacks andy-policies:plan:evaluate-task.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: andy-tasks doesn't recognise the goal, or the goal does not contain the task.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
 components:
   schemas:
+    EvaluateTaskRequest:
+      type: object
+      required:
+        - goalId
+        - taskId
+      properties:
+        goalId:
+          type: string
+          format: uuid
+          description: The owning goal (resolves the binding chain).
+        taskId:
+          type: string
+          format: uuid
+          description: The task to scope the evaluation to.
+    EvaluateTaskResponse:
+      type: object
+      required:
+        - goalId
+        - taskId
+        - assessment
+      properties:
+        goalId:
+          type: string
+          format: uuid
+        taskId:
+          type: string
+          format: uuid
+        assessment:
+          $ref: '#/components/schemas/ComplianceAssessment'
+    ComplianceAssessment:
+      type: object
+      required:
+        - decision
+        - riskTier
+        - riskScore
+        - violations
+        - predicates
+        - evaluatedAt
+      properties:
+        decision:
+          type: string
+          enum: [approve, manual, reject]
+          description: Back-compat verdict derived from the firing decision rules.
+        riskTier:
+          type: string
+          enum: [none, low, medium, high, critical]
+          description: Aggregate risk tier (deterministic fold over the violations).
+        riskScore:
+          type: integer
+          description: Deterministic numeric risk score; 0 when there are no violations.
+        violations:
+          type: array
+          items:
+            $ref: '#/components/schemas/ComplianceViolation'
+        predicates:
+          type: array
+          items:
+            $ref: '#/components/schemas/PredicateResultDto'
+        evaluatedAt:
+          type: string
+          format: date-time
+          description: ISO-8601 timestamp of evaluation.
+    ComplianceViolation:
+      type: object
+      required:
+        - policyKey
+        - predicate
+        - outcome
+        - decision
+        - reason
+      properties:
+        policyKey:
+          type: string
+          description: Wire-stable policy slug that fired the violation (never the GUID).
+        predicate:
+          type: string
+          description: camelCase predicate name the firing rule required but which did not pass.
+        outcome:
+          type: string
+          enum: [fail, unevaluable]
+          description: Predicate outcome on the wire; unevaluable is surfaced as a violation, never a silent pass.
+        decision:
+          type: string
+          enum: [reject, manual]
+          description: The decision the firing rule emits; reject outranks manual in scoring.
+        reason:
+          type: string
+          description: Human-readable explanation (e.g. "data unavailable" for unevaluable).
+    PredicateResultDto:
+      type: object
+      required:
+        - name
+        - passed
+        - reason
+      properties:
+        name:
+          type: string
+        passed:
+          type: boolean
+        reason:
+          type: string
     AuditEventDto:
       type: object
       properties:

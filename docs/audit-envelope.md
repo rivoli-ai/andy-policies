@@ -154,3 +154,6 @@ may add a drift guard if hand-authored stays brittle.
 - [ADR 0006 — Audit hash chain](adr/0006-audit-hash-chain.md) — *why*.
 - [Compliance officer runbook](runbooks/audit-compliance.md) — operational how-to.
 - [Schema](schemas/audit-event.schema.json) — JSON Schema 2020-12 validator.
+- [Per-task compliance evaluation](reference/evaluate-task.md) — the structured
+  `ComplianceAssessment` (violations + risk tier/score) that conductor#1945
+  injects into andy-docs under `role:Audit`.

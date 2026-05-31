@@ -13,7 +13,8 @@ using Microsoft.Extensions.Logging;
 namespace Andy.Policies.Infrastructure.Services.PlanEvaluation;
 
 /// <summary>
-/// Reference <see cref="IPlanEvaluator"/> (rivoli-ai/andy-policies#232).
+/// Reference <see cref="IPlanEvaluator"/> (rivoli-ai/andy-policies#232 +
+/// rivoli-ai/conductor#1944).
 /// </summary>
 /// <remarks>
 /// <para>
@@ -24,28 +25,28 @@ namespace Andy.Policies.Infrastructure.Services.PlanEvaluation;
 ///     <see cref="ITasksPlanClient"/>. Return null on 404 — controller
 ///     translates that to 404 so the caller can distinguish "missing
 ///     goal" from "no policies registered".</item>
-///   <item>Check the 5-minute idempotency cache keyed on
-///     <c>(GoalId, PlanVersion)</c>. Hit returns the cached response
-///     verbatim; the planVersion in the cache key guarantees that a
-///     replanned goal sees a fresh decision.</item>
+///   <item>Check the 5-minute idempotency cache. The plan path keys on
+///     <c>(GoalId, PlanVersion)</c>; the per-task path (#1944) extends
+///     the key with the task id so a per-task re-eval is independently
+///     cached and a replan still busts it.</item>
 ///   <item>Evaluate every registered <see cref="IPlanPredicate"/>
-///     against the view exactly once. The same predicate trace is
-///     consumed by every policy's rule list AND surfaced to the caller
-///     so the wire response carries the full set, not just the rules
-///     the winning policy referenced.</item>
+///     against the (optionally task-scoped) view exactly once.</item>
 ///   <item>Resolve the workspace's applicable policies via the existing
-///     <see cref="IBindingResolutionService"/> (P4.3) — the bridge that
-///     walks the scope chain from the workspace's container reference
-///     and folds tighten-only.</item>
+///     <see cref="IBindingResolutionService"/> (P4.3).</item>
 ///   <item>For each effective policy in resolution order, load its
-///     <c>RulesJson</c>, parse the <c>planEvaluation</c> block, and
-///     evaluate its decision rules against the predicate trace. The
-///     first policy whose rule fires <c>approve</c> or <c>reject</c>
-///     wins; ties are broken by resolution order (Mandatory wins, then
-///     deeper scope, then earlier <c>CreatedAt</c> — already enforced
-///     by P4.3's tighten-only fold).</item>
+///     <c>RulesJson</c> + criticality, parse the <c>planEvaluation</c>
+///     block, and evaluate its decision rules against the predicate
+///     trace. The first policy whose rule fires <c>approve</c> or
+///     <c>reject</c> wins.</item>
 ///   <item>Default: <c>manual</c>.</item>
 /// </list>
+/// <para>
+/// The plan-finalize and per-task surfaces share one evaluator core
+/// (<see cref="EvaluateCoreAsync"/>): the binary
+/// <see cref="EvaluatePlanResponse"/> and the structured
+/// <see cref="ComplianceAssessment"/> are two projections of the same
+/// firing-rule trace (rivoli-ai/conductor#1944 — no forked evaluator).
+/// </para>
 /// </remarks>
 public sealed class PlanEvaluator : IPlanEvaluator
 {
@@ -55,23 +56,29 @@ public sealed class PlanEvaluator : IPlanEvaluator
     private readonly IBindingResolutionService _bindings;
     private readonly AppDbContext _db;
     private readonly IEnumerable<IPlanPredicate> _predicates;
+    private readonly IComplianceScorer _scorer;
     private readonly IMemoryCache _cache;
     private readonly ILogger<PlanEvaluator> _log;
+    private readonly TimeProvider _clock;
 
     public PlanEvaluator(
         ITasksPlanClient tasks,
         IBindingResolutionService bindings,
         AppDbContext db,
         IEnumerable<IPlanPredicate> predicates,
+        IComplianceScorer scorer,
         IMemoryCache cache,
-        ILogger<PlanEvaluator> log)
+        ILogger<PlanEvaluator> log,
+        TimeProvider? clock = null)
     {
         _tasks = tasks;
         _bindings = bindings;
         _db = db;
         _predicates = predicates;
+        _scorer = scorer;
         _cache = cache;
         _log = log;
+        _clock = clock ?? TimeProvider.System;
     }
 
     public async Task<EvaluatePlanResponse?> EvaluatePlanAsync(
@@ -86,10 +93,90 @@ public sealed class PlanEvaluator : IPlanEvaluator
             return cached;
         }
 
+        var core = await EvaluateCoreAsync(view, ct).ConfigureAwait(false);
+
+        var response = new EvaluatePlanResponse(
+            Decision: core.Decision,
+            PolicyId: core.FiringPolicyKey,
+            Predicates: core.PredicateTrace);
+
+        _cache.Set(cacheKey, response, new MemoryCacheEntryOptions
+        {
+            AbsoluteExpirationRelativeToNow = IdempotencyTtl,
+        });
+
+        return response;
+    }
+
+    public async Task<EvaluateTaskResponse?> EvaluateTaskAsync(
+        Guid goalId, Guid taskId, CancellationToken ct = default)
+    {
+        var view = await _tasks.FetchGoalViewAsync(goalId, ct).ConfigureAwait(false);
+        if (view is null) return null;
+
+        // Scope the predicate inputs down to the single task. A goal that
+        // doesn't contain the task is a 404 (the controller translates a
+        // null result) — never a silent "no violations" pass.
+        var task = view.Tasks.FirstOrDefault(t => t.TaskId == taskId);
+        if (task is null)
+        {
+            _log.LogDebug(
+                "task eval: goal {GoalId} does not contain task {TaskId}", goalId, taskId);
+            return null;
+        }
+
+        // Cache key includes the task id (and plan version) so a per-task
+        // re-eval is cached independently and a replan busts it.
+        var cacheKey = $"task-eval:{view.GoalId:D}:{taskId:D}:{view.PlanVersion}";
+        if (_cache.TryGetValue(cacheKey, out EvaluateTaskResponse? cached) && cached is not null)
+        {
+            return cached;
+        }
+
+        var scopedView = ScopeToTask(view, task);
+        var core = await EvaluateCoreAsync(scopedView, ct).ConfigureAwait(false);
+
+        var scored = core.Violations
+            .Select(v => new ScoredViolation(v.Wire, v.Criticality))
+            .ToList();
+        var risk = _scorer.Score(scored);
+
+        var assessment = new ComplianceAssessment(
+            Decision: core.Decision,
+            RiskTier: risk.Tier,
+            RiskScore: risk.Score,
+            Violations: core.Violations.Select(v => v.Wire).ToList(),
+            Predicates: core.PredicateTrace,
+            EvaluatedAt: _clock.GetUtcNow());
+
+        var response = new EvaluateTaskResponse(goalId, taskId, assessment);
+
+        _cache.Set(cacheKey, response, new MemoryCacheEntryOptions
+        {
+            AbsoluteExpirationRelativeToNow = IdempotencyTtl,
+        });
+
+        return response;
+    }
+
+    private static PlanEvaluationGoalView ScopeToTask(
+        PlanEvaluationGoalView view, PlanEvaluationTaskView task) => view with
+        {
+            Tasks = new List<PlanEvaluationTaskView> { task },
+        };
+
+    /// <summary>
+    /// Shared core: evaluate predicates once, resolve effective policies,
+    /// then walk decision rules to find the firing decision + the
+    /// violations it depended on. Both the plan and task entry points
+    /// project this single result.
+    /// </summary>
+    private async Task<EvaluationCore> EvaluateCoreAsync(
+        PlanEvaluationGoalView view, CancellationToken ct)
+    {
         // Evaluate every predicate once. Stable order = registration
-        // order from DI. Stored on the response so callers see the
-        // full predicate trace, not just whatever the winning rule
-        // happened to name.
+        // order from DI. Surfaced on the response so callers see the
+        // full predicate trace, not just whatever the winning rule named.
         var predicateResults = _predicates
             .Select(p =>
             {
@@ -105,30 +192,16 @@ public sealed class PlanEvaluator : IPlanEvaluator
 
         var byName = predicateResults.ToDictionary(r => r.Name, r => r.Evaluation, StringComparer.Ordinal);
 
-        // Resolve workspace policies via the binding chain. The
-        // workspace's container id is mapped to a `scope:{guid}` target
-        // ref — same shape the existing P4 resolver uses for scope
-        // nodes — but a workspace with no container reference at all
-        // means we can't resolve anything; that falls through to
-        // manual with no policy fired.
         var effective = await ResolveWorkspacePoliciesAsync(view, ct).ConfigureAwait(false);
 
-        var (decision, firingPolicyId) = await EvaluateDecisionAsync(effective, byName, ct).ConfigureAwait(false);
+        var (decision, firingPolicyKey, violations) =
+            await EvaluateDecisionAsync(effective, byName, ct).ConfigureAwait(false);
 
-        var response = new EvaluatePlanResponse(
-            Decision: decision,
-            PolicyId: firingPolicyId,
-            Predicates: predicateResults.Select(r => r.Dto).ToList());
-
-        // Cache only after the response is built. AbsoluteExpirationRelativeToNow
-        // — sliding would let a single hot goal pin a decision longer
-        // than the 5-minute contract.
-        _cache.Set(cacheKey, response, new MemoryCacheEntryOptions
-        {
-            AbsoluteExpirationRelativeToNow = IdempotencyTtl,
-        });
-
-        return response;
+        return new EvaluationCore(
+            decision,
+            firingPolicyKey,
+            predicateResults.Select(r => r.Dto).ToList(),
+            violations);
     }
 
     private async Task<IReadOnlyList<EffectivePolicyDto>> ResolveWorkspacePoliciesAsync(
@@ -142,11 +215,6 @@ public sealed class PlanEvaluator : IPlanEvaluator
             return Array.Empty<EffectivePolicyDto>();
         }
 
-        // The workspace's container id maps to a Scope target — that's
-        // the canonical "everything for this workspace" anchor. If
-        // andy-tasks ever splits its workspace shape into multiple
-        // scopes we resolve them in a future iteration; for #232 a
-        // single anchor matches the existing binding model.
         var set = await _bindings.ResolveForTargetAsync(
             BindingTargetType.ScopeNode,
             $"scope:{view.WorkspaceContainerId}",
@@ -155,32 +223,38 @@ public sealed class PlanEvaluator : IPlanEvaluator
         return set.Policies;
     }
 
-    private async Task<(string Decision, string? PolicyId)> EvaluateDecisionAsync(
-        IReadOnlyList<EffectivePolicyDto> effective,
-        IReadOnlyDictionary<string, PredicateEvaluation> byName,
-        CancellationToken ct)
+    private async Task<(string Decision, string? PolicyKey, IReadOnlyList<ScoredViolationCore> Violations)>
+        EvaluateDecisionAsync(
+            IReadOnlyList<EffectivePolicyDto> effective,
+            IReadOnlyDictionary<string, PredicateEvaluation> byName,
+            CancellationToken ct)
     {
-        if (effective.Count == 0) return ("manual", null);
+        if (effective.Count == 0)
+        {
+            return ("manual", null, Array.Empty<ScoredViolationCore>());
+        }
 
-        // Load the RulesJson for every effective policy version in one
-        // round-trip. Order preserved by re-projecting through the
-        // input list.
+        // Load the RulesJson + criticality for every effective policy
+        // version in one round-trip. Criticality (Severity) feeds the
+        // compliance scorer's weight fold (#1944).
         var versionIds = effective.Select(e => e.PolicyVersionId).Distinct().ToList();
-        var rulesByVersionId = await _db.PolicyVersions
+        var metaByVersionId = await _db.PolicyVersions
             .AsNoTracking()
             .Where(v => versionIds.Contains(v.Id))
-            .Select(v => new { v.Id, v.RulesJson })
-            .ToDictionaryAsync(v => v.Id, v => v.RulesJson, ct)
+            .Select(v => new { v.Id, v.RulesJson, v.Severity })
+            .ToDictionaryAsync(v => v.Id, v => new { v.RulesJson, v.Severity }, ct)
             .ConfigureAwait(false);
+
+        var violations = new List<ScoredViolationCore>();
 
         foreach (var policy in effective)
         {
-            if (!rulesByVersionId.TryGetValue(policy.PolicyVersionId, out var rulesJson))
+            if (!metaByVersionId.TryGetValue(policy.PolicyVersionId, out var meta))
             {
                 continue;
             }
 
-            var rules = PolicyRulesDslParser.TryParse(rulesJson);
+            var rules = PolicyRulesDslParser.TryParse(meta.RulesJson);
             if (rules?.DecisionRules is null) continue;
 
             foreach (var rule in rules.DecisionRules)
@@ -188,21 +262,84 @@ public sealed class PlanEvaluator : IPlanEvaluator
                 if (!RuleFires(rule, byName)) continue;
 
                 var normalized = NormalizeDecision(rule.Decision);
+
+                // A firing reject/manual rule produces violations for each
+                // predicate it depended on that did NOT pass (fail or
+                // unevaluable). approve rules never produce violations.
+                if (normalized is "reject" or "manual")
+                {
+                    CollectViolations(rule, byName, policy, meta.Severity, normalized, violations);
+                }
+
                 if (normalized is "approve" or "reject")
                 {
-                    // PolicyKey is the wire-stable string identifier
-                    // ("policy.name") rather than the internal GUID;
-                    // it matches what callers see in catalog listings
-                    // and audit trails.
-                    return (normalized, policy.PolicyKey);
+                    // First terminal decision wins; ties broken by
+                    // resolution order (P4.3 tighten-only fold).
+                    return (normalized, policy.PolicyKey, violations);
                 }
-                // "manual" rules fall through silently; otherwise
-                // unknown decisions are ignored (catalog tolerance
-                // beats strictness here).
+                // "manual" rules fall through (their violations are kept);
+                // unknown decisions are ignored (catalog tolerance).
             }
         }
 
-        return ("manual", null);
+        return ("manual", null, violations);
+    }
+
+    /// <summary>
+    /// For a firing rule, surface a violation per referenced predicate
+    /// that did not pass. <c>requireAll</c> predicates that are
+    /// <c>fail</c>/<c>unevaluable</c> and <c>requireNone</c> predicates
+    /// that are <c>fail</c>/<c>unevaluable</c> (i.e. the conditions that
+    /// made the rule fire) are the proximate cause. Unevaluable is
+    /// surfaced as a violation exactly like fail — never a silent pass.
+    /// </summary>
+    private static void CollectViolations(
+        DecisionRule rule,
+        IReadOnlyDictionary<string, PredicateEvaluation> byName,
+        EffectivePolicyDto policy,
+        Severity criticality,
+        string decision,
+        List<ScoredViolationCore> sink)
+    {
+        void Add(string predicate)
+        {
+            if (!byName.TryGetValue(predicate, out var ev))
+            {
+                // Unknown predicate cannot fire a requireAll rule (handled
+                // by RuleFires); nothing to record.
+                return;
+            }
+            if (ev.Outcome == PredicateOutcome.Pass) return;
+
+            var outcomeWire = ev.Outcome == PredicateOutcome.Unevaluable
+                ? "unevaluable"
+                : "fail";
+            var reason = ev.Outcome == PredicateOutcome.Unevaluable
+                ? "data unavailable"
+                : ev.Reason;
+
+            sink.Add(new ScoredViolationCore(
+                new ComplianceViolation(
+                    PolicyKey: policy.PolicyKey,
+                    Predicate: predicate,
+                    Outcome: outcomeWire,
+                    Decision: decision,
+                    Reason: reason),
+                criticality));
+        }
+
+        if (rule.RequireNone is { Count: > 0 })
+        {
+            foreach (var name in rule.RequireNone) Add(name);
+        }
+
+        if (rule.RequireAll is { Count: > 0 })
+        {
+            // A requireAll rule fires only when ALL pass, so requireAll
+            // never produces violations on a firing rule. Kept for
+            // completeness/symmetry — Add() no-ops on Pass.
+            foreach (var name in rule.RequireAll) Add(name);
+        }
     }
 
     private static bool RuleFires(
@@ -253,4 +390,20 @@ public sealed class PlanEvaluator : IPlanEvaluator
         Reason: eval.Outcome == PredicateOutcome.Unevaluable
             ? "data unavailable"
             : eval.Reason);
+
+    /// <summary>
+    /// Result of the shared evaluation core. <see cref="Violations"/>
+    /// carry the criticality (internal scoring input) alongside the wire
+    /// violation; the plan projection ignores them, the task projection
+    /// folds them through the scorer.
+    /// </summary>
+    private sealed record EvaluationCore(
+        string Decision,
+        string? FiringPolicyKey,
+        IReadOnlyList<PredicateResultDto> PredicateTrace,
+        IReadOnlyList<ScoredViolationCore> Violations);
+
+    private sealed record ScoredViolationCore(
+        ComplianceViolation Wire,
+        Severity Criticality);
 }

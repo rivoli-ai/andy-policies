@@ -28,6 +28,7 @@ nav:
     - Edit matrix: design/edit-matrix.md
   - Reference:
     - Permission catalog: reference/permission-catalog.md
+    - Per-task compliance evaluation: reference/evaluate-task.md
   - Guides:
     - Consumer integration — bindings: guides/consumer-integration-bindings.md
     - Consumer integration — bundles: guides/consumer-integration-bundles.md

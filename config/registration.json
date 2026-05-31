@@ -87,7 +87,8 @@
       { "code": "andy-policies:audit:read",        "name": "Read audit events",        "resourceType": "audit"    },
       { "code": "andy-policies:audit:export",      "name": "Export audit chain",       "resourceType": "audit"    },
       { "code": "andy-policies:audit:verify",      "name": "Verify audit chain",       "resourceType": "audit"    },
-      { "code": "andy-policies:plan:evaluate",     "name": "Evaluate a plan",          "resourceType": "plan"     }
+      { "code": "andy-policies:plan:evaluate",     "name": "Evaluate a plan",          "resourceType": "plan"     },
+      { "code": "andy-policies:plan:evaluate-task","name": "Evaluate a task/run",      "resourceType": "plan"     }
     ],
     "roles": [
       {

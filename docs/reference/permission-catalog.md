@@ -43,6 +43,7 @@ Application code: `andy-policies`
 | `andy-policies:audit:export` | Export audit chain | `audit` |
 | `andy-policies:audit:verify` | Verify audit chain | `audit` |
 | `andy-policies:plan:evaluate` | Evaluate a plan | `plan` |
+| `andy-policies:plan:evaluate-task` | Evaluate a task/run | `plan` |
 
 ## Roles
 
@@ -57,5 +58,5 @@ Application code: `andy-policies`
 ## Counts
 
 - Resource types: 8
-- Permissions: 22
+- Permissions: 23
 - Roles: 5
