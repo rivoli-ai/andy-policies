@@ -32,6 +32,7 @@ nav:
   - Guides:
     - Consumer integration — bindings: guides/consumer-integration-bindings.md
     - Consumer integration — bundles: guides/consumer-integration-bundles.md
+    - Policy → task contract (AX.6): policy-task-contract.md
   - Runbooks:
     - Override approver: runbooks/override-approver.md
     - Override operator: runbooks/override-operator.md
