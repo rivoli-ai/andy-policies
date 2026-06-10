@@ -15,6 +15,15 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- AX standards catalog (rivoli-ai/conductor#2087): the 101
+         development standards seeded by StandardsSeeder. Embedded
+         (mirroring andy-agents' built-in agent manifest) so the seed
+         never depends on a config file shipping alongside the binary —
+         the conductor bundle build only copies registration.json. -->
+    <EmbeddedResource Include="..\..\config\standards-seed.json" LogicalName="Andy.Policies.Infrastructure.Data.standards-seed.json" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- P6.2 (#42): unit tests for CanonicalJson + AuditChain hash
          vectors live in Tests.Unit; they need to reach the
          internal canonicaliser without the helper leaking into the
