@@ -67,5 +67,11 @@ public static class DatabaseExtensions
         // to its required policies at root scope. Must run after
         // PolicySeeder so the active version ids exist.
         await BindingSeeder.SeedDefaultBindingsAsync(db, ct).ConfigureAwait(false);
+        // AX standards catalog (rivoli-ai/conductor#2087): the 101
+        // development standards, seeded after the guardrails + bindings so
+        // the canonical six keep their seed order. Per-slug idempotent —
+        // an operator-deleted standard is re-added; operator edits on
+        // existing rows are never overwritten.
+        await StandardsSeeder.SeedStandardsAsync(db, ct).ConfigureAwait(false);
     }
 }

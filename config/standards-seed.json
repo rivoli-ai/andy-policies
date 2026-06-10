@@ -1,0 +1,4898 @@
+{
+  "$comment": "AX standards catalog — 101 professional software-development standards extracted from the dev-standards corpus (2026-06-09). Seeded by Andy.Policies.Infrastructure.Data.StandardsSeeder as Active v1 rows, per-slug idempotent. Separate catalog from the six capability guardrails in policies-seed.json: guardrails govern what an agent MAY do; these standards govern HOW work is done. Scope tokens (area:/phase:/lang:/domain:/topic:) let consumers narrow standards per task.",
+  "policies": [
+    {
+      "id": "std-req-acceptance-criteria",
+      "name": "std-req-acceptance-criteria",
+      "description": "Every story MUST carry explicit Given/When/Then acceptance criteria that map one-to-one onto xUnit, Karma/Jasmine, or E2E tests before any code is written.",
+      "severity": "Moderate",
+      "enforcement": "Must",
+      "scopes": [
+        "area:requirements",
+        "phase:scope",
+        "phase:test",
+        "topic:acceptance-criteria",
+        "topic:gherkin"
+      ],
+      "rulesJson": {
+        "standard": "std-req-acceptance-criteria",
+        "intent": "Write Given/When/Then acceptance criteria that map to tests before coding",
+        "appliesTo": {
+          "phases": [
+            "scope",
+            "test"
+          ],
+          "languages": [
+            "all"
+          ],
+          "domains": [
+            "all"
+          ]
+        },
+        "requirements": [
+          "Each story has Given/When/Then criteria authored in phase:scope",
+          "Each criterion maps to at least one xUnit, Karma/Jasmine, or E2E test",
+          "Auth-sensitive criteria cover both authorized and unauthorized callers",
+          "Criteria describe observable outcomes: responses, view state, persisted rows, or telemetry"
+        ],
+        "prohibited": [
+          "Vague criteria like 'works correctly' or 'handles errors'",
+          "Happy-path-only criteria for [Authorize]d endpoints",
+          "Acceptance criteria retrofitted after the code is written"
+        ],
+        "references": [
+          "template:WebApplicationFactory<Program> + TestAuthHandler",
+          "claude-md:Testing Requirements",
+          "claude-md:API Design shared service layer"
+        ]
+      }
+    },
+    {
+      "id": "std-req-definition-of-done",
+      "name": "std-req-definition-of-done",
+      "description": "Done means code plus passing tests, updated docs and OpenAPI YAML, green CI with zero warnings, and a PR that closes its linked issue.",
+      "severity": "Moderate",
+      "enforcement": "Must",
+      "scopes": [
+        "area:requirements",
+        "phase:test",
+        "phase:review",
+        "phase:doc",
+        "phase:pr",
+        "topic:definition-of-done",
+        "topic:ci"
+      ],
+      "rulesJson": {
+        "standard": "std-req-definition-of-done",
+        "intent": "Ship code, tests, docs, contracts, and a closing PR with green zero-warning CI",
+        "appliesTo": {
+          "phases": [
+            "test",
+            "review",
+            "doc",
+            "pr"
+          ],
+          "languages": [
+            "all"
+          ],
+          "domains": [
+            "all"
+          ]
+        },
+        "requirements": [
+          "Zero compiler warnings under TreatWarningsAsErrors and dotnet format applied",
+          "dotnet test and Angular Karma tests pass; CI ci.yml green on the PR",
+          "Rivoli AI 2026 copyright header on new C# files",
+          "REST changes re-export OpenAPI YAML and commit it in the same PR",
+          "Schema changes ship EF migration valid on PostgreSQL and SQLite",
+          "PR body contains 'Closes #N' for the resolved issue"
+        ],
+        "prohibited": [
+          "Declaring done with red CI",
+          "Merging a REST change without regenerating openapi.yaml",
+          "Relying on (#N) in the title instead of 'Closes #N' in the body",
+          "Suppressing warnings to bypass the warnings-as-errors gate"
+        ],
+        "references": [
+          "template:Directory.Build.props TreatWarningsAsErrors",
+          "claude-md:Code Quality and CI/CD",
+          "claude-md:OpenAPI export + Closes #N rules"
+        ]
+      }
+    },
+    {
+      "id": "std-req-definition-of-ready",
+      "name": "std-req-definition-of-ready",
+      "description": "A task MUST NOT start until scope, acceptance criteria, affected layers, and external dependencies (Andy Auth/RBAC/Settings, DB provider) are explicit and unblocked.",
+      "severity": "Moderate",
+      "enforcement": "Must",
+      "scopes": [
+        "area:requirements",
+        "phase:scope",
+        "phase:design",
+        "topic:definition-of-ready",
+        "topic:dependencies"
+      ],
+      "rulesJson": {
+        "standard": "std-req-definition-of-ready",
+        "intent": "Gate task start on explicit scope, criteria, layers, and unblocked dependencies",
+        "appliesTo": {
+          "phases": [
+            "scope",
+            "design"
+          ],
+          "languages": [
+            "all"
+          ],
+          "domains": [
+            "all"
+          ]
+        },
+        "requirements": [
+          "Scope statement plus testable acceptance criteria exist before code starts",
+          "Clean-architecture layers the task will touch are listed",
+          "External dependencies named with config keys (AndyAuth:Authority, AndyRbac:BaseUrl, AndySettings:ApiBaseUrl)",
+          "Seed/migration/OpenAPI-export obligations noted when surface or schema changes",
+          "Blocked tasks stay in phase:scope with the blocker recorded"
+        ],
+        "prohibited": [
+          "Starting an endpoint without knowing its authorizing RBAC role",
+          "Assuming a local auth bypass",
+          "Stubbing missing backend endpoints to start a UI task"
+        ],
+        "references": [
+          "template:clean-architecture layer dependency rule",
+          "claude-md:External Dependencies no-bypass keys",
+          "claude-md:no frontend stubs for missing backend"
+        ]
+      }
+    },
+    {
+      "id": "std-req-nonfunctional",
+      "name": "std-req-nonfunctional",
+      "description": "Performance, security/authorization, accessibility, and observability requirements MUST be stated during scope, not left implicit, for any task touching an endpoint, persisted data, or UI.",
+      "severity": "Critical",
+      "enforcement": "Must",
+      "scopes": [
+        "area:requirements",
+        "phase:scope",
+        "phase:design",
+        "topic:nfr",
+        "topic:security",
+        "topic:observability",
+        "topic:accessibility"
+      ],
+      "rulesJson": {
+        "standard": "std-req-nonfunctional",
+        "intent": "State security, data-safety, performance, observability, and accessibility NFRs at scope time",
+        "appliesTo": {
+          "phases": [
+            "scope",
+            "design"
+          ],
+          "languages": [
+            "all"
+          ],
+          "domains": [
+            "all"
+          ]
+        },
+        "requirements": [
+          "Each operation names its authorizing RBAC role and unauthorized/unauthenticated behavior",
+          "Base URLs/hosts/ports/secrets come from IConfiguration/env, never hard-coded",
+          "Data-loss-sensitive changes state safety expectation on PostgreSQL and SQLite",
+          "Traceable behavior names its OpenTelemetry spans/metrics",
+          "Collection endpoints state pagination/limit and latency budget",
+          "Angular UI tasks state keyboard/screen-reader and authenticated-view expectations"
+        ],
+        "prohibited": [
+          "New endpoint with no RBAC role or unauthorized-caller behavior",
+          "Hard-coded URLs, hosts, ports, or secrets in source",
+          "Unbounded list endpoints with no pagination",
+          "UI tasks with no accessibility expectation or stubbed unauthenticated views"
+        ],
+        "references": [
+          "template:IRbacChecker fail-closed + OpenTelemetry export",
+          "claude-md:External Dependencies no-bypass and RBAC fail-closed",
+          "claude-md:no hard-coded URLs"
+        ]
+      }
+    },
+    {
+      "id": "std-req-traceability",
+      "name": "std-req-traceability",
+      "description": "Issue, branch, commits, PR, and tests SHOULD be mutually linked so any change can be traced from requirement to verification and back.",
+      "severity": "Moderate",
+      "enforcement": "Should",
+      "scopes": [
+        "area:requirements",
+        "phase:scope",
+        "phase:pr",
+        "phase:review",
+        "topic:traceability",
+        "topic:git"
+      ],
+      "rulesJson": {
+        "standard": "std-req-traceability",
+        "intent": "Link issue, branch, commits, PR, and tests into one audit chain",
+        "appliesTo": {
+          "phases": [
+            "scope",
+            "pr",
+            "review"
+          ],
+          "languages": [
+            "all"
+          ],
+          "domains": [
+            "all"
+          ]
+        },
+        "requirements": [
+          "Work originates from a tracked issue",
+          "Branch is cut from main and names the issue",
+          "Commit messages reference the issue and carry the Co-Authored-By trailer",
+          "PR body contains 'Closes #N' and lists the tests proving each criterion"
+        ],
+        "prohibited": [
+          "Committing directly to main with no issue or PR",
+          "PRs that reference issues without closing any",
+          "Tests with no traceable link to their requirement"
+        ],
+        "references": [
+          "template:branch-off-main + Co-Authored-By trailer",
+          "claude-md:PRs need Closes #N",
+          "claude-md:audit-chain into andy-docs"
+        ]
+      }
+    },
+    {
+      "id": "std-arch-adr",
+      "name": "std-arch-adr",
+      "description": "Record any significant or hard-to-reverse architectural decision as a numbered ADR under docs/adr/ before or alongside the implementing change, with context, decision, and consequences.",
+      "severity": "Moderate",
+      "enforcement": "Should",
+      "scopes": [
+        "area:architecture",
+        "phase:design",
+        "phase:doc",
+        "phase:review",
+        "topic:adr",
+        "topic:decision-records"
+      ],
+      "rulesJson": {
+        "standard": "std-arch-adr",
+        "intent": "Record significant or irreversible architecture decisions as numbered ADRs",
+        "appliesTo": {
+          "phases": [
+            "design",
+            "doc",
+            "review"
+          ],
+          "languages": [
+            "all"
+          ],
+          "domains": [
+            "architecture"
+          ]
+        },
+        "requirements": [
+          "Significant or irreversible decisions get an ADR at docs/adr/NNNN-short-title.md",
+          "Each ADR has Status, Context, Decision, Consequences sections",
+          "The ADR ships in the same PR as the implementing change and is linked from the PR body",
+          "Superseding updates the old ADR Status and references the new number",
+          "No emojis in ADR prose"
+        ],
+        "prohibited": [
+          "Adding or removing an external dependency or transport surface with no ADR",
+          "Editing an accepted decision without a superseding record",
+          "Using a commit message as a substitute for an ADR"
+        ],
+        "references": [
+          "template:docs-mkdocs-site",
+          "claude-md:external-dependencies-table"
+        ]
+      }
+    },
+    {
+      "id": "std-arch-clean-layering",
+      "name": "std-arch-clean-layering",
+      "description": "Place every .NET type in one of the five canonical projects (Domain, Application, Infrastructure, Api, Shared) according to its responsibility, and never collapse or duplicate those responsibilities.",
+      "severity": "Moderate",
+      "enforcement": "Must",
+      "scopes": [
+        "area:architecture",
+        "phase:design",
+        "phase:code",
+        "phase:review",
+        "topic:layering",
+        "lang:csharp"
+      ],
+      "rulesJson": {
+        "standard": "std-arch-clean-layering",
+        "intent": "Place each type in its canonical layer and keep one shared service layer behind REST/MCP/gRPC",
+        "appliesTo": {
+          "phases": [
+            "design",
+            "code",
+            "review"
+          ],
+          "languages": [
+            "csharp"
+          ],
+          "domains": [
+            "architecture"
+          ]
+        },
+        "requirements": [
+          "Domain project contains only entities, enums, value objects with no framework dependencies",
+          "Application project holds interfaces, DTOs, and request models",
+          "Infrastructure project holds EF Core, service implementations, and external integrations",
+          "Api project holds controllers, MCP tools, gRPC services, and wiring",
+          "REST controllers, MCP tools, and gRPC services all delegate to the same I{Name}Service",
+          "Controllers return DTOs, not domain entities"
+        ],
+        "prohibited": [
+          "Placing EF Core or ASP.NET types in the Domain project",
+          "Implementing business logic inside a controller or MCP tool",
+          "Returning domain entities from a REST endpoint",
+          "Duplicating service logic across REST/MCP/gRPC adapters"
+        ],
+        "references": [
+          "template:clean-architecture-five-layer-layout",
+          "claude-md:share-service-layer-never-duplicate",
+          "claude-md:return-dtos-not-entities"
+        ]
+      }
+    },
+    {
+      "id": "std-arch-config-externalized",
+      "name": "std-arch-config-externalized",
+      "description": "All URLs, hosts, ports, connection strings, and secrets are resolved from IConfiguration, environment variables, Angular environment files, or Andy Settings, never hardcoded as constants in source.",
+      "severity": "Critical",
+      "enforcement": "Must",
+      "scopes": [
+        "area:architecture",
+        "phase:design",
+        "phase:code",
+        "phase:review",
+        "topic:configuration",
+        "topic:secrets",
+        "lang:csharp",
+        "lang:typescript"
+      ],
+      "rulesJson": {
+        "standard": "std-arch-config-externalized",
+        "intent": "Resolve all URLs, ports, and secrets from configuration, never from hardcoded constants",
+        "appliesTo": {
+          "phases": [
+            "design",
+            "code",
+            "review"
+          ],
+          "languages": [
+            "csharp",
+            "typescript"
+          ],
+          "domains": [
+            "architecture"
+          ]
+        },
+        "requirements": [
+          "URLs, hosts, ports, and connection strings come from IConfiguration/IOptions or Andy Settings",
+          "Angular endpoints come from src/environments config",
+          "Required settings (AndyAuth:Authority, AndyRbac:BaseUrl, AndySettings:ApiBaseUrl) fail closed when absent",
+          "Only dev-only default credentials may appear in committed config"
+        ],
+        "prohibited": [
+          "private const or inline literal base URLs, hosts, or ports in source",
+          "Hardcoded endpoints in Angular components or services",
+          "Committing real API keys, production passwords, or private keys",
+          "Hardcoded fallback URLs substituting for a missing required setting"
+        ],
+        "references": [
+          "template:appsettings-iconfiguration-environments",
+          "claude-md:no-hard-coded-urls",
+          "claude-md:external-dependencies-no-bypass",
+          "claude-md:secret-scanning"
+        ]
+      }
+    },
+    {
+      "id": "std-arch-dependency-rule",
+      "name": "std-arch-dependency-rule",
+      "description": "Project references point only inward (Api to Infrastructure to Application to Domain); Domain references nothing, and no inner layer may reference an outer layer.",
+      "severity": "Moderate",
+      "enforcement": "Must",
+      "scopes": [
+        "area:architecture",
+        "phase:design",
+        "phase:code",
+        "phase:review",
+        "topic:dependencies",
+        "lang:csharp"
+      ],
+      "rulesJson": {
+        "standard": "std-arch-dependency-rule",
+        "intent": "Keep project references inward-only with a zero-dependency Domain",
+        "appliesTo": {
+          "phases": [
+            "design",
+            "code",
+            "review"
+          ],
+          "languages": [
+            "csharp"
+          ],
+          "domains": [
+            "architecture"
+          ]
+        },
+        "requirements": [
+          "Reference direction is Api -> Infrastructure -> Application -> Domain",
+          "Domain project has zero project references and no framework dependencies",
+          "Cross-layer calls go through interfaces declared in the inner layer",
+          "Infrastructure implements Application interfaces"
+        ],
+        "prohibited": [
+          "Any reference from an inner layer to an outer layer",
+          "Domain referencing EF Core, ASP.NET, or Andy client packages",
+          "Circular project references"
+        ],
+        "references": [
+          "template:dependency-rule-inward-only",
+          "claude-md:api-infra-application-domain",
+          "claude-md:domain-no-dependencies"
+        ]
+      }
+    },
+    {
+      "id": "std-arch-service-boundaries",
+      "name": "std-arch-service-boundaries",
+      "description": "Each Andy microservice owns its own database schema and integrates with other services only through their published APIs/clients, never by reading or writing another service's tables.",
+      "severity": "Critical",
+      "enforcement": "Must",
+      "scopes": [
+        "area:architecture",
+        "phase:design",
+        "phase:code",
+        "phase:review",
+        "topic:boundaries",
+        "topic:data-ownership"
+      ],
+      "rulesJson": {
+        "standard": "std-arch-service-boundaries",
+        "intent": "Each service owns its data; integrate only through published APIs and clients",
+        "appliesTo": {
+          "phases": [
+            "design",
+            "code",
+            "review"
+          ],
+          "languages": [
+            "all"
+          ],
+          "domains": [
+            "architecture"
+          ]
+        },
+        "requirements": [
+          "A service connects to and migrates only its own database",
+          "Cross-service access goes through Andy Auth/RBAC/Settings clients wired in Program.cs",
+          "Conductor and other consumers read policy content via the policies API surface",
+          "Enforcement of policy content lives in the consumer, not the policies store"
+        ],
+        "prohibited": [
+          "Connecting to or querying another service's database",
+          "Foreign keys across service boundaries",
+          "Sharing a DbContext or schema between services",
+          "Seeding one service by writing directly into another service's schema"
+        ],
+        "references": [
+          "template:one-dbcontext-per-service",
+          "claude-md:external-dependencies-no-bypass-fail-closed",
+          "claude-md:conductor-content-only-enforcement-in-consumers"
+        ]
+      }
+    },
+    {
+      "id": "std-design-api-versioning",
+      "name": "std-design-api-versioning",
+      "description": "Breaking changes to a published API or contract (REST shape, MCP tool signature, gRPC proto) MUST be versioned; within a version, contracts evolve in a backward-compatible way only.",
+      "severity": "Moderate",
+      "enforcement": "Must",
+      "scopes": [
+        "area:design",
+        "phase:design",
+        "phase:review",
+        "phase:pr",
+        "lang:csharp",
+        "domain:api",
+        "topic:versioning",
+        "topic:compatibility",
+        "topic:openapi",
+        "topic:grpc"
+      ],
+      "rulesJson": {
+        "standard": "std-design-api-versioning",
+        "intent": "Version breaking changes; evolve published contracts compatibly",
+        "appliesTo": {
+          "phases": [
+            "design",
+            "review",
+            "pr"
+          ],
+          "languages": [
+            "csharp"
+          ],
+          "domains": [
+            "api"
+          ]
+        },
+        "requirements": [
+          "Introduce a new version for breaking REST/MCP/gRPC changes and keep the old one during migration",
+          "Only additive (optional, new) changes within an existing version",
+          "Protobuf: never reuse or renumber tags; mark removed fields reserved",
+          "Reflect contract changes in exported OpenAPI and validate via e2e registration"
+        ],
+        "prohibited": [
+          "Renaming or removing existing DTO fields, endpoints, or MCP tools in place",
+          "Reusing freed protobuf field numbers",
+          "Making an existing optional field required without a version bump"
+        ],
+        "references": [
+          "template:proto-field-number-discipline",
+          "claude-md:e2e-registration-roundtrip-and-openapi-drift"
+        ]
+      }
+    },
+    {
+      "id": "std-design-concurrency-idempotency",
+      "name": "std-design-concurrency-idempotency",
+      "description": "State-changing operations MUST be idempotent where the verb allows (PUT/DELETE) and MUST guard concurrent updates with an EF Core optimistic concurrency token so lost updates are detected and surfaced as 409.",
+      "severity": "Moderate",
+      "enforcement": "Must",
+      "scopes": [
+        "area:design",
+        "phase:design",
+        "phase:code",
+        "phase:review",
+        "lang:csharp",
+        "domain:api",
+        "topic:concurrency",
+        "topic:idempotency",
+        "topic:efcore"
+      ],
+      "rulesJson": {
+        "standard": "std-design-concurrency-idempotency",
+        "intent": "Make mutations idempotent and guard updates with a concurrency token",
+        "appliesTo": {
+          "phases": [
+            "design",
+            "code",
+            "review"
+          ],
+          "languages": [
+            "csharp"
+          ],
+          "domains": [
+            "api"
+          ]
+        },
+        "requirements": [
+          "PUT/DELETE are idempotent and return consistent terminal status codes",
+          "Updatable entities have an EF Core optimistic concurrency token valid on PostgreSQL and SQLite",
+          "Update requests carry expected version (If-Match/ETag or version field)",
+          "DbUpdateConcurrencyException is mapped to HTTP 409 problem-details",
+          "Conflict path is covered by tests"
+        ],
+        "prohibited": [
+          "Last-writer-wins updates with no concurrency token",
+          "Concurrency conflicts surfacing as unhandled 500",
+          "Retryable creates that duplicate rows with no idempotency guard"
+        ],
+        "references": [
+          "template:efcore8-model-configuration",
+          "claude-md:integration-tests-sqlite-policiesapifactory"
+        ]
+      }
+    },
+    {
+      "id": "std-design-cors",
+      "name": "std-design-cors",
+      "description": "CORS MUST allow only the known SPA origins read from configuration and MUST NOT combine a wildcard origin with credentials.",
+      "severity": "Critical",
+      "enforcement": "Must",
+      "scopes": [
+        "area:design",
+        "phase:design",
+        "phase:code",
+        "phase:review",
+        "domain:api",
+        "topic:cors",
+        "topic:security"
+      ],
+      "rulesJson": {
+        "standard": "std-design-cors",
+        "intent": "Allow only configured SPA origins; never combine wildcard origin with credentials",
+        "appliesTo": {
+          "phases": [
+            "design",
+            "code",
+            "review"
+          ],
+          "languages": [
+            "csharp",
+            "python"
+          ],
+          "domains": [
+            "api"
+          ]
+        },
+        "requirements": [
+          "CORS allowed origins bound from configuration or environment, not hard-coded literals",
+          "Allow only the known SPA origins (dev 4200, Docker 4206, deployed origins from settings)",
+          "Explicit origins required whenever credentials are allowed",
+          "Fail closed when origin configuration is empty or missing"
+        ],
+        "prohibited": [
+          "AllowAnyOrigin or allow_origins=['*'] combined with credentials",
+          "Hard-coded origin lists in source",
+          "Permissive CORS fallback on an authenticated surface"
+        ],
+        "references": [
+          "template:spa-known-ports-and-config-driven-wiring",
+          "claude-md:no-hardcoded-urls",
+          "claude-md:no-auth-bypass-fail-closed"
+        ]
+      }
+    },
+    {
+      "id": "std-design-dto-boundaries",
+      "name": "std-design-dto-boundaries",
+      "description": "API surfaces (REST, MCP, gRPC) MUST expose and accept DTOs/records (`{Name}Dto`, `Create{Name}Request`, `Update{Name}Request`), never raw Domain entities, across the service boundary.",
+      "severity": "Moderate",
+      "enforcement": "Must",
+      "scopes": [
+        "area:design",
+        "phase:design",
+        "phase:code",
+        "phase:review",
+        "lang:csharp",
+        "domain:api",
+        "topic:dto",
+        "topic:serialization"
+      ],
+      "rulesJson": {
+        "standard": "std-design-dto-boundaries",
+        "intent": "Expose DTOs/records at the API boundary, never domain entities",
+        "appliesTo": {
+          "phases": [
+            "design",
+            "code",
+            "review"
+          ],
+          "languages": [
+            "csharp"
+          ],
+          "domains": [
+            "api"
+          ]
+        },
+        "requirements": [
+          "Controllers, MCP tools, and gRPC services return {Name}Dto records",
+          "Request inputs use Create{Name}Request / Update{Name}Request models",
+          "Entity-to-DTO mapping happens in the service layer, not in controllers"
+        ],
+        "prohibited": [
+          "Returning EF Core domain entities from an API surface",
+          "Accepting domain entities as controller/tool/grpc parameters",
+          "DTOs that embed full navigation object graphs"
+        ],
+        "references": [
+          "template:dto-naming-and-records-convention",
+          "claude-md:Return-DTOs-from-controllers-never-domain-entities"
+        ]
+      }
+    },
+    {
+      "id": "std-design-error-contract",
+      "name": "std-design-error-contract",
+      "description": "All API errors MUST use a consistent RFC 7807 problem-details shape with a stable machine-readable `code`, the correct status, and no leakage of stack traces or internal details.",
+      "severity": "Moderate",
+      "enforcement": "Must",
+      "scopes": [
+        "area:design",
+        "phase:design",
+        "phase:code",
+        "phase:review",
+        "lang:csharp",
+        "domain:api",
+        "topic:errors",
+        "topic:problem-details",
+        "topic:observability"
+      ],
+      "rulesJson": {
+        "standard": "std-design-error-contract",
+        "intent": "Return uniform RFC 7807 problem-details with stable error codes",
+        "appliesTo": {
+          "phases": [
+            "design",
+            "code",
+            "review"
+          ],
+          "languages": [
+            "csharp"
+          ],
+          "domains": [
+            "api"
+          ]
+        },
+        "requirements": [
+          "REST errors use ProblemDetails/ValidationProblemDetails with a stable machine-readable code",
+          "Error-to-status mapping centralized in middleware/exception handler",
+          "MCP and gRPC surface the same logical errors via native mechanisms and shared codes",
+          "Correlate errors with the OpenTelemetry trace id"
+        ],
+        "prohibited": [
+          "Stack traces, raw exception messages, SQL, or internal paths in responses",
+          "Inconsistent error JSON shapes across controllers",
+          "Renaming existing error codes in place",
+          "Returning 200 for a not-found resource"
+        ],
+        "references": [
+          "template:aspnet-exception-middleware",
+          "claude-md:opentelemetry-tracing"
+        ]
+      }
+    },
+    {
+      "id": "std-design-mcp-tools",
+      "name": "std-design-mcp-tools",
+      "description": "MCP tools MUST delegate to the shared `I{Name}Service`, declare explicit typed input schemas, and enforce the same RBAC authorization as the equivalent REST endpoint — no anonymous or unguarded tool surface.",
+      "severity": "Critical",
+      "enforcement": "Must",
+      "scopes": [
+        "area:design",
+        "phase:design",
+        "phase:code",
+        "phase:review",
+        "domain:api",
+        "topic:mcp",
+        "topic:authorization"
+      ],
+      "rulesJson": {
+        "standard": "std-design-mcp-tools",
+        "intent": "Make MCP tools thin, schema-explicit adapters that enforce the same authorization as REST",
+        "appliesTo": {
+          "phases": [
+            "design",
+            "code",
+            "review"
+          ],
+          "languages": [
+            "csharp"
+          ],
+          "domains": [
+            "api"
+          ]
+        },
+        "requirements": [
+          "Each [McpServerTool] delegates to the shared I{Name}Service",
+          "Every tool parameter is strongly typed and carries a [Description] so the MCP input schema is explicit",
+          "Each tool runs the same IRbacChecker authorization as the equivalent REST action against application code andy-policies",
+          "Tools fail closed on RBAC transport error, timeout, or non-2xx",
+          "Caller identity comes from an authenticated Andy Auth JWT"
+        ],
+        "prohibited": [
+          "DbContext access, validation, or business rules inside an MCP tool",
+          "Untyped blob parameters with no per-field [Description]",
+          "Mutating or reading governance content without an RBAC check",
+          "Any unauthenticated or auth-bypass tool path"
+        ],
+        "references": [
+          "template:servicetools-mcp-class",
+          "template:rbac-fail-closed",
+          "claude-md:REST-controllers-and-MCP-tools-share-the-same-service-layer",
+          "claude-md:no-auth-bypass-ever"
+        ]
+      }
+    },
+    {
+      "id": "std-design-rate-limiting",
+      "name": "std-design-rate-limiting",
+      "description": "Public REST, MCP, and gRPC surfaces MUST enforce per-principal rate limits and reject excess traffic with HTTP 429 (or gRPC RESOURCE_EXHAUSTED) plus a Retry-After hint.",
+      "severity": "Critical",
+      "enforcement": "Must",
+      "scopes": [
+        "area:design",
+        "phase:design",
+        "phase:code",
+        "phase:review",
+        "domain:api",
+        "topic:rate-limiting",
+        "topic:throttling"
+      ],
+      "rulesJson": {
+        "standard": "std-design-rate-limiting",
+        "intent": "Enforce per-principal rate limits on public REST/MCP/gRPC surfaces and return 429 with Retry-After when exceeded",
+        "appliesTo": {
+          "phases": [
+            "design",
+            "code",
+            "review"
+          ],
+          "languages": [
+            "csharp",
+            "typescript",
+            "python"
+          ],
+          "domains": [
+            "api"
+          ]
+        },
+        "requirements": [
+          "Register UseRateLimiter and a partitioned limiter keyed on the authenticated principal (JWT sub/client_id)",
+          "Source limits, windows, and queue depth from IConfiguration/Andy Settings",
+          "Return HTTP 429 (gRPC RESOURCE_EXHAUSTED) with a Retry-After hint on rejection",
+          "Apply the same limiter policy across REST controllers, MCP tools, and gRPC services",
+          "Honor Retry-After with backoff in Angular and Python clients"
+        ],
+        "prohibited": [
+          "Leaving any public endpoint without a rate limit",
+          "Using a single unbounded global bucket shared across principals",
+          "Returning 500/503 instead of 429 or omitting Retry-After",
+          "Hard-coding rate-limit thresholds as source constants"
+        ],
+        "references": [
+          "template:public-surfaces-share-limiter-policy",
+          "claude-md:no-hardcoded-urls-or-limits"
+        ]
+      }
+    },
+    {
+      "id": "std-design-rest-conventions",
+      "name": "std-design-rest-conventions",
+      "description": "REST endpoints SHOULD use plural resource nouns, correct HTTP verbs and status codes, and a consistent pagination/filtering convention across all controllers.",
+      "severity": "Moderate",
+      "enforcement": "Should",
+      "scopes": [
+        "area:design",
+        "phase:design",
+        "phase:code",
+        "phase:review",
+        "lang:csharp",
+        "domain:api",
+        "topic:rest",
+        "topic:pagination",
+        "topic:http"
+      ],
+      "rulesJson": {
+        "standard": "std-design-rest-conventions",
+        "intent": "Use plural-noun resources, correct verbs/status codes, consistent paging",
+        "appliesTo": {
+          "phases": [
+            "design",
+            "code",
+            "review"
+          ],
+          "languages": [
+            "csharp"
+          ],
+          "domains": [
+            "api"
+          ]
+        },
+        "requirements": [
+          "Controllers named for plural resource and routed at api/{plural}",
+          "HTTP verbs and status codes match semantics (201+Location on create, 204 on no-content, 409 on conflict)",
+          "One consistent pagination/filtering scheme across the service",
+          "Export OpenAPI after any REST signature change"
+        ],
+        "prohibited": [
+          "Verbs in resource paths like /getItems or /items/create",
+          "Mixed pagination schemes across endpoints",
+          "Successful create returning 200 with no resource location"
+        ],
+        "references": [
+          "template:controller-plural-naming-convention",
+          "claude-md:export-openapi-on-rest-change"
+        ]
+      }
+    },
+    {
+      "id": "std-design-shared-service-layer",
+      "name": "std-design-shared-service-layer",
+      "description": "REST controllers, MCP tools, and gRPC services MUST delegate to the same `I{Name}Service` in the Application/Infrastructure layer; never reimplement business logic per protocol.",
+      "severity": "Moderate",
+      "enforcement": "Must",
+      "scopes": [
+        "area:design",
+        "phase:design",
+        "phase:code",
+        "phase:review",
+        "lang:csharp",
+        "domain:api",
+        "topic:service-layer",
+        "topic:mcp",
+        "topic:grpc"
+      ],
+      "rulesJson": {
+        "standard": "std-design-shared-service-layer",
+        "intent": "Delegate all protocols to one shared service layer",
+        "appliesTo": {
+          "phases": [
+            "design",
+            "code",
+            "review"
+          ],
+          "languages": [
+            "csharp"
+          ],
+          "domains": [
+            "api"
+          ]
+        },
+        "requirements": [
+          "REST controllers call I{Name}Service methods, not DbContext or domain logic directly",
+          "MCP [McpServerTool] methods call the same I{Name}Service",
+          "gRPC services call the same I{Name}Service",
+          "Business logic is implemented once in the Infrastructure service implementation"
+        ],
+        "prohibited": [
+          "EF Core queries or business rules inside a controller, MCP tool, or gRPC handler",
+          "Copy-pasted validation or logic duplicated across protocol surfaces"
+        ],
+        "references": [
+          "template:clean-architecture-dependency-rule",
+          "claude-md:REST-controllers-and-MCP-tools-share-the-same-service-layer"
+        ]
+      }
+    },
+    {
+      "id": "std-impl-async-all-the-way",
+      "name": "std-impl-async-all-the-way",
+      "description": "All I/O-bound paths must be async end-to-end: return `Task`/`Task<T>`, accept and forward a `CancellationToken`, and await without blocking — never `.Result`, `.Wait()`, or `Task.Run` over EF Core or HttpClient calls.",
+      "severity": "Moderate",
+      "enforcement": "Must",
+      "scopes": [
+        "area:implementation",
+        "phase:code",
+        "phase:design",
+        "lang:csharp",
+        "topic:async",
+        "topic:concurrency"
+      ],
+      "rulesJson": {
+        "standard": "std-impl-async-all-the-way",
+        "intent": "Make all I/O async end-to-end with Task<T> and CancellationToken; never block.",
+        "appliesTo": {
+          "phases": [
+            "code",
+            "design"
+          ],
+          "languages": [
+            "csharp"
+          ],
+          "domains": [
+            "all"
+          ]
+        },
+        "requirements": [
+          "I/O methods return Task or Task<T> and accept a CancellationToken",
+          "CancellationToken is forwarded from controller/MCP/gRPC entrypoint down to EF Core and HttpClient calls",
+          "Async methods use the Async suffix",
+          "EF Core query and SaveChanges calls receive the CancellationToken"
+        ],
+        "prohibited": [
+          ".Result, .Wait(), or .GetAwaiter().GetResult() on async calls",
+          "Task.Run wrapping genuine async I/O",
+          "async I/O method without a CancellationToken parameter"
+        ],
+        "references": [
+          "template:service-interfaces-return-task",
+          "claude-md:async-all-the-way"
+        ]
+      }
+    },
+    {
+      "id": "std-impl-copyright-header",
+      "name": "std-impl-copyright-header",
+      "description": "Every source file begins with the standard Rivoli AI 2026 Apache-2.0 copyright header so license provenance is uniform across the repository.",
+      "severity": "Info",
+      "enforcement": "Should",
+      "scopes": [
+        "area:implementation",
+        "phase:code",
+        "phase:review",
+        "topic:licensing",
+        "topic:code-hygiene",
+        "lang:csharp",
+        "lang:typescript"
+      ],
+      "rulesJson": {
+        "standard": "std-impl-copyright-header",
+        "intent": "Prefix every authored source file with the Rivoli AI 2026 Apache-2.0 header.",
+        "appliesTo": {
+          "phases": [
+            "code",
+            "review"
+          ],
+          "languages": [
+            "csharp",
+            "typescript",
+            "python"
+          ],
+          "domains": [
+            "all"
+          ]
+        },
+        "requirements": [
+          "New .cs files start with // Copyright (c) Rivoli AI 2026. All rights reserved.",
+          "Header precedes the file-scoped namespace",
+          "Authored TypeScript/Python use the equivalent header matching the directory"
+        ],
+        "prohibited": [
+          "authored source file with no copyright header",
+          "headers added to generated files (migrations, generated clients, obj/bin)",
+          "duplicated or differently-formatted headers"
+        ],
+        "references": [
+          "template:check-compliance.sh",
+          "claude-md:copyright-header"
+        ]
+      }
+    },
+    {
+      "id": "std-impl-error-handling",
+      "name": "std-impl-error-handling",
+      "description": "Never silently swallow exceptions: catch only what you can handle, preserve the original exception with context, and let everything else propagate to the middleware that maps it to the correct status and trace.",
+      "severity": "Critical",
+      "enforcement": "Must",
+      "scopes": [
+        "area:implementation",
+        "phase:code",
+        "phase:review",
+        "topic:error-handling",
+        "topic:exceptions",
+        "topic:resilience"
+      ],
+      "rulesJson": {
+        "standard": "std-impl-error-handling",
+        "intent": "Handle or propagate exceptions with context; never silently swallow or fail open.",
+        "appliesTo": {
+          "phases": [
+            "code",
+            "review"
+          ],
+          "languages": [
+            "all"
+          ],
+          "domains": [
+            "all"
+          ]
+        },
+        "requirements": [
+          "Catch only exceptions you can handle, recover from, or translate",
+          "Preserve the original exception via inner exception or rethrow with throw;",
+          "External-dependency errors at auth/config boundaries fail closed",
+          "Let exception-handling middleware map exceptions to HTTP responses"
+        ],
+        "prohibited": [
+          "empty catch or catch that returns a fabricated success",
+          "throw ex; that resets the stack trace",
+          "catching an RBAC/Auth/Settings failure and continuing as permitted",
+          "log-only catch with no rethrow when the operation cannot continue safely"
+        ],
+        "references": [
+          "template:exception-middleware",
+          "claude-md:rbac-fail-closed"
+        ]
+      }
+    },
+    {
+      "id": "std-impl-logging",
+      "name": "std-impl-logging",
+      "description": "Log through `ILogger` with structured message templates at the correct level, and never write secrets, tokens, passwords, or PII (JWTs, connection strings, request bodies with credentials) to logs.",
+      "severity": "Critical",
+      "enforcement": "Must",
+      "scopes": [
+        "area:implementation",
+        "phase:code",
+        "phase:review",
+        "topic:logging",
+        "topic:observability",
+        "topic:security",
+        "topic:pii"
+      ],
+      "rulesJson": {
+        "standard": "std-impl-logging",
+        "intent": "Use structured ILogger templates at correct levels; never log secrets or PII.",
+        "appliesTo": {
+          "phases": [
+            "code",
+            "review"
+          ],
+          "languages": [
+            "all"
+          ],
+          "domains": [
+            "all"
+          ]
+        },
+        "requirements": [
+          "Log via ILogger<T> with named placeholders, not interpolated strings",
+          "Choose log level by semantics (Debug/Information/Warning/Error)",
+          "Pass the exception as the first ILogger argument for Error logs",
+          "Log a given exception once at the point of handling"
+        ],
+        "prohibited": [
+          "logging JWTs, Authorization headers, secrets, or connection strings",
+          "logging full request/response payloads containing credentials or PII",
+          "Console.WriteLine for service diagnostics",
+          "console.log of tokens or API payloads in the Angular client"
+        ],
+        "references": [
+          "template:opentelemetry-logging",
+          "claude-md:secret-scanning"
+        ]
+      }
+    },
+    {
+      "id": "std-impl-no-dead-code",
+      "name": "std-impl-no-dead-code",
+      "description": "Delete dead code rather than commenting it out, do not use `#region` blocks, and remove unused usings, fields, parameters, and methods — version control is the history, not comment blocks.",
+      "severity": "Info",
+      "enforcement": "Should",
+      "scopes": [
+        "area:implementation",
+        "phase:code",
+        "phase:review",
+        "topic:code-hygiene",
+        "topic:maintainability",
+        "lang:csharp"
+      ],
+      "rulesJson": {
+        "standard": "std-impl-no-dead-code",
+        "intent": "Delete dead and commented-out code; no #region; remove unused symbols.",
+        "appliesTo": {
+          "phases": [
+            "code",
+            "review"
+          ],
+          "languages": [
+            "all"
+          ],
+          "domains": [
+            "all"
+          ]
+        },
+        "requirements": [
+          "Remove commented-out code blocks and #if false sections",
+          "Remove unused usings, fields, variables, parameters, and methods",
+          "Tie any TODO/FIXME to a tracked issue number",
+          "Run dotnet format before committing"
+        ],
+        "prohibited": [
+          "#region / #endregion blocks",
+          "commented-out code retained for reference",
+          "suppressing unused-symbol warnings instead of deleting the code",
+          "anonymous TODOs or empty stub bodies posing as implementation"
+        ],
+        "references": [
+          "template:directory-build-props-warnaserror",
+          "claude-md:no-region-blocks"
+        ]
+      }
+    },
+    {
+      "id": "std-impl-no-hardcoded-config",
+      "name": "std-impl-no-hardcoded-config",
+      "description": "Never hardcode base URLs, hostnames, or ports in source; resolve them from `IConfiguration`/typed options on the backend and from `environment.*` files in the Angular client.",
+      "severity": "Moderate",
+      "enforcement": "Must",
+      "scopes": [
+        "area:implementation",
+        "phase:code",
+        "phase:review",
+        "topic:configuration",
+        "topic:portability",
+        "lang:csharp",
+        "lang:typescript"
+      ],
+      "rulesJson": {
+        "standard": "std-impl-no-hardcoded-config",
+        "intent": "Resolve URLs, hosts, and ports from configuration; never hardcode them in source.",
+        "appliesTo": {
+          "phases": [
+            "code",
+            "review"
+          ],
+          "languages": [
+            "csharp",
+            "typescript"
+          ],
+          "domains": [
+            "all"
+          ]
+        },
+        "requirements": [
+          "External-service URLs come from IConfiguration / typed options",
+          "Typed HttpClients set BaseAddress from configuration in Program.cs",
+          "Required settings fail fast at startup with no silent localhost default",
+          "Angular reads API and OIDC URLs from environment*.ts"
+        ],
+        "prohibited": [
+          "private const string holding a URL, host, or port",
+          "inline URL literals in services, controllers, or components",
+          "silent fallback default for required external-service settings"
+        ],
+        "references": [
+          "template:program-cs-typed-httpclient",
+          "claude-md:no-hardcoded-urls"
+        ]
+      }
+    },
+    {
+      "id": "std-impl-nullability",
+      "name": "std-impl-nullability",
+      "description": "Nullable reference types stay enabled and warnings stay errors; resolve nullability instead of silencing it with the `!` null-forgiving operator, and do not suppress TypeScript strict-null errors in the Angular client.",
+      "severity": "Moderate",
+      "enforcement": "Must",
+      "scopes": [
+        "area:implementation",
+        "phase:code",
+        "phase:review",
+        "lang:csharp",
+        "lang:typescript",
+        "topic:nullability",
+        "topic:type-safety"
+      ],
+      "rulesJson": {
+        "standard": "std-impl-nullability",
+        "intent": "Fix nullability warnings via types and guards, not the null-forgiving operator or suppressions.",
+        "appliesTo": {
+          "phases": [
+            "code",
+            "review"
+          ],
+          "languages": [
+            "csharp",
+            "typescript"
+          ],
+          "domains": [
+            "all"
+          ]
+        },
+        "requirements": [
+          "Projects build with nullable enabled and warnings as errors",
+          "Required references modeled as non-nullable; optional as T?",
+          "Null checks guard before dereference",
+          "Angular keeps strictNullChecks and handles null/undefined explicitly"
+        ],
+        "prohibited": [
+          "null-forgiving ! operator used to silence a warning",
+          "#pragma warning disable for CS86xx nullability warnings",
+          "as any casts to bypass TypeScript strict-null checks"
+        ],
+        "references": [
+          "template:directory-build-props-nullable",
+          "claude-md:zero-warnings-policy"
+        ]
+      }
+    },
+    {
+      "id": "std-csharp-di",
+      "name": "std-csharp-di",
+      "description": "Inject all dependencies through constructors against interfaces registered in the DI container; never use a service locator, `new` up infrastructure inside business logic, or hold mutable static state.",
+      "severity": "Moderate",
+      "enforcement": "Must",
+      "scopes": [
+        "area:implementation",
+        "phase:code",
+        "phase:design",
+        "phase:review",
+        "lang:csharp",
+        "topic:dependency-injection",
+        "topic:architecture"
+      ],
+      "rulesJson": {
+        "standard": "std-csharp-di",
+        "intent": "Inject dependencies via constructors against interfaces registered in DI; no service locator or static state",
+        "appliesTo": {
+          "phases": [
+            "code",
+            "design",
+            "review"
+          ],
+          "languages": [
+            "csharp"
+          ],
+          "domains": []
+        },
+        "requirements": [
+          "Dependencies declared as interface-typed constructor parameters",
+          "Registration in Program.cs with correct lifetime (scoped/singleton/transient)",
+          "External clients (RBAC, Settings) consumed via their registered typed clients",
+          "Business logic depends only on abstractions, independent of REST/MCP/gRPC entry"
+        ],
+        "prohibited": [
+          "IServiceProvider.GetService used as a service locator in business logic",
+          "Constructing HttpClient or services with new inside logic that should inject them",
+          "Mutable static fields or static singletons holding request state"
+        ],
+        "references": [
+          "template:Program.cs DI registration and typed HttpClient wiring",
+          "claude-md:Architecture dependency rule and External Dependencies"
+        ]
+      }
+    },
+    {
+      "id": "std-csharp-ef-usage",
+      "name": "std-csharp-ef-usage",
+      "description": "Use EF Core 8 async query methods, apply `AsNoTracking` to read-only queries, eliminate N+1 access with eager loading or projection, and wrap multi-entity writes in a single explicit transaction.",
+      "severity": "Critical",
+      "enforcement": "Must",
+      "scopes": [
+        "area:implementation",
+        "phase:code",
+        "phase:review",
+        "lang:csharp",
+        "domain:data",
+        "topic:ef-core",
+        "topic:database"
+      ],
+      "rulesJson": {
+        "standard": "std-csharp-ef-usage",
+        "intent": "Use async EF Core queries, AsNoTracking for reads, projection over N+1, and explicit transactions for multi-write",
+        "appliesTo": {
+          "phases": [
+            "code",
+            "review"
+          ],
+          "languages": [
+            "csharp"
+          ],
+          "domains": [
+            "data"
+          ]
+        },
+        "requirements": [
+          "All EF queries use async methods with the request CancellationToken",
+          "Read-only queries call AsNoTracking()",
+          "Related data loaded via Include or projected via Select, never per-row in a loop",
+          "Multi-entity or multi-SaveChanges operations run inside one explicit transaction",
+          "Schema changes use dotnet ef migrations add, not hand edits"
+        ],
+        "prohibited": [
+          "Synchronous IQueryable enumeration (ToList/FirstOrDefault) or .Result on EF tasks",
+          "Returning tracked entities from read-only endpoints",
+          "N+1 lazy loading inside loops",
+          "Provider-specific implicit transaction assumptions",
+          "Hand-editing generated migrations or the model snapshot"
+        ],
+        "references": [
+          "template:Infrastructure/Data DesignTimeDbContextFactory",
+          "claude-md:Database section provider switch and migrations"
+        ]
+      }
+    },
+    {
+      "id": "std-csharp-format",
+      "name": "std-csharp-format",
+      "description": "Run `dotnet format` so C# code matches the repository's whitespace, using-directive, and style conventions before committing or opening a PR.",
+      "severity": "Info",
+      "enforcement": "Should",
+      "scopes": [
+        "area:implementation",
+        "phase:code",
+        "phase:pr",
+        "lang:csharp",
+        "topic:formatting",
+        "topic:quality"
+      ],
+      "rulesJson": {
+        "standard": "std-csharp-format",
+        "intent": "Run dotnet format and apply the Rivoli AI copyright header before committing C# changes",
+        "appliesTo": {
+          "phases": [
+            "code",
+            "pr"
+          ],
+          "languages": [
+            "csharp"
+          ],
+          "domains": []
+        },
+        "requirements": [
+          "dotnet format run and applied before commit",
+          "Every new/modified C# file begins with the Rivoli AI copyright header",
+          "Formatting churn kept separable from behavioral changes where practical"
+        ],
+        "prohibited": [
+          "Committing unformatted C# that dotnet format would change",
+          "New source files missing the copyright header"
+        ],
+        "references": [
+          "template:.editorconfig formatting conventions",
+          "claude-md:Code Quality dotnet format and copyright header"
+        ]
+      }
+    },
+    {
+      "id": "std-csharp-immutability",
+      "name": "std-csharp-immutability",
+      "description": "Model DTOs and value objects as records with init-only or positional members and expose read-only collection types, so data crossing the API and service boundaries cannot be mutated after construction.",
+      "severity": "Moderate",
+      "enforcement": "Should",
+      "scopes": [
+        "area:implementation",
+        "phase:code",
+        "phase:design",
+        "phase:review",
+        "lang:csharp",
+        "topic:immutability",
+        "topic:dto"
+      ],
+      "rulesJson": {
+        "standard": "std-csharp-immutability",
+        "intent": "Model DTOs and value objects as immutable records with read-only collections; keep entities out of the boundary",
+        "appliesTo": {
+          "phases": [
+            "code",
+            "design",
+            "review"
+          ],
+          "languages": [
+            "csharp"
+          ],
+          "domains": []
+        },
+        "requirements": [
+          "DTOs and value objects are records with positional or init-only members",
+          "Public APIs expose IReadOnlyList/IReadOnlyCollection instead of mutable List/array",
+          "Changed copies created via with-expressions, not in-place mutation",
+          "Domain entities mapped to DTOs before crossing the service boundary"
+        ],
+        "prohibited": [
+          "Wire DTOs with public get/set and mutable collections",
+          "Returning EF entities directly from controllers/tools/gRPC",
+          "Exposing mutable collections that callers can alter to affect internal state"
+        ],
+        "references": [
+          "template:Application DTO records",
+          "claude-md:Coding Conventions records for DTOs and return DTOs not entities"
+        ]
+      }
+    },
+    {
+      "id": "std-csharp-style",
+      "name": "std-csharp-style",
+      "description": "Write C# 8/.NET 8 code using file-scoped namespaces, primary constructors where they reduce ceremony, records for DTOs and value objects, async-with-CancellationToken, and no `#region` blocks.",
+      "severity": "Moderate",
+      "enforcement": "Should",
+      "scopes": [
+        "area:implementation",
+        "phase:code",
+        "phase:review",
+        "lang:csharp",
+        "topic:style",
+        "topic:language-features"
+      ],
+      "rulesJson": {
+        "standard": "std-csharp-style",
+        "intent": "Use modern C# 8/.NET 8 idioms: file-scoped namespaces, records for DTOs, primary constructors, async+CancellationToken",
+        "appliesTo": {
+          "phases": [
+            "code",
+            "review"
+          ],
+          "languages": [
+            "csharp"
+          ],
+          "domains": []
+        },
+        "requirements": [
+          "File-scoped namespace declarations in new files",
+          "Records for DTOs, request models, and value objects",
+          "Primary constructors where they replace field-assignment boilerplate",
+          "Async methods return Task<T> and accept CancellationToken threaded to EF/HTTP",
+          "Follow project naming: I{Name}Service, {Name}Service, {Name}Controller, ServiceTools, {Name}GrpcService"
+        ],
+        "prohibited": [
+          "Block-scoped namespace braces in new files",
+          "#region blocks",
+          "Blocking on async via .Result or .Wait()",
+          "Mutable get/set classes used purely as wire DTOs"
+        ],
+        "references": [
+          "template:Directory.Build.props LangVersion latest",
+          "claude-md:Coding Conventions C# Style"
+        ]
+      }
+    },
+    {
+      "id": "std-csharp-zero-warnings",
+      "name": "std-csharp-zero-warnings",
+      "description": "The build runs with `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>`, so every project must compile warning-clean; never resolve a warning by suppressing it broadly or disabling the policy.",
+      "severity": "Moderate",
+      "enforcement": "Must",
+      "scopes": [
+        "area:implementation",
+        "phase:code",
+        "phase:review",
+        "phase:pr",
+        "lang:csharp",
+        "topic:build",
+        "topic:quality"
+      ],
+      "rulesJson": {
+        "standard": "std-csharp-zero-warnings",
+        "intent": "Keep every build warning-clean under TreatWarningsAsErrors; fix causes, do not suppress",
+        "appliesTo": {
+          "phases": [
+            "code",
+            "review",
+            "pr"
+          ],
+          "languages": [
+            "csharp"
+          ],
+          "domains": []
+        },
+        "requirements": [
+          "dotnet build and dotnet test complete with zero warnings",
+          "Any unavoidable suppression is line-scoped with a justifying comment and a matching restore"
+        ],
+        "prohibited": [
+          "Setting TreatWarningsAsErrors to false",
+          "Adding broad NoWarn lists to silence categories of warnings",
+          "File-level or project-level pragma warning disable"
+        ],
+        "references": [
+          "template:Directory.Build.props TreatWarningsAsErrors true",
+          "claude-md:Code Quality zero warnings policy"
+        ]
+      }
+    },
+    {
+      "id": "std-go-baseline",
+      "name": "std-go-baseline",
+      "description": "Go code in this ecosystem must be gofmt-formatted and `go vet`-clean, handle every returned error explicitly, build as a proper module, and avoid panics on library code paths.",
+      "severity": "Moderate",
+      "enforcement": "Must",
+      "scopes": [
+        "area:implementation",
+        "phase:code",
+        "phase:review",
+        "lang:go",
+        "topic:formatting",
+        "topic:error-handling"
+      ],
+      "rulesJson": {
+        "standard": "std-go-baseline",
+        "intent": "Keep Go code gofmt/vet-clean with explicit error handling and no library panics",
+        "appliesTo": {
+          "phases": [
+            "code",
+            "review"
+          ],
+          "languages": [
+            "go"
+          ],
+          "domains": []
+        },
+        "requirements": [
+          "gofmt -l returns no files",
+          "go vet ./... reports no findings",
+          "every returned error is checked and handled or wrapped with %w",
+          "code is organized as a Go module with a pinned go directive",
+          "base URLs and ports come from env vars or config, not literals"
+        ],
+        "prohibited": [
+          "discarding errors with _",
+          "panic on library or request-handling paths",
+          "unformatted code",
+          "hard-coded service base URLs or ports"
+        ],
+        "references": [
+          "template:Directory.Build.props TreatWarningsAsErrors",
+          "claude-md:No hard-coded URLs",
+          "claude-md:fail-closed startup #103"
+        ]
+      }
+    },
+    {
+      "id": "std-java-baseline",
+      "name": "std-java-baseline",
+      "description": "Java code in this ecosystem must build with a standard Maven or Gradle setup, apply a consistent auto-formatter, annotate nullability, and avoid raw generic types.",
+      "severity": "Moderate",
+      "enforcement": "Must",
+      "scopes": [
+        "area:implementation",
+        "phase:code",
+        "phase:review",
+        "lang:java",
+        "topic:formatting",
+        "topic:null-safety"
+      ],
+      "rulesJson": {
+        "standard": "std-java-baseline",
+        "intent": "Keep Java code on a standard build with enforced formatting, null-safety annotations, and no raw types",
+        "appliesTo": {
+          "phases": [
+            "code",
+            "review"
+          ],
+          "languages": [
+            "java"
+          ],
+          "domains": []
+        },
+        "requirements": [
+          "build via standard Maven or Gradle with pinned versions",
+          "a formatter (Spotless/google-java-format) runs and gates the build",
+          "nullability annotations on public API; Optional for absent boundary values",
+          "all generics fully parameterized",
+          "base URLs and ports come from env vars or config, not literals"
+        ],
+        "prohibited": [
+          "raw generic types",
+          "returning bare null where absence is expected",
+          "building without a formatter gate or build tool",
+          "hard-coded service base URLs or ports"
+        ],
+        "references": [
+          "template:Directory.Build.props TreatWarningsAsErrors",
+          "claude-md:No hard-coded URLs",
+          "claude-md:nullable-enabled C# convention"
+        ]
+      }
+    },
+    {
+      "id": "std-rust-baseline",
+      "name": "std-rust-baseline",
+      "description": "Rust code in this ecosystem must be rustfmt-formatted and `clippy`-clean with warnings denied, use Result-based error propagation, and avoid `unwrap`/`expect`/`panic!` on production paths.",
+      "severity": "Moderate",
+      "enforcement": "Must",
+      "scopes": [
+        "area:implementation",
+        "phase:code",
+        "phase:review",
+        "lang:rust",
+        "topic:formatting",
+        "topic:error-handling"
+      ],
+      "rulesJson": {
+        "standard": "std-rust-baseline",
+        "intent": "Keep Rust code rustfmt/clippy-clean with Result-based errors and no production unwrap/panic",
+        "appliesTo": {
+          "phases": [
+            "code",
+            "review"
+          ],
+          "languages": [
+            "rust"
+          ],
+          "domains": []
+        },
+        "requirements": [
+          "cargo fmt --check passes",
+          "cargo clippy -- -D warnings is clean",
+          "fallible operations return Result and propagate with ?",
+          "explicit error types at public boundaries",
+          "toolchain and dependencies are pinned (rust-toolchain.toml, Cargo.lock)"
+        ],
+        "prohibited": [
+          "unwrap, expect, or panic! on production code paths",
+          "stringly-typed errors at boundaries",
+          "unformatted or clippy-flagged code",
+          "hard-coded service base URLs or ports"
+        ],
+        "references": [
+          "template:Directory.Build.props TreatWarningsAsErrors",
+          "claude-md:No hard-coded URLs",
+          "claude-md:fail-closed startup #103"
+        ]
+      }
+    },
+    {
+      "id": "std-python-deps",
+      "name": "std-python-deps",
+      "description": "Python dependencies are pinned to exact versions in a lockfile and installed into an isolated venv or poetry environment, so tooling builds are reproducible and never pollute the system interpreter.",
+      "severity": "Moderate",
+      "enforcement": "Must",
+      "scopes": [
+        "area:implementation",
+        "phase:code",
+        "phase:review",
+        "phase:pr",
+        "lang:python",
+        "topic:dependencies",
+        "topic:reproducibility",
+        "domain:tooling"
+      ],
+      "rulesJson": {
+        "standard": "std-python-deps",
+        "intent": "Pin Python dependencies in a lockfile and isolate in a venv",
+        "appliesTo": {
+          "phases": [
+            "code",
+            "review",
+            "pr"
+          ],
+          "languages": [
+            "python"
+          ],
+          "domains": [
+            "tooling"
+          ]
+        },
+        "requirements": [
+          "Declare dependencies in pyproject.toml and commit a lockfile with exact versions",
+          "Install into an isolated .venv/poetry/uv environment",
+          "Gitignore .venv and __pycache__",
+          "Read URLs/hosts/ports from environment or config, not literals"
+        ],
+        "prohibited": [
+          "Floating version ranges in the committed lock",
+          "pip install into the global interpreter",
+          "Committing the virtualenv directory",
+          "Hard-coded base URLs in scripts"
+        ],
+        "references": [
+          "template:nuget.config pinned sources",
+          "claude-md:No hard-coded URLs"
+        ]
+      }
+    },
+    {
+      "id": "std-python-docstrings",
+      "name": "std-python-docstrings",
+      "description": "Every module, public class, and public function in Python tooling carries a concise docstring describing purpose, parameters, and return value, so the script is self-documenting without an emoji in sight.",
+      "severity": "Info",
+      "enforcement": "Should",
+      "scopes": [
+        "area:implementation",
+        "phase:code",
+        "phase:doc",
+        "phase:review",
+        "lang:python",
+        "topic:documentation",
+        "topic:docstrings",
+        "domain:tooling"
+      ],
+      "rulesJson": {
+        "standard": "std-python-docstrings",
+        "intent": "Document modules, public classes, and public functions with concise docstrings",
+        "appliesTo": {
+          "phases": [
+            "code",
+            "doc",
+            "review"
+          ],
+          "languages": [
+            "python"
+          ],
+          "domains": [
+            "tooling"
+          ]
+        },
+        "requirements": [
+          "Add a module-level docstring to every public Python file",
+          "Add docstrings to public classes, functions, and methods",
+          "Use a consistent Google or NumPy style across the tree",
+          "State endpoint/tool exercised and prerequisites in example-script docstrings"
+        ],
+        "prohibited": [
+          "Public callables with no docstring and non-obvious behavior",
+          "Docstrings that merely repeat type hints",
+          "Emojis or decorative banners in docstrings"
+        ],
+        "references": [
+          "template:examples/ multi-language usage + mkdocs.yml",
+          "claude-md:no-emoji documentation standard"
+        ]
+      }
+    },
+    {
+      "id": "std-python-style",
+      "name": "std-python-style",
+      "description": "Python tooling, scripts, and API examples follow PEP 8 and are auto-formatted with black (line length 88), so diffs stay minimal and reviews focus on logic, not whitespace.",
+      "severity": "Info",
+      "enforcement": "Should",
+      "scopes": [
+        "area:implementation",
+        "phase:code",
+        "phase:review",
+        "lang:python",
+        "topic:style",
+        "topic:formatting",
+        "domain:tooling"
+      ],
+      "rulesJson": {
+        "standard": "std-python-style",
+        "intent": "Format Python with black and lint with ruff before completion",
+        "appliesTo": {
+          "phases": [
+            "code",
+            "review"
+          ],
+          "languages": [
+            "python"
+          ],
+          "domains": [
+            "tooling"
+          ]
+        },
+        "requirements": [
+          "Format all Python with black (line length 88) before completing a task",
+          "Pass ruff/flake8 with no errors",
+          "Follow PEP 8 naming: snake_case, UPPER_SNAKE constants, PascalCase classes",
+          "Group and sort imports (stdlib, third-party, first-party)",
+          "Configure black and ruff in pyproject.toml"
+        ],
+        "prohibited": [
+          "Wildcard imports (from x import *)",
+          "Tabs for indentation or mixed tabs/spaces",
+          "Manual alignment that black would rewrite",
+          "Unused or undefined-name imports"
+        ],
+        "references": [
+          "template:Directory.Build.props TreatWarningsAsErrors",
+          "claude-md:dotnet format / zero warnings policy"
+        ]
+      }
+    },
+    {
+      "id": "std-python-typing",
+      "name": "std-python-typing",
+      "description": "Every public Python function, method, and module-level constant in tooling/scripts carries type hints and passes mypy or pyright in strict-ish mode, catching contract errors before runtime.",
+      "severity": "Moderate",
+      "enforcement": "Must",
+      "scopes": [
+        "area:implementation",
+        "phase:code",
+        "phase:review",
+        "lang:python",
+        "topic:typing",
+        "topic:static-analysis",
+        "domain:tooling"
+      ],
+      "rulesJson": {
+        "standard": "std-python-typing",
+        "intent": "Type-hint public Python and enforce mypy/pyright",
+        "appliesTo": {
+          "phases": [
+            "code",
+            "review"
+          ],
+          "languages": [
+            "python"
+          ],
+          "domains": [
+            "tooling"
+          ]
+        },
+        "requirements": [
+          "Annotate all parameters and return types on public callables",
+          "Configure and run mypy or pyright as a build-blocking gate",
+          "Disallow implicit Optional; use explicit str | None",
+          "Model REST response payloads with TypedDict, dataclass, or pydantic"
+        ],
+        "prohibited": [
+          "Bare # type: ignore without an error code and justification",
+          "Untyped public functions",
+          "Returning Any from helpers that parse JSON",
+          "Excluding the tools tree from type checking to pass"
+        ],
+        "references": [
+          "template:nullable-enabled projects + TreatWarningsAsErrors",
+          "claude-md:Return DTOs from controllers, never domain entities"
+        ]
+      }
+    },
+    {
+      "id": "std-angular-accessibility",
+      "name": "std-angular-accessibility",
+      "description": "Every Angular 18 view MUST meet WCAG 2.1 AA: semantic HTML, programmatic labels for all controls, full keyboard operability, and text contrast of at least 4.5:1.",
+      "severity": "Moderate",
+      "enforcement": "Must",
+      "scopes": [
+        "area:implementation",
+        "phase:code",
+        "phase:review",
+        "lang:typescript",
+        "domain:frontend",
+        "topic:accessibility",
+        "topic:wcag"
+      ],
+      "rulesJson": {
+        "standard": "std-angular-accessibility",
+        "intent": "Make every Angular view conform to WCAG 2.1 AA",
+        "appliesTo": {
+          "phases": [
+            "code",
+            "review"
+          ],
+          "languages": [
+            "typescript"
+          ],
+          "domains": [
+            "frontend"
+          ]
+        },
+        "requirements": [
+          "use semantic HTML: button/a/form/input with associated labels and one h1 per route",
+          "all interactive elements keyboard-operable with a visible focus indicator and logical tab order",
+          "custom widgets expose correct ARIA roles/states and async/error states announced via aria-live",
+          "icon-only and image content have accessible names or alt text",
+          "text and UI contrast meets 4.5:1 (3:1 large/UI) and color is never the sole information channel"
+        ],
+        "prohibited": [
+          "(click) on non-interactive div/span elements simulating controls",
+          "form controls without an associated label or aria-label",
+          "removing focus outline without a visible replacement",
+          "conveying status or meaning by color alone"
+        ],
+        "references": [
+          "template:client/src/app/features",
+          "claude-md:All API calls go through ApiService"
+        ]
+      }
+    },
+    {
+      "id": "std-angular-apiservice",
+      "name": "std-angular-apiservice",
+      "description": "Route every backend call through the typed `ApiService` returning DTO-typed observables; the HTTP interceptor attaches the bearer token, so nothing calls `HttpClient` or sets Authorization headers directly.",
+      "severity": "Moderate",
+      "enforcement": "Must",
+      "scopes": [
+        "area:implementation",
+        "phase:design",
+        "phase:code",
+        "phase:review",
+        "lang:typescript",
+        "topic:angular",
+        "topic:http",
+        "topic:api-client",
+        "domain:frontend"
+      ],
+      "rulesJson": {
+        "standard": "std-angular-apiservice",
+        "intent": "Route all HTTP through a typed ApiService; let the interceptor attach bearer tokens",
+        "appliesTo": {
+          "phases": [
+            "design",
+            "code",
+            "review"
+          ],
+          "languages": [
+            "typescript"
+          ],
+          "domains": [
+            "frontend"
+          ]
+        },
+        "requirements": [
+          "all backend calls go through ApiService typed methods returning DTO observables",
+          "API base URL comes from environment files",
+          "bearer token attached centrally by the HTTP interceptor",
+          "DTO interfaces mirror the server REST/OpenAPI contract"
+        ],
+        "prohibited": [
+          "injecting HttpClient directly in components for API calls",
+          "setting Authorization headers manually in service methods",
+          "hard-coded API base URL in source"
+        ],
+        "references": [
+          "template:client/src/app/shared/services/api.service.ts",
+          "claude-md:All API calls go through ApiService; interceptor attaches Bearer tokens"
+        ]
+      }
+    },
+    {
+      "id": "std-angular-auth-oidc",
+      "name": "std-angular-auth-oidc",
+      "description": "Handle all client authentication with the `angular-auth-oidc-client` library against Andy Auth; never implement custom login forms, token parsing, refresh loops, or token storage.",
+      "severity": "Critical",
+      "enforcement": "Must",
+      "scopes": [
+        "area:implementation",
+        "phase:design",
+        "phase:code",
+        "phase:review",
+        "lang:typescript",
+        "topic:angular",
+        "topic:auth",
+        "topic:oidc",
+        "security",
+        "domain:frontend"
+      ],
+      "rulesJson": {
+        "standard": "std-angular-auth-oidc",
+        "intent": "Use angular-auth-oidc-client for all auth; never roll custom token handling",
+        "appliesTo": {
+          "phases": [
+            "design",
+            "code",
+            "review"
+          ],
+          "languages": [
+            "typescript"
+          ],
+          "domains": [
+            "frontend"
+          ]
+        },
+        "requirements": [
+          "configure provideAuth with authority/clientId from environment files",
+          "use Authorization Code flow with PKCE against Andy Auth",
+          "use OidcSecurityService APIs for login, logout, token, and session state",
+          "protect routes with the functional authGuard backed by the library"
+        ],
+        "prohibited": [
+          "custom login form posting credentials to a token endpoint",
+          "hand-written JWT decode/validation to gate the UI",
+          "manual localStorage token storage or custom refresh timers",
+          "hard-coded authority URL in source"
+        ],
+        "references": [
+          "template:client/src/app/core/auth",
+          "claude-md:Use angular-auth-oidc-client for OIDC - never roll custom auth"
+        ]
+      }
+    },
+    {
+      "id": "std-angular-standalone",
+      "name": "std-angular-standalone",
+      "description": "Build every Angular 18 client UI as standalone components, directives, and pipes wired through `imports` and functional providers; do not introduce `NgModule` declarations.",
+      "severity": "Moderate",
+      "enforcement": "Must",
+      "scopes": [
+        "area:implementation",
+        "phase:design",
+        "phase:code",
+        "phase:review",
+        "lang:typescript",
+        "topic:angular",
+        "topic:standalone",
+        "domain:frontend"
+      ],
+      "rulesJson": {
+        "standard": "std-angular-standalone",
+        "intent": "Use standalone Angular components only; no NgModules",
+        "appliesTo": {
+          "phases": [
+            "design",
+            "code",
+            "review"
+          ],
+          "languages": [
+            "typescript"
+          ],
+          "domains": [
+            "frontend"
+          ]
+        },
+        "requirements": [
+          "every component/directive/pipe is standalone: true with its own imports",
+          "bootstrap via bootstrapApplication with an ApplicationConfig",
+          "configure routing with provideRouter and functional guards",
+          "register HTTP/OIDC/interceptors via provide* in app config"
+        ],
+        "prohibited": [
+          "declaring or importing NgModules",
+          "SharedModule barrels re-exporting imports",
+          "RouterModule.forRoot/forChild usage"
+        ],
+        "references": [
+          "template:client/src/app/app.config.ts",
+          "claude-md:Standalone components only (no NgModules)"
+        ]
+      }
+    },
+    {
+      "id": "std-js-modern-syntax",
+      "name": "std-js-modern-syntax",
+      "description": "Use modern ECMAScript in client and tooling JS/TS: `const`/`let` only (never `var`), prefer immutable updates and pure helpers, and use `async/await` over raw promise chains and callbacks.",
+      "severity": "Info",
+      "enforcement": "Should",
+      "scopes": [
+        "area:implementation",
+        "phase:code",
+        "phase:review",
+        "lang:javascript",
+        "lang:typescript",
+        "topic:syntax",
+        "topic:async",
+        "domain:frontend"
+      ],
+      "rulesJson": {
+        "standard": "std-js-modern-syntax",
+        "intent": "Use const/let, immutable patterns, and async/await in JS/TS",
+        "appliesTo": {
+          "phases": [
+            "code",
+            "review"
+          ],
+          "languages": [
+            "javascript",
+            "typescript"
+          ],
+          "domains": [
+            "frontend"
+          ]
+        },
+        "requirements": [
+          "declare bindings with const by default, let only when reassigned",
+          "prefer immutable updates via spread and array methods",
+          "prefer async/await over nested promise chains and callbacks",
+          "use optional chaining and nullish coalescing where they improve clarity"
+        ],
+        "prohibited": [
+          "using var",
+          "in-place mutation of state rendered by Angular or RxJS",
+          "deeply nested then/catch chains where async/await is clearer"
+        ],
+        "references": [
+          "template:Angular 18 standalone client scaffold",
+          "claude-md:Frontend Angular conventions; async-all-the-way ethos"
+        ]
+      }
+    },
+    {
+      "id": "std-ts-lint-format",
+      "name": "std-ts-lint-format",
+      "description": "Frontend TypeScript and JavaScript must pass ESLint with no errors and match Prettier formatting before commit, mirroring the zero-warnings discipline the .NET side enforces.",
+      "severity": "Moderate",
+      "enforcement": "Should",
+      "scopes": [
+        "area:implementation",
+        "phase:code",
+        "phase:review",
+        "phase:pr",
+        "lang:typescript",
+        "lang:javascript",
+        "topic:lint",
+        "topic:formatting",
+        "domain:frontend"
+      ],
+      "rulesJson": {
+        "standard": "std-ts-lint-format",
+        "intent": "Pass ESLint with no errors and match Prettier before committing frontend code",
+        "appliesTo": {
+          "phases": [
+            "code",
+            "review",
+            "pr"
+          ],
+          "languages": [
+            "typescript",
+            "javascript"
+          ],
+          "domains": [
+            "frontend"
+          ]
+        },
+        "requirements": [
+          "ESLint reports zero errors on changed client code",
+          "code matches Prettier formatting",
+          "any lint disable is single-line and justified with a comment"
+        ],
+        "prohibited": [
+          "file-level eslint-disable to bypass rules",
+          "deleting or downgrading rules to clear errors",
+          "committing unformatted code"
+        ],
+        "references": [
+          "template:client/eslint.config.js",
+          "claude-md:Run dotnet format before committing; zero-warnings policy"
+        ]
+      }
+    },
+    {
+      "id": "std-ts-strict",
+      "name": "std-ts-strict",
+      "description": "Compile all Angular client TypeScript under `strict: true` with no implicit `any` and no unchecked type assertions, so type errors surface at build time rather than at runtime in the browser.",
+      "severity": "Moderate",
+      "enforcement": "Must",
+      "scopes": [
+        "area:implementation",
+        "phase:code",
+        "phase:review",
+        "lang:typescript",
+        "topic:type-safety",
+        "topic:tsconfig",
+        "domain:frontend"
+      ],
+      "rulesJson": {
+        "standard": "std-ts-strict",
+        "intent": "Compile client TypeScript in strict mode with no implicit any and no unchecked casts",
+        "appliesTo": {
+          "phases": [
+            "code",
+            "review"
+          ],
+          "languages": [
+            "typescript"
+          ],
+          "domains": [
+            "frontend"
+          ]
+        },
+        "requirements": [
+          "client tsconfig sets strict: true",
+          "use unknown plus narrowing for genuinely untyped values",
+          "enable strictTemplates for Angular template checking",
+          "type API responses with DTO interfaces consumed via ApiService"
+        ],
+        "prohibited": [
+          "setting noImplicitAny or other strict flags to false",
+          "as any or unchecked type assertions to silence errors",
+          "routine non-null (!) assertions to bypass strictNullChecks"
+        ],
+        "references": [
+          "template:client/tsconfig.json",
+          "claude-md:Frontend Angular conventions - typed ApiService"
+        ]
+      }
+    },
+    {
+      "id": "std-test-coverage",
+      "name": "std-test-coverage",
+      "description": "New or changed behavior ships with tests in the appropriate tests/ assembly, and a green dotnet test (plus the Angular suite for client changes) is a precondition for claiming the task done.",
+      "severity": "Moderate",
+      "enforcement": "Must",
+      "scopes": [
+        "area:testing",
+        "phase:code",
+        "phase:test",
+        "phase:review",
+        "phase:pr",
+        "topic:coverage",
+        "topic:definition-of-done"
+      ],
+      "rulesJson": {
+        "standard": "std-test-coverage",
+        "intent": "Ship tests with new code and gate done on a green suite",
+        "appliesTo": {
+          "phases": [
+            "code",
+            "test",
+            "review",
+            "pr"
+          ],
+          "languages": [
+            "all"
+          ],
+          "domains": [
+            "testing"
+          ]
+        },
+        "requirements": [
+          "Add tests in the matching assembly for every behavior change",
+          "Include a regression test with each bug fix",
+          "Have dotnet test (and the Angular suite for client changes) green before claiming done"
+        ],
+        "prohibited": [
+          "Claiming completion with failing, unrun, or non-compiling tests",
+          "Merging a new endpoint with no integration test",
+          "Stub tests against a backend that does not yet exist"
+        ],
+        "references": [
+          "template:CI build+test on PR",
+          "claude-md:Run dotnet test before claiming completion"
+        ]
+      }
+    },
+    {
+      "id": "std-test-data-management",
+      "name": "std-test-data-management",
+      "description": "Each test owns its data through fresh fixtures, a unique InMemory database name, or per-test seeding, with no shared mutable state, static caches, or reliance on data left by another test.",
+      "severity": "Moderate",
+      "enforcement": "Must",
+      "scopes": [
+        "area:testing",
+        "phase:code",
+        "phase:test",
+        "topic:test-data",
+        "topic:isolation"
+      ],
+      "rulesJson": {
+        "standard": "std-test-data-management",
+        "intent": "Give each test its own isolated, self-seeded data",
+        "appliesTo": {
+          "phases": [
+            "code",
+            "test"
+          ],
+          "languages": [
+            "all"
+          ],
+          "domains": [
+            "testing"
+          ]
+        },
+        "requirements": [
+          "Use a unique InMemory database name per unit test/class",
+          "Seed integration-test data per test within a scoped provider",
+          "Configure RBAC cache and Settings snapshot deterministically in tests",
+          "Keep any shared fixtures read-only or reset them between tests"
+        ],
+        "prohibited": [
+          "Accumulating test state in static fields or process-wide caches",
+          "Asserting on data inserted by a different test",
+          "Relying on stale RBAC-cache or settings-snapshot state"
+        ],
+        "references": [
+          "template:PoliciesApiFactory scoped seeding",
+          "claude-md:RBAC 60s cache / Settings snapshot"
+        ]
+      }
+    },
+    {
+      "id": "std-test-deterministic",
+      "name": "std-test-deterministic",
+      "description": "Tests must be deterministic: no Thread.Sleep/Task.Delay timing waits, no dependence on wall-clock time, time zone, locale, random seeds, or execution order, and no real network calls.",
+      "severity": "Moderate",
+      "enforcement": "Must",
+      "scopes": [
+        "area:testing",
+        "phase:code",
+        "phase:test",
+        "phase:review",
+        "topic:determinism",
+        "topic:flaky-tests"
+      ],
+      "rulesJson": {
+        "standard": "std-test-deterministic",
+        "intent": "Make every test deterministic and order-independent",
+        "appliesTo": {
+          "phases": [
+            "code",
+            "test",
+            "review"
+          ],
+          "languages": [
+            "all"
+          ],
+          "domains": [
+            "testing"
+          ]
+        },
+        "requirements": [
+          "Inject and fix a clock instead of reading wall-clock time",
+          "Await the real operation instead of Thread.Sleep/Task.Delay",
+          "Make tests independent of execution order, locale, and random seeds",
+          "Use readiness polling, not fixed sleeps, in E2E setup"
+        ],
+        "prohibited": [
+          "Task.Delay/Thread.Sleep as a synchronization mechanism",
+          "Asserting against DateTime.Now/UtcNow directly",
+          "Order- or shared-state-dependent tests; real network calls in unit/integration tiers"
+        ],
+        "references": [
+          "template:deterministic InMemory tests",
+          "claude-md:Testing Requirements"
+        ]
+      }
+    },
+    {
+      "id": "std-test-e2e",
+      "name": "std-test-e2e",
+      "description": "End-to-end tests must run against the live four-service stack via docker-compose.e2e.yml, stay gated behind E2E_ENABLED=1 so they skip silently by default, and prove the registration manifest round-trips.",
+      "severity": "Moderate",
+      "enforcement": "Should",
+      "scopes": [
+        "area:testing",
+        "phase:test",
+        "phase:pr",
+        "lang:csharp",
+        "topic:e2e",
+        "topic:smoke-test",
+        "topic:registration",
+        "domain:testing"
+      ],
+      "rulesJson": {
+        "standard": "std-test-e2e",
+        "intent": "Run gated full-stack E2E smoke tests proving registration round-trips",
+        "appliesTo": {
+          "phases": [
+            "test",
+            "pr"
+          ],
+          "languages": [
+            "csharp"
+          ],
+          "domains": [
+            "testing"
+          ]
+        },
+        "requirements": [
+          "Place full-stack tests in tests/Andy.Policies.Tests.E2E against docker-compose.e2e.yml",
+          "Skip silently unless E2E_ENABLED=1 is set",
+          "Cover registration round-trip: OAuth client, JWT issuance, REST auth, RBAC + settings seeding"
+        ],
+        "prohibited": [
+          "E2E tests that fail instead of skipping when E2E_ENABLED is unset",
+          "Routing ordinary CRUD/validation coverage into the E2E assembly",
+          "Leaving compose volumes after a run"
+        ],
+        "references": [
+          "template:tests/Andy.Policies.Tests.E2E + docker-compose.e2e.yml",
+          "claude-md:Testing Requirements E2E gating"
+        ]
+      }
+    },
+    {
+      "id": "std-test-integration",
+      "name": "std-test-integration",
+      "description": "Integration tests must run against `WebApplicationFactory<Program>` with the SQLite-backed `PoliciesApiFactory` and register their own `TestAuthHandler`, never a production auth-bypass branch.",
+      "severity": "Critical",
+      "enforcement": "Must",
+      "scopes": [
+        "area:testing",
+        "phase:code",
+        "phase:test",
+        "lang:csharp",
+        "topic:integration-test",
+        "topic:webapplicationfactory",
+        "topic:auth",
+        "domain:testing"
+      ],
+      "rulesJson": {
+        "standard": "std-test-integration",
+        "intent": "Use WebApplicationFactory + TestAuthHandler, never a prod auth bypass",
+        "appliesTo": {
+          "phases": [
+            "code",
+            "test"
+          ],
+          "languages": [
+            "csharp"
+          ],
+          "domains": [
+            "testing"
+          ]
+        },
+        "requirements": [
+          "Drive integration tests through WebApplicationFactory<Program> and PoliciesApiFactory (SQLite)",
+          "Register a TestAuthHandler that overrides the default auth scheme",
+          "Provide test-principal roles/claims to satisfy RBAC; isolate data per test"
+        ],
+        "prohibited": [
+          "Adding any production code path that disables [Authorize] for tests",
+          "Pointing integration tests at live PostgreSQL",
+          "Sharing one mutated database across the assembly without isolation"
+        ],
+        "references": [
+          "template:PoliciesApiFactory + TestAuthHandler",
+          "claude-md:No auth bypass - ever"
+        ]
+      }
+    },
+    {
+      "id": "std-test-naming",
+      "name": "std-test-naming",
+      "description": "Name each test Method_Condition_ExpectedResult (C#/xUnit) or an equivalent describe/it phrasing (Angular/Jasmine, Python) so the test report reads as a behavior specification.",
+      "severity": "Info",
+      "enforcement": "Should",
+      "scopes": [
+        "area:testing",
+        "phase:code",
+        "phase:test",
+        "topic:naming",
+        "topic:test-readability"
+      ],
+      "rulesJson": {
+        "standard": "std-test-naming",
+        "intent": "Name tests Method_Condition_ExpectedResult or the language equivalent",
+        "appliesTo": {
+          "phases": [
+            "code",
+            "test"
+          ],
+          "languages": [
+            "all"
+          ],
+          "domains": [
+            "testing"
+          ]
+        },
+        "requirements": [
+          "Use Method_Condition_ExpectedResult for xUnit test methods",
+          "Use descriptive describe/it (Jasmine) or test_<method>_<condition>_<expected> (pytest)",
+          "Name test classes {ClassUnderTest}Tests"
+        ],
+        "prohibited": [
+          "Vague names like Test1, ItWorks, ShouldWork",
+          "Names that restate the method without condition or expectation"
+        ],
+        "references": [
+          "template:{ClassUnderTest}Tests",
+          "claude-md:Naming test classes"
+        ]
+      }
+    },
+    {
+      "id": "std-test-pyramid",
+      "name": "std-test-pyramid",
+      "description": "Favor many fast unit tests, fewer integration tests via WebApplicationFactory, and a small set of env-gated E2E smoke tests, matching the three test assemblies in the andy-service-template layout.",
+      "severity": "Moderate",
+      "enforcement": "Should",
+      "scopes": [
+        "area:testing",
+        "phase:design",
+        "phase:test",
+        "topic:test-pyramid",
+        "topic:test-strategy"
+      ],
+      "rulesJson": {
+        "standard": "std-test-pyramid",
+        "intent": "Many unit tests, fewer integration tests, few E2E tests",
+        "appliesTo": {
+          "phases": [
+            "design",
+            "test"
+          ],
+          "languages": [
+            "all"
+          ],
+          "domains": [
+            "testing"
+          ]
+        },
+        "requirements": [
+          "Prove each behavior at the lowest test tier that can cover it",
+          "Keep unit tests the dominant tier by count",
+          "Reserve E2E (tests/Andy.Policies.Tests.E2E) for full-stack round-trip concerns"
+        ],
+        "prohibited": [
+          "Covering pure domain logic only via E2E",
+          "A suite that is integration- or E2E-heavy with sparse unit coverage"
+        ],
+        "references": [
+          "template:tests/ three-assembly split",
+          "claude-md:Testing Requirements"
+        ]
+      }
+    },
+    {
+      "id": "std-test-unit",
+      "name": "std-test-unit",
+      "description": "Unit tests must be fast, isolated, and deterministic, using the EF Core InMemory provider with no network, no real database, no Andy Auth/RBAC/Settings calls, and no shared state.",
+      "severity": "Moderate",
+      "enforcement": "Must",
+      "scopes": [
+        "area:testing",
+        "phase:code",
+        "phase:test",
+        "lang:csharp",
+        "topic:unit-test",
+        "topic:ef-inmemory",
+        "domain:testing"
+      ],
+      "rulesJson": {
+        "standard": "std-test-unit",
+        "intent": "Keep unit tests fast, isolated, and deterministic with EF InMemory",
+        "appliesTo": {
+          "phases": [
+            "code",
+            "test"
+          ],
+          "languages": [
+            "csharp"
+          ],
+          "domains": [
+            "testing"
+          ]
+        },
+        "requirements": [
+          "Use EF Core InMemory provider with a unique database name per test",
+          "Substitute IRbacChecker, IAndySettingsClient, and HttpClients with fakes",
+          "Dispose contexts, await all tasks, and compile warning-free"
+        ],
+        "prohibited": [
+          "Opening PostgreSQL or SQLite connections in a unit test",
+          "Calling real Andy Auth/RBAC/Settings from a unit test",
+          "Sharing a static DbContext or fixed InMemory db name across tests"
+        ],
+        "references": [
+          "template:unit tests EF InMemory",
+          "claude-md:Testing Requirements"
+        ]
+      }
+    },
+    {
+      "id": "std-sec-authz-fail-closed",
+      "name": "std-sec-authz-fail-closed",
+      "description": "RBAC checks must fail closed (deny) on transport error, timeout, or non-2xx response, and every protected operation must default-deny so that a missing or unevaluated permission never grants access.",
+      "severity": "Critical",
+      "enforcement": "Must",
+      "scopes": [
+        "area:security",
+        "phase:design",
+        "phase:code",
+        "phase:review",
+        "topic:security",
+        "topic:authz",
+        "lang:csharp",
+        "domain:auth"
+      ],
+      "rulesJson": {
+        "standard": "std-sec-authz-fail-closed",
+        "intent": "Deny by default and fail closed on any RBAC error",
+        "appliesTo": {
+          "phases": [
+            "design",
+            "code",
+            "review"
+          ],
+          "languages": [
+            "csharp"
+          ],
+          "domains": [
+            "auth"
+          ]
+        },
+        "requirements": [
+          "RBAC returns deny on transport error, timeout, or non-2xx",
+          "Only successful decisions are cached (60s)",
+          "Explicit permission checks cover REST, MCP, and gRPC via the shared service layer"
+        ],
+        "prohibited": [
+          "Treating RBAC errors or timeouts as allow",
+          "Caching failure responses as allow",
+          "Enforcing authorization on one surface but not the others"
+        ],
+        "references": [
+          "template:HttpRbacChecker fail-closed",
+          "claude-md:Andy RBAC fail-closed (P7.2 #51)"
+        ]
+      }
+    },
+    {
+      "id": "std-sec-crypto",
+      "name": "std-sec-crypto",
+      "description": "Use platform-provided cryptography and TLS; never implement custom crypto, and hash secrets with a vetted password hasher rather than fast or reversible algorithms.",
+      "severity": "Critical",
+      "enforcement": "Must",
+      "scopes": [
+        "area:security",
+        "phase:design",
+        "phase:code",
+        "phase:review",
+        "topic:security",
+        "topic:crypto",
+        "lang:csharp",
+        "domain:auth"
+      ],
+      "rulesJson": {
+        "standard": "std-sec-crypto",
+        "intent": "Use platform crypto and TLS; never invent crypto; hash secrets properly",
+        "appliesTo": {
+          "phases": [
+            "design",
+            "code",
+            "review"
+          ],
+          "languages": [
+            "csharp",
+            "typescript"
+          ],
+          "domains": [
+            "auth"
+          ]
+        },
+        "requirements": [
+          "Use System.Security.Cryptography and platform TLS",
+          "Delegate JWT/OIDC validation to middleware and angular-auth-oidc-client",
+          "Hash stored secrets with PBKDF2/Argon2 and a CSPRNG salt"
+        ],
+        "prohibited": [
+          "Custom ciphers, MACs, KDFs, or hand-rolled token parsing",
+          "System.Random or Guid for security tokens/nonces/salts",
+          "Disabling certificate validation in production code"
+        ],
+        "references": [
+          "template:JWT Bearer via Andy Auth",
+          "claude-md:never roll custom auth"
+        ]
+      }
+    },
+    {
+      "id": "std-sec-dependency-cve",
+      "name": "std-sec-dependency-cve",
+      "description": "Dependencies carrying known CVEs at or above the agreed severity threshold must be blocked from merge across NuGet, npm, and Python tooling, with no unpinned or unreviewed transitive upgrades.",
+      "severity": "Critical",
+      "enforcement": "Must",
+      "scopes": [
+        "area:security",
+        "phase:review",
+        "phase:pr",
+        "phase:code",
+        "topic:security",
+        "topic:dependencies",
+        "lang:csharp",
+        "lang:typescript",
+        "lang:python"
+      ],
+      "rulesJson": {
+        "standard": "std-sec-dependency-cve",
+        "intent": "Block dependencies with known CVEs above threshold from merge",
+        "appliesTo": {
+          "phases": [
+            "code",
+            "review",
+            "pr"
+          ],
+          "languages": [
+            "csharp",
+            "typescript",
+            "python"
+          ],
+          "domains": [
+            "supply-chain"
+          ]
+        },
+        "requirements": [
+          "Scan NuGet, npm, and Python deps for known CVEs before merge",
+          "High/critical CVEs block the PR or require a tracked exception",
+          "Pin versions explicitly; only use nuget.config-approved feeds"
+        ],
+        "prohibited": [
+          "Merging with known high/critical CVEs in direct or transitive deps",
+          "Adding untrusted package feeds",
+          "Floating versions that silently pull vulnerable transitives"
+        ],
+        "references": [
+          "template:nuget.config sources",
+          "claude-md:bump Andy.Settings.Client version explicitly"
+        ]
+      }
+    },
+    {
+      "id": "std-sec-injection",
+      "name": "std-sec-injection",
+      "description": "Use parameterized queries and safe APIs only; never concatenate or interpolate external input into SQL, shell commands, file paths, or other interpreters.",
+      "severity": "Critical",
+      "enforcement": "Must",
+      "scopes": [
+        "area:security",
+        "phase:code",
+        "phase:review",
+        "topic:security",
+        "topic:injection",
+        "lang:csharp",
+        "lang:python",
+        "domain:data"
+      ],
+      "rulesJson": {
+        "standard": "std-sec-injection",
+        "intent": "Use parameterized queries and arg lists; never concatenate input into interpreters",
+        "appliesTo": {
+          "phases": [
+            "code",
+            "review"
+          ],
+          "languages": [
+            "csharp",
+            "python"
+          ],
+          "domains": [
+            "data"
+          ]
+        },
+        "requirements": [
+          "Use EF Core LINQ or FromSqlInterpolated/parameters for SQL",
+          "Pass argument lists to subprocess, not interpolated shell strings",
+          "Validate and canonicalize file paths from input"
+        ],
+        "prohibited": [
+          "FromSqlRaw with string concatenation or interpolation of input",
+          "subprocess with shell=True on interpolated strings",
+          "Concatenating untrusted input into paths, regex, or dynamic LINQ"
+        ],
+        "references": [
+          "template:EF Core 8 LINQ",
+          "claude-md:Entity Framework Core 8"
+        ]
+      }
+    },
+    {
+      "id": "std-sec-input-validation",
+      "name": "std-sec-input-validation",
+      "description": "All inbound data crossing a trust boundary (REST bodies, query/route params, MCP tool args, gRPC messages) must be validated, type-constrained, and bounded before use, with invalid input rejected at the edge.",
+      "severity": "Critical",
+      "enforcement": "Must",
+      "scopes": [
+        "area:security",
+        "phase:design",
+        "phase:code",
+        "phase:review",
+        "topic:security",
+        "topic:validation",
+        "lang:csharp",
+        "lang:typescript"
+      ],
+      "rulesJson": {
+        "standard": "std-sec-input-validation",
+        "intent": "Validate and bound all external input at the trust boundary",
+        "appliesTo": {
+          "phases": [
+            "design",
+            "code",
+            "review"
+          ],
+          "languages": [
+            "csharp",
+            "typescript"
+          ],
+          "domains": [
+            "api"
+          ]
+        },
+        "requirements": [
+          "Request DTOs constrain types, required fields, lengths, ranges, and enums",
+          "Validation covers REST, MCP, and gRPC via the shared service layer",
+          "Pagination and collection sizes are bounded"
+        ],
+        "prohibited": [
+          "Using raw input in queries or paths without validation",
+          "Relying on Angular client validation as the only gate",
+          "Accepting unbounded page sizes or collection lengths"
+        ],
+        "references": [
+          "template:Create/Update request DTOs",
+          "claude-md:shared service layer for REST/MCP"
+        ]
+      }
+    },
+    {
+      "id": "std-sec-least-privilege",
+      "name": "std-sec-least-privilege",
+      "description": "Every component runs with the minimum roles, scopes, database privileges, container capabilities, and network egress required for its function, with nothing granted \"just in case\".",
+      "severity": "Moderate",
+      "enforcement": "Must",
+      "scopes": [
+        "area:security",
+        "phase:design",
+        "phase:code",
+        "phase:review",
+        "topic:security",
+        "topic:least-privilege",
+        "domain:auth",
+        "domain:infra"
+      ],
+      "rulesJson": {
+        "standard": "std-sec-least-privilege",
+        "intent": "Grant the minimum roles, scopes, DB privileges, and egress required",
+        "appliesTo": {
+          "phases": [
+            "design",
+            "code",
+            "review"
+          ],
+          "languages": [
+            "csharp"
+          ],
+          "domains": [
+            "auth",
+            "infra"
+          ]
+        },
+        "requirements": [
+          "Endpoints require the narrowest RBAC role that fits",
+          "Seeded permissions in rbac-seed.json match enforced checks",
+          "Containers run non-root; only documented ports and declared egress are open"
+        ],
+        "prohibited": [
+          "Gating reads behind write/admin permissions",
+          "Over-privileged database or OAuth client grants",
+          "Undeclared outbound network access"
+        ],
+        "references": [
+          "template:config/rbac-seed.json",
+          "claude-md:admin/user/viewer roles"
+        ]
+      }
+    },
+    {
+      "id": "std-sec-no-auth-bypass",
+      "name": "std-sec-no-auth-bypass",
+      "description": "There must be no production code path that allows unauthenticated access; the API must refuse to start when `AndyAuth:Authority` is missing rather than fall back to an open mode.",
+      "severity": "Critical",
+      "enforcement": "Must",
+      "scopes": [
+        "area:security",
+        "phase:design",
+        "phase:code",
+        "phase:review",
+        "topic:security",
+        "topic:auth",
+        "lang:csharp",
+        "domain:auth"
+      ],
+      "rulesJson": {
+        "standard": "std-sec-no-auth-bypass",
+        "intent": "Allow no unauthenticated production path; fail startup without an authority",
+        "appliesTo": {
+          "phases": [
+            "design",
+            "code",
+            "review"
+          ],
+          "languages": [
+            "csharp"
+          ],
+          "domains": [
+            "auth"
+          ]
+        },
+        "requirements": [
+          "API refuses to start when AndyAuth:Authority is missing",
+          "Endpoints are [Authorize] by default; [AllowAnonymous] only for health/public",
+          "TestAuthHandler lives in test assemblies only and overrides the default scheme"
+        ],
+        "prohibited": [
+          "Environment or config flag that disables authentication middleware",
+          "No-op or permissive authentication handler in src/",
+          "Anonymous principal fallback when the authority is unreachable"
+        ],
+        "references": [
+          "template:Program.cs authority guard",
+          "claude-md:No auth bypass — ever (#103)"
+        ]
+      }
+    },
+    {
+      "id": "std-sec-pii-handling",
+      "name": "std-sec-pii-handling",
+      "description": "Sensitive data and PII must be minimized, encrypted in transit, and redacted from logs, traces, and error responses so it never leaks through telemetry or DTOs.",
+      "severity": "Critical",
+      "enforcement": "Must",
+      "scopes": [
+        "area:security",
+        "phase:design",
+        "phase:code",
+        "phase:review",
+        "topic:security",
+        "topic:pii",
+        "domain:data",
+        "domain:telemetry"
+      ],
+      "rulesJson": {
+        "standard": "std-sec-pii-handling",
+        "intent": "Minimize, encrypt, and redact sensitive data across DTOs, logs, and telemetry",
+        "appliesTo": {
+          "phases": [
+            "design",
+            "code",
+            "review"
+          ],
+          "languages": [
+            "csharp",
+            "typescript"
+          ],
+          "domains": [
+            "data",
+            "telemetry"
+          ]
+        },
+        "requirements": [
+          "Return DTOs that omit PII and internal fields, never domain entities",
+          "Scrub PII, tokens, and secrets from OpenTelemetry spans and logs",
+          "Error responses use generic problem details without echoing PII"
+        ],
+        "prohibited": [
+          "Serializing domain entities with PII directly to clients",
+          "Emitting PII or tokens into traces, metrics, or structured logs",
+          "Returning raw PII values in exception messages"
+        ],
+        "references": [
+          "template:Return DTOs not entities",
+          "claude-md:OpenTelemetry telemetry"
+        ]
+      }
+    },
+    {
+      "id": "std-sec-secrets",
+      "name": "std-sec-secrets",
+      "description": "No real API keys, production passwords, tokens, or private keys may appear in source, config, logs, or CI; secrets come from environment variables or Andy Settings, and scanning is enforced pre-commit and in CI.",
+      "severity": "Critical",
+      "enforcement": "Must",
+      "scopes": [
+        "area:security",
+        "phase:code",
+        "phase:review",
+        "phase:pr",
+        "topic:security",
+        "topic:secrets",
+        "domain:config"
+      ],
+      "rulesJson": {
+        "standard": "std-sec-secrets",
+        "intent": "Keep real secrets out of source, config, logs, and CI",
+        "appliesTo": {
+          "phases": [
+            "code",
+            "review",
+            "pr"
+          ],
+          "languages": [
+            "csharp",
+            "typescript",
+            "python"
+          ],
+          "domains": [
+            "config"
+          ]
+        },
+        "requirements": [
+          "Real credentials come from environment, IConfiguration, or Andy Settings",
+          "Pre-commit secret scan installed and not bypassed for real secrets",
+          "Secrets never written to logs or telemetry"
+        ],
+        "prohibited": [
+          "Hard-coded real keys, passwords, tokens, or private keys in committed files",
+          "git commit --no-verify to slip past the secret scan",
+          "Logging Authorization headers or credentialed connection strings"
+        ],
+        "references": [
+          "template:scripts/setup-git-hooks.sh",
+          "claude-md:Secret Scanning"
+        ]
+      }
+    },
+    {
+      "id": "std-deps-cve-gate",
+      "name": "std-deps-cve-gate",
+      "description": "Scan every new or upgraded dependency for known CVEs before merge; any High or Critical advisory blocks the change unless a documented, time-boxed exception with a remediation owner is attached.",
+      "severity": "Critical",
+      "enforcement": "Must",
+      "scopes": [
+        "area:dependencies",
+        "phase:code",
+        "phase:review",
+        "topic:vulnerability",
+        "topic:supply-chain",
+        "topic:cve",
+        "lang:dotnet",
+        "lang:typescript",
+        "lang:python"
+      ],
+      "rulesJson": {
+        "standard": "std-deps-cve-gate",
+        "intent": "Block dependency changes that introduce known High/Critical CVEs",
+        "appliesTo": {
+          "phases": [
+            "code",
+            "review"
+          ],
+          "languages": [
+            "dotnet",
+            "typescript",
+            "python"
+          ],
+          "domains": [
+            "dependencies"
+          ]
+        },
+        "requirements": [
+          "Run dotnet list package --vulnerable --include-transitive, npm audit, and pip-audit on dependency changes",
+          "High or Critical advisories on runtime dependencies block merge",
+          "Any exception records advisory ID, non-exploitability rationale, remediation owner, and expiry in the PR body"
+        ],
+        "prohibited": [
+          "Merging a change that adds a High/Critical CVE without a documented exception",
+          "Suppressing or raising audit thresholds to hide findings",
+          "Ignoring transitive CVEs introduced via Andy or other shared packages"
+        ],
+        "references": [
+          "template:ci.yml",
+          "template:check-compliance.sh",
+          "claude-md:andy-settings-transitive-bump"
+        ]
+      }
+    },
+    {
+      "id": "std-deps-license-allowlist",
+      "name": "std-deps-license-allowlist",
+      "description": "Only permissive licenses (Apache-2.0, MIT, BSD-2/3-Clause, ISC) may be added as runtime dependencies; copyleft (GPL, AGPL, LGPL, MPL, SSPL) requires documented legal sign-off before merge.",
+      "severity": "Critical",
+      "enforcement": "Must",
+      "scopes": [
+        "area:dependencies",
+        "phase:code",
+        "phase:review",
+        "topic:licensing",
+        "topic:supply-chain",
+        "lang:dotnet",
+        "lang:typescript",
+        "lang:python"
+      ],
+      "rulesJson": {
+        "standard": "std-deps-license-allowlist",
+        "intent": "Allow only permissive licenses; deny copyleft without legal sign-off",
+        "appliesTo": {
+          "phases": [
+            "code",
+            "review"
+          ],
+          "languages": [
+            "dotnet",
+            "typescript",
+            "python"
+          ],
+          "domains": [
+            "dependencies"
+          ]
+        },
+        "requirements": [
+          "Every new or upgraded runtime dependency declares a permissive license (Apache-2.0, MIT, BSD-2-Clause, BSD-3-Clause, ISC)",
+          "License is verified from authoritative package metadata (.nuspec licenseExpression, npm license field, Python classifiers)",
+          "Any copyleft or source-available license requires a recorded legal sign-off line in the PR body"
+        ],
+        "prohibited": [
+          "Adding GPL/AGPL/LGPL/MPL/SSPL/BUSL dependencies without documented sign-off",
+          "Adding packages with empty, UNLICENSED, or non-commercial license fields",
+          "Inferring a transitive dependency's license without checking its metadata"
+        ],
+        "references": [
+          "template:LICENSE",
+          "template:Directory.Build.props",
+          "claude-md:copyright-header-rivoli-ai-2026"
+        ]
+      }
+    },
+    {
+      "id": "std-deps-minimalism",
+      "name": "std-deps-minimalism",
+      "description": "Before adding a dependency, justify it against maintenance health, footprint, and supply-chain risk, and prefer the platform, an existing Andy package, or a small local implementation over a new transitive tree.",
+      "severity": "Moderate",
+      "enforcement": "Should",
+      "scopes": [
+        "area:dependencies",
+        "phase:design",
+        "phase:code",
+        "phase:review",
+        "topic:supply-chain",
+        "topic:maintainability",
+        "lang:dotnet",
+        "lang:typescript",
+        "lang:python"
+      ],
+      "rulesJson": {
+        "standard": "std-deps-minimalism",
+        "intent": "Justify each new dependency against maintenance, footprint, and supply-chain risk",
+        "appliesTo": {
+          "phases": [
+            "design",
+            "code",
+            "review"
+          ],
+          "languages": [
+            "dotnet",
+            "typescript",
+            "python"
+          ],
+          "domains": [
+            "dependencies"
+          ]
+        },
+        "requirements": [
+          "Prefer the platform BCL, Angular built-ins, or existing Andy packages before adding a third-party dependency",
+          "Record a justification in the PR body covering need, maintenance health, and transitive footprint",
+          "Flag dependency introduction during design so reviewers can weigh it early"
+        ],
+        "prohibited": [
+          "Adding a heavyweight package for functionality the platform already provides",
+          "Introducing a dependency that duplicates an existing Andy or platform capability",
+          "Adding an unmaintained package with no justification"
+        ],
+        "references": [
+          "template:clean-architecture-dependency-rule",
+          "template:check-compliance.sh",
+          "claude-md:architecture-layers-dependency-rule"
+        ]
+      }
+    },
+    {
+      "id": "std-deps-pinning",
+      "name": "std-deps-pinning",
+      "description": "Pin every dependency to an explicit version and commit the lockfile so builds are reproducible; no floating ranges, wildcards, or uncommitted lock state.",
+      "severity": "Moderate",
+      "enforcement": "Must",
+      "scopes": [
+        "area:dependencies",
+        "phase:code",
+        "phase:review",
+        "topic:pinning",
+        "topic:reproducible-build",
+        "lang:dotnet",
+        "lang:typescript",
+        "lang:python"
+      ],
+      "rulesJson": {
+        "standard": "std-deps-pinning",
+        "intent": "Pin exact versions and commit lockfiles for reproducible builds",
+        "appliesTo": {
+          "phases": [
+            "code",
+            "review"
+          ],
+          "languages": [
+            "dotnet",
+            "typescript",
+            "python"
+          ],
+          "domains": [
+            "dependencies"
+          ]
+        },
+        "requirements": [
+          "Every PackageReference uses an exact Version string",
+          "client/package-lock.json is committed and in sync with package.json",
+          "Python tooling pins versions via requirements.txt == or an equivalent lockfile",
+          "Version bumps update the manifest and lockfile in the same reviewable change"
+        ],
+        "prohibited": [
+          "Floating version ranges or wildcards (8.0.*, [8.0,), ^, ~) on runtime dependencies",
+          "Committing a manifest change without the matching lockfile update",
+          "Relying on latest/unpinned resolution at build time"
+        ],
+        "references": [
+          "template:Directory.Build.props",
+          "template:nuget.config",
+          "claude-md:andy-settings-pinned-version"
+        ]
+      }
+    },
+    {
+      "id": "std-deps-provenance",
+      "name": "std-deps-provenance",
+      "description": "Dependencies must resolve only from approved registries — nuget.org plus the committed `local-packages/`, the public npm registry, and PyPI — never from arbitrary git URLs, tarballs, or unvetted private feeds.",
+      "severity": "Critical",
+      "enforcement": "Must",
+      "scopes": [
+        "area:dependencies",
+        "phase:code",
+        "phase:review",
+        "topic:provenance",
+        "topic:supply-chain",
+        "topic:registry",
+        "lang:dotnet",
+        "lang:typescript",
+        "lang:python"
+      ],
+      "rulesJson": {
+        "standard": "std-deps-provenance",
+        "intent": "Resolve dependencies only from approved registries and committed local packages",
+        "appliesTo": {
+          "phases": [
+            "code",
+            "review"
+          ],
+          "languages": [
+            "dotnet",
+            "typescript",
+            "python"
+          ],
+          "domains": [
+            "dependencies"
+          ]
+        },
+        "requirements": [
+          "NuGet packages resolve only from sources declared in nuget.config (nuget.org + local-packages/)",
+          "npm dependencies come from the default registry by version specifier",
+          "Python tooling installs from PyPI by pinned version",
+          "Vendored packages are committed under local-packages/ rather than fetched at build time"
+        ],
+        "prohibited": [
+          "Adding unreviewed package sources or mirror URLs",
+          "Using git+, github:, http(s)://, file:, or tarball specifiers for runtime npm packages",
+          "Installing dependencies from arbitrary URLs or raw git refs"
+        ],
+        "references": [
+          "template:nuget.config",
+          "template:local-packages",
+          "claude-md:nuget-sources-nuget-org-plus-local-packages"
+        ]
+      }
+    },
+    {
+      "id": "std-cicd-deploy-approvals",
+      "name": "std-cicd-deploy-approvals",
+      "description": "Production deploys must require a human approval gate and run database backup then EF Core migrations in order before traffic shifts; auto-migration is dev-only.",
+      "severity": "Critical",
+      "enforcement": "Must",
+      "scopes": [
+        "area:cicd",
+        "phase:pr",
+        "phase:review",
+        "topic:deploy",
+        "topic:migrations",
+        "domain:database"
+      ],
+      "rulesJson": {
+        "standard": "std-cicd-deploy-approvals",
+        "intent": "Require approval and ordered backup/migration before production deploys",
+        "appliesTo": {
+          "phases": [
+            "pr",
+            "review"
+          ],
+          "languages": [
+            "csharp"
+          ],
+          "domains": [
+            "cicd",
+            "database"
+          ]
+        },
+        "requirements": [
+          "Production deploys pass through a GitHub environment with a required reviewer",
+          "Deploy order is backup, then dotnet ef database update, then image rollout",
+          "Migrations verified against the target provider (PostgreSQL or SQLite) before approval"
+        ],
+        "prohibited": [
+          "Unattended auto-deploy to production on every merge",
+          "Using Development-mode auto-migration to change the production schema",
+          "Rolling out new code before its migration applies",
+          "Editing an already-applied migration in place"
+        ],
+        "references": [
+          "template:docker.yml",
+          "claude-md:Auto-migration runs in Development mode",
+          "claude-md:dotnet ef database update"
+        ]
+      }
+    },
+    {
+      "id": "std-cicd-no-secrets-in-ci",
+      "name": "std-cicd-no-secrets-in-ci",
+      "description": "CI workflows must read credentials from the platform secret store (GitHub Actions secrets/OIDC), never hard-code tokens, passwords, or keys in workflow YAML, and must not echo secrets into build logs.",
+      "severity": "Critical",
+      "enforcement": "Must",
+      "scopes": [
+        "area:cicd",
+        "phase:pr",
+        "phase:review",
+        "topic:secrets",
+        "domain:security"
+      ],
+      "rulesJson": {
+        "standard": "std-cicd-no-secrets-in-ci",
+        "intent": "Keep all real credentials in the secret store and out of logs",
+        "appliesTo": {
+          "phases": [
+            "pr",
+            "review"
+          ],
+          "languages": [
+            "all"
+          ],
+          "domains": [
+            "cicd",
+            "security"
+          ]
+        },
+        "requirements": [
+          "Workflows read credentials from secrets context or OIDC federation",
+          "Secrets are masked and never echoed to logs",
+          "Only documented dev-only defaults may appear in committed files"
+        ],
+        "prohibited": [
+          "Literal passwords, tokens, or keys in workflow YAML",
+          "Echoing secret values into build logs",
+          "Committing production appsettings with real Andy Auth/RBAC/Settings secrets"
+        ],
+        "references": [
+          "template:docker.yml",
+          "claude-md:Secret Scanning",
+          "claude-md:Never commit real API keys"
+        ]
+      }
+    },
+    {
+      "id": "std-cicd-openapi-drift",
+      "name": "std-cicd-openapi-drift",
+      "description": "Any change to a REST controller surface must re-run `./scripts/export-openapi.sh` and commit the regenerated OpenAPI YAML in the same PR, or the `openapi-drift` CI check fails post-merge.",
+      "severity": "Moderate",
+      "enforcement": "Must",
+      "scopes": [
+        "area:cicd",
+        "phase:pr",
+        "phase:code",
+        "phase:review",
+        "topic:openapi",
+        "lang:csharp",
+        "domain:api"
+      ],
+      "rulesJson": {
+        "standard": "std-cicd-openapi-drift",
+        "intent": "Re-export and commit the OpenAPI spec whenever the REST surface changes",
+        "appliesTo": {
+          "phases": [
+            "pr",
+            "code",
+            "review"
+          ],
+          "languages": [
+            "csharp"
+          ],
+          "domains": [
+            "api",
+            "cicd"
+          ]
+        },
+        "requirements": [
+          "Run scripts/export-openapi.sh after any REST controller surface change",
+          "Commit the regenerated OpenAPI YAML in the same PR as the code change",
+          "Keep the committed spec byte-identical to generated output"
+        ],
+        "prohibited": [
+          "Merging a REST surface change without re-exporting the spec",
+          "Deferring the OpenAPI export to a follow-up PR",
+          "Hand-editing the YAML instead of regenerating it"
+        ],
+        "references": [
+          "template:scripts/export-openapi.sh",
+          "template:openapi-drift",
+          "claude-md:Return DTOs from controllers"
+        ]
+      }
+    },
+    {
+      "id": "std-cicd-reproducible-builds",
+      "name": "std-cicd-reproducible-builds",
+      "description": "Builds must pin .NET SDK, Node, Python, NuGet, and npm dependency versions so CI and local runs produce identical results; avoid floating tags and unpinned restores.",
+      "severity": "Moderate",
+      "enforcement": "Should",
+      "scopes": [
+        "area:cicd",
+        "phase:pr",
+        "phase:review",
+        "topic:build",
+        "topic:pinning"
+      ],
+      "rulesJson": {
+        "standard": "std-cicd-reproducible-builds",
+        "intent": "Pin toolchain and dependency versions for identical CI and local builds",
+        "appliesTo": {
+          "phases": [
+            "pr",
+            "review"
+          ],
+          "languages": [
+            "csharp",
+            "typescript",
+            "python"
+          ],
+          "domains": [
+            "cicd"
+          ]
+        },
+        "requirements": [
+          "Pin .NET SDK via global.json and Node via setup-node node-version",
+          "Pin Dockerfile base image tags, never latest",
+          "Use npm ci against a committed package-lock.json",
+          "Pin NuGet package versions including the Andy Settings client"
+        ],
+        "prohibited": [
+          "Floating image tags such as latest",
+          "npm install in CI without a lockfile",
+          "Wildcard or star version ranges for NuGet or npm packages"
+        ],
+        "references": [
+          "template:Dockerfile",
+          "template:nuget.config",
+          "claude-md:Andy Settings client pinned version"
+        ]
+      }
+    },
+    {
+      "id": "std-cicd-required-gates",
+      "name": "std-cicd-required-gates",
+      "description": "Every PR must pass the ci.yml build, .NET and Angular tests, and `dotnet format`/lint before merge; a red or skipped required check blocks the merge.",
+      "severity": "Critical",
+      "enforcement": "Must",
+      "scopes": [
+        "area:cicd",
+        "phase:pr",
+        "phase:review",
+        "topic:build",
+        "topic:test",
+        "topic:lint"
+      ],
+      "rulesJson": {
+        "standard": "std-cicd-required-gates",
+        "intent": "Block merge unless build, tests, and format/lint all pass",
+        "appliesTo": {
+          "phases": [
+            "pr",
+            "review"
+          ],
+          "languages": [
+            "csharp",
+            "typescript"
+          ],
+          "domains": [
+            "cicd"
+          ]
+        },
+        "requirements": [
+          "ci.yml runs dotnet build, dotnet test, Angular build, and Angular tests",
+          "All required checks are configured as branch-protection required status checks on main",
+          "Build passes under TreatWarningsAsErrors=true with no suppressed warnings",
+          "dotnet format produces no diff"
+        ],
+        "prohibited": [
+          "continue-on-error on build or test steps",
+          "Merging with a failing or skipped required check",
+          "Using NoWarn or pragma disable only to satisfy the warnings-as-errors gate"
+        ],
+        "references": [
+          "template:ci.yml",
+          "template:Directory.Build.props#TreatWarningsAsErrors",
+          "claude-md:All tests must pass before push"
+        ]
+      }
+    },
+    {
+      "id": "std-docs-api-reference",
+      "name": "std-docs-api-reference",
+      "description": "Every public REST endpoint, MCP tool, and gRPC method must be documented via XML doc comments and surfaced in Swagger, and any REST surface change must regenerate and commit the OpenAPI YAML in the same PR.",
+      "severity": "Moderate",
+      "enforcement": "Must",
+      "scopes": [
+        "area:documentation",
+        "phase:doc",
+        "phase:code",
+        "phase:review",
+        "phase:pr",
+        "lang:csharp",
+        "domain:api",
+        "topic:swagger",
+        "topic:openapi"
+      ],
+      "rulesJson": {
+        "standard": "std-docs-api-reference",
+        "intent": "Document and keep in sync the REST, MCP, and gRPC public surface",
+        "appliesTo": {
+          "phases": [
+            "doc",
+            "code",
+            "review",
+            "pr"
+          ],
+          "languages": [
+            "csharp"
+          ],
+          "domains": [
+            "api",
+            "documentation"
+          ]
+        },
+        "requirements": [
+          "Add XML doc summaries to public endpoints, MCP tools, and gRPC methods",
+          "Declare response types with ProducesResponseType and document DTO shapes",
+          "Run ./scripts/export-openapi.sh and commit the OpenAPI YAML in the same PR on REST changes",
+          "Write MCP tool descriptions specific enough for LLM tool selection"
+        ],
+        "prohibited": [
+          "Public endpoints without XML summaries or response type attributes",
+          "REST contract changes without regenerating OpenAPI YAML",
+          "Documenting or returning domain entities instead of DTOs"
+        ],
+        "references": [
+          "template:scripts/export-openapi.sh",
+          "claude-md:run OpenAPI export when REST endpoints change"
+        ]
+      }
+    },
+    {
+      "id": "std-docs-code-comments",
+      "name": "std-docs-code-comments",
+      "description": "Code comments must explain intent, constraints, or non-obvious rationale rather than restate what the code already says; remove redundant or stale comments.",
+      "severity": "Info",
+      "enforcement": "Should",
+      "scopes": [
+        "area:documentation",
+        "phase:code",
+        "phase:review",
+        "lang:csharp",
+        "lang:typescript",
+        "lang:python",
+        "topic:comments"
+      ],
+      "rulesJson": {
+        "standard": "std-docs-code-comments",
+        "intent": "Comment the why and the non-obvious, not the obvious",
+        "appliesTo": {
+          "phases": [
+            "code",
+            "review"
+          ],
+          "languages": [
+            "csharp",
+            "typescript",
+            "python"
+          ],
+          "domains": [
+            "documentation"
+          ]
+        },
+        "requirements": [
+          "Explain intent, invariants, or external constraints in comments",
+          "Reference the issue number for decisions where useful",
+          "Update or delete comments when the code changes"
+        ],
+        "prohibited": [
+          "Comments that restate what the code already expresses",
+          "Stale comments that contradict current behavior",
+          "Comment blocks emulating #region dividers"
+        ],
+        "references": [
+          "template:CLAUDE.md",
+          "claude-md:No #region blocks"
+        ]
+      }
+    },
+    {
+      "id": "std-docs-no-emoji",
+      "name": "std-docs-no-emoji",
+      "description": "Do not add decorative emojis to documentation, code comments, commit messages, PR bodies, log output, or CLI text; emojis are only permitted when echoing pre-existing user content verbatim.",
+      "severity": "Moderate",
+      "enforcement": "Must",
+      "scopes": [
+        "area:documentation",
+        "phase:doc",
+        "phase:code",
+        "phase:review",
+        "phase:pr",
+        "topic:tone",
+        "topic:emoji"
+      ],
+      "rulesJson": {
+        "standard": "std-docs-no-emoji",
+        "intent": "Keep all authored text emoji-free except verbatim user content",
+        "appliesTo": {
+          "phases": [
+            "doc",
+            "code",
+            "review",
+            "pr"
+          ],
+          "languages": [
+            "all"
+          ],
+          "domains": [
+            "documentation"
+          ]
+        },
+        "requirements": [
+          "Use words like WARNING/ERROR/PASS/FAIL to convey status instead of symbols",
+          "Keep Markdown headings, comments, commit messages, and PR bodies emoji-free"
+        ],
+        "prohibited": [
+          "Decorative emojis in docs, comments, commits, PR bodies, logs, or CLI output",
+          "Emoji prefixes or suffixes on Markdown headings"
+        ],
+        "references": [
+          "template:CLAUDE.md",
+          "claude-md:assistant MUST avoid using emojis"
+        ]
+      }
+    },
+    {
+      "id": "std-docs-readme",
+      "name": "std-docs-readme",
+      "description": "The service README must cover purpose, prerequisites, setup and run commands, ports, and required external-service configuration so a new agent or developer can build and run the service without reading source.",
+      "severity": "Moderate",
+      "enforcement": "Should",
+      "scopes": [
+        "area:documentation",
+        "phase:doc",
+        "phase:review",
+        "phase:pr",
+        "topic:readme",
+        "topic:onboarding"
+      ],
+      "rulesJson": {
+        "standard": "std-docs-readme",
+        "intent": "Ensure the README lets a reader build, run, and configure the service",
+        "appliesTo": {
+          "phases": [
+            "doc",
+            "review",
+            "pr"
+          ],
+          "languages": [
+            "all"
+          ],
+          "domains": [
+            "documentation"
+          ]
+        },
+        "requirements": [
+          "State purpose, prerequisites, setup commands, ports, and required external config",
+          "Match run commands and ports to CLAUDE.md Common Commands and Ports table",
+          "Document both PostgreSQL default and SQLite embedded run modes",
+          "Update README in the same PR when a command or port changes"
+        ],
+        "prohibited": [
+          "Missing or stale ports table",
+          "Unedited template placeholders in the README"
+        ],
+        "references": [
+          "template:README.md",
+          "claude-md:Common Commands and Ports"
+        ]
+      }
+    },
+    {
+      "id": "std-docs-structure",
+      "name": "std-docs-structure",
+      "description": "Service documentation lives under `docs/`, is wired into `mkdocs.yml` nav, and follows the canonical sections: architecture, implementation, testing, deployment, and security.",
+      "severity": "Moderate",
+      "enforcement": "Should",
+      "scopes": [
+        "area:documentation",
+        "phase:doc",
+        "phase:design",
+        "phase:review",
+        "topic:mkdocs",
+        "topic:structure"
+      ],
+      "rulesJson": {
+        "standard": "std-docs-structure",
+        "intent": "Keep docs in the canonical MkDocs nav and section layout",
+        "appliesTo": {
+          "phases": [
+            "doc",
+            "design",
+            "review"
+          ],
+          "languages": [
+            "all"
+          ],
+          "domains": [
+            "documentation"
+          ]
+        },
+        "requirements": [
+          "Place every docs page under docs/ and register it in mkdocs.yml nav",
+          "Organize pages into architecture, implementation, testing, deployment, security sections",
+          "Slot new pages under an existing canonical section"
+        ],
+        "prohibited": [
+          "Markdown files under docs/ not referenced by mkdocs.yml nav",
+          "Ad-hoc top-level nav entries duplicating canonical sections"
+        ],
+        "references": [
+          "template:mkdocs.yml",
+          "claude-md:docs/ MkDocs documentation"
+        ]
+      }
+    },
+    {
+      "id": "std-docs-tone",
+      "name": "std-docs-tone",
+      "description": "Write documentation as factual, concise, present-tense prose that states what the system does and how to use it, with no marketing adjectives, hype, or filler.",
+      "severity": "Info",
+      "enforcement": "Should",
+      "scopes": [
+        "area:documentation",
+        "phase:doc",
+        "phase:review",
+        "phase:pr",
+        "topic:tone",
+        "topic:style"
+      ],
+      "rulesJson": {
+        "standard": "std-docs-tone",
+        "intent": "Keep docs factual and concise without marketing language",
+        "appliesTo": {
+          "phases": [
+            "doc",
+            "review",
+            "pr"
+          ],
+          "languages": [
+            "all"
+          ],
+          "domains": [
+            "documentation"
+          ]
+        },
+        "requirements": [
+          "Use declarative present-tense active voice",
+          "Use real codebase type and project names so prose is greppable",
+          "Quantify any performance or scale claim or remove it"
+        ],
+        "prohibited": [
+          "Superlatives and hype words like blazing, seamless, powerful, cutting-edge",
+          "Unquantified scalability or speed claims",
+          "Filler paragraphs that restate headings"
+        ],
+        "references": [
+          "template:CLAUDE.md",
+          "claude-md:Professional, concise, no marketing fluff"
+        ]
+      }
+    },
+    {
+      "id": "std-obs-correlation",
+      "name": "std-obs-correlation",
+      "description": "Every request MUST carry a trace id propagated via W3C `traceparent` across REST, MCP, gRPC, and outbound calls to Andy Auth/RBAC/Settings, and that id MUST appear in logs so a flow is reconstructable end to end.",
+      "severity": "Moderate",
+      "enforcement": "Must",
+      "scopes": [
+        "area:observability",
+        "phase:code",
+        "phase:design",
+        "phase:review",
+        "topic:correlation",
+        "topic:tracing",
+        "lang:dotnet",
+        "lang:typescript"
+      ],
+      "rulesJson": {
+        "standard": "std-obs-correlation",
+        "intent": "Propagate W3C trace context across all surfaces and into logs",
+        "appliesTo": {
+          "phases": [
+            "code",
+            "design",
+            "review"
+          ],
+          "languages": [
+            "dotnet",
+            "typescript"
+          ],
+          "domains": [
+            "observability"
+          ]
+        },
+        "requirements": [
+          "Use W3C traceparent/tracestate propagation (OTEL default)",
+          "Generate a trace context at the edge when absent, continue when present",
+          "Add the active trace id to the logging scope",
+          "Propagate context on outbound calls to Andy Auth/RBAC/Settings",
+          "Handle propagation at the shared transport boundary for REST/MCP/gRPC"
+        ],
+        "prohibited": [
+          "Bespoke correlation header not propagated to dependencies",
+          "Starting a new root trace per inbound request, discarding caller context",
+          "Per-surface correlation handling that diverges across REST/MCP/gRPC"
+        ],
+        "references": [
+          "template:Program.cs OTEL propagation defaults",
+          "template:client core/interceptors HTTP interceptor",
+          "claude-md:REST and MCP share one service layer",
+          "claude-md:HTTP interceptor attaches Bearer tokens to /api"
+        ]
+      }
+    },
+    {
+      "id": "std-obs-health-checks",
+      "name": "std-obs-health-checks",
+      "description": "The API MUST expose distinct liveness and readiness health endpoints, marked `[AllowAnonymous]`, with readiness checking the database and required Andy dependencies so orchestrators gate traffic correctly.",
+      "severity": "Moderate",
+      "enforcement": "Must",
+      "scopes": [
+        "area:observability",
+        "phase:code",
+        "phase:design",
+        "phase:review",
+        "topic:health",
+        "topic:readiness",
+        "lang:dotnet"
+      ],
+      "rulesJson": {
+        "standard": "std-obs-health-checks",
+        "intent": "Expose liveness and readiness health endpoints with dependency probes",
+        "appliesTo": {
+          "phases": [
+            "code",
+            "design",
+            "review"
+          ],
+          "languages": [
+            "dotnet"
+          ],
+          "domains": [
+            "observability"
+          ]
+        },
+        "requirements": [
+          "Register ASP.NET Core health checks in Program.cs",
+          "Map distinct liveness and readiness endpoints using tags",
+          "Mark health endpoints AllowAnonymous",
+          "Readiness checks the EF Core database",
+          "Readiness checks required Andy Auth/RBAC/Settings dependencies"
+        ],
+        "prohibited": [
+          "Single unconditional /health returning 200 with no checks",
+          "Health endpoints behind [Authorize]",
+          "Leaking connection strings, secrets, or dependency URLs in the body"
+        ],
+        "references": [
+          "template:Program.cs health checks",
+          "claude-md:AllowAnonymous only for health/public endpoints",
+          "claude-md:fail-closed Auth/RBAC/Settings wiring"
+        ]
+      }
+    },
+    {
+      "id": "std-obs-metrics-slo",
+      "name": "std-obs-metrics-slo",
+      "description": "Every Andy service MUST emit RED/USE metrics via its OTEL Meter, declare SLOs for request error-rate and latency, and wire alerts that fire when those budgets are breached.",
+      "severity": "Moderate",
+      "enforcement": "Must",
+      "scopes": [
+        "area:observability",
+        "phase:design",
+        "phase:code",
+        "topic:metrics",
+        "topic:slo",
+        "topic:alerting"
+      ],
+      "rulesJson": {
+        "standard": "std-obs-metrics-slo",
+        "intent": "Emit RED/USE metrics, declare SLOs, and wire error-rate and latency-budget alerts",
+        "appliesTo": {
+          "phases": [
+            "design",
+            "code"
+          ],
+          "languages": [
+            "dotnet",
+            "typescript",
+            "python"
+          ],
+          "domains": [
+            "observability"
+          ]
+        },
+        "requirements": [
+          "Emit RED metrics (rate, errors, duration) for REST/MCP/gRPC surfaces via the named OTEL Meter",
+          "Emit USE metrics for owned resources such as the EF Core pool and outbound HttpClient",
+          "Record latency as a histogram so percentiles are computable",
+          "Declare error-rate and latency SLOs as versioned artifacts checked into the repo",
+          "Wire fast-burn error-rate and latency-budget alerts routed to the owning team",
+          "Source endpoints, thresholds, and budgets from configuration or environment"
+        ],
+        "prohibited": [
+          "Tracking latency as a last-value gauge instead of a histogram",
+          "Counters outside the registered OTEL Meter or ad hoc Console.WriteLine/Stopwatch tallies",
+          "SLOs that exist only outside the repo with no checked-in artifact",
+          "Dashboards with no alert wired to error-rate or latency budgets",
+          "Per-surface duplicated counters that diverge across REST/MCP/gRPC",
+          "Hard-coded alert URLs or threshold literals in source"
+        ],
+        "references": [
+          "template:Program.cs OpenTelemetry metrics Meter",
+          "claude-md:No hard-coded URLs",
+          "claude-md:Telemetry OpenTelemetry OTLP export"
+        ]
+      }
+    },
+    {
+      "id": "std-obs-otel",
+      "name": "std-obs-otel",
+      "description": "Every Andy service MUST configure OpenTelemetry tracing and metrics and export them via OTLP, instrumenting ASP.NET, EF Core, and outbound HTTP so REST, MCP, and gRPC traffic is captured.",
+      "severity": "Moderate",
+      "enforcement": "Must",
+      "scopes": [
+        "area:observability",
+        "phase:code",
+        "phase:design",
+        "phase:review",
+        "topic:telemetry",
+        "topic:otel",
+        "lang:dotnet",
+        "lang:typescript"
+      ],
+      "rulesJson": {
+        "standard": "std-obs-otel",
+        "intent": "Configure OpenTelemetry tracing and metrics with OTLP export",
+        "appliesTo": {
+          "phases": [
+            "code",
+            "design",
+            "review"
+          ],
+          "languages": [
+            "dotnet",
+            "typescript"
+          ],
+          "domains": [
+            "observability"
+          ]
+        },
+        "requirements": [
+          "Register OpenTelemetry tracing and metrics in the API host",
+          "Instrument ASP.NET Core, HttpClient, and EF Core",
+          "Export via OTLP with endpoint from configuration or environment",
+          "Set service.name and service.version resource attributes from build metadata",
+          "Use a named ActivitySource and Meter for custom domain spans/metrics"
+        ],
+        "prohibited": [
+          "Hard-coded OTLP endpoint URL in source",
+          "Ad hoc Console.WriteLine or Stopwatch timing instead of OTEL",
+          "Instrumenting only one of REST/MCP/gRPC surfaces"
+        ],
+        "references": [
+          "template:Program.cs OpenTelemetry registration",
+          "claude-md:No hard-coded URLs",
+          "claude-md:Telemetry OpenTelemetry OTLP export"
+        ]
+      }
+    },
+    {
+      "id": "std-obs-structured-logs",
+      "name": "std-obs-structured-logs",
+      "description": "Logs MUST be emitted as structured key-value events through `ILogger<T>` message templates with named placeholders, never as string-interpolated or concatenated messages, and MUST never include secrets or bearer tokens.",
+      "severity": "Moderate",
+      "enforcement": "Must",
+      "scopes": [
+        "area:observability",
+        "phase:code",
+        "phase:review",
+        "topic:logging",
+        "topic:structured-logging",
+        "lang:dotnet",
+        "lang:typescript",
+        "lang:python"
+      ],
+      "rulesJson": {
+        "standard": "std-obs-structured-logs",
+        "intent": "Emit structured key-value logs and never log secrets",
+        "appliesTo": {
+          "phases": [
+            "code",
+            "review"
+          ],
+          "languages": [
+            "dotnet",
+            "typescript",
+            "python"
+          ],
+          "domains": [
+            "observability"
+          ]
+        },
+        "requirements": [
+          "Use ILogger<T> message templates with named placeholders",
+          "Choose meaningful log levels (Information/Warning/Error)",
+          "Pass exceptions as the first ILogger argument for errors",
+          "Include correlation/trace id in log scope where available"
+        ],
+        "prohibited": [
+          "String interpolation or concatenation inside log calls",
+          "Logging JWTs, client secrets, passwords, or credential-bearing bodies",
+          "Console.WriteLine or console.log diagnostics in committed code"
+        ],
+        "references": [
+          "template:Program.cs logging setup",
+          "claude-md:Secret Scanning never emit real tokens"
+        ]
+      }
+    },
+    {
+      "id": "std-data-indexing",
+      "name": "std-data-indexing",
+      "description": "Every hot-path query is backed by an index matching its filter, join, and sort columns; new lookup or foreign-key columns get an EF Core index in the same migration, and no endpoint relies on a full-table scan.",
+      "severity": "Moderate",
+      "enforcement": "Should",
+      "scopes": [
+        "area:data",
+        "phase:design",
+        "phase:code",
+        "phase:review",
+        "lang:dotnet",
+        "domain:database",
+        "topic:indexing",
+        "topic:performance",
+        "topic:efcore"
+      ],
+      "rulesJson": {
+        "standard": "std-data-indexing",
+        "intent": "Back hot-path queries with matching indexes and bound all list endpoints",
+        "appliesTo": {
+          "phases": [
+            "design",
+            "code",
+            "review"
+          ],
+          "languages": [
+            "dotnet"
+          ],
+          "domains": [
+            "database"
+          ]
+        },
+        "requirements": [
+          "Declare an index for every column used in hot-path filters, joins, or sorts",
+          "Ship the index in the same migration as the query that needs it",
+          "Enforce domain uniqueness with a database unique index, not only in C#",
+          "Page list endpoints with a default and maximum page size",
+          "Confirm predicates translate to SQL via ToQueryString rather than client evaluation"
+        ],
+        "prohibited": [
+          "Adding a frequently filtered column with no index",
+          "Uniqueness validated only in application code",
+          "List endpoints that materialize an entire table",
+          "Client-side evaluation of filters that belong in SQL"
+        ],
+        "references": [
+          "template:efcore8-model-configuration",
+          "claude-md:shared-service-layer",
+          "claude-md:provider-settings"
+        ]
+      }
+    },
+    {
+      "id": "std-data-migrations",
+      "name": "std-data-migrations",
+      "description": "Every schema change ships as a committed EF Core migration generated against `Andy.Policies.Infrastructure`, reviewed in the same PR, and proven to apply and roll back on both providers.",
+      "severity": "Critical",
+      "enforcement": "Must",
+      "scopes": [
+        "area:data",
+        "phase:code",
+        "phase:review",
+        "phase:pr",
+        "lang:dotnet",
+        "domain:database",
+        "topic:migrations",
+        "topic:efcore"
+      ],
+      "rulesJson": {
+        "standard": "std-data-migrations",
+        "intent": "Ship schema changes as reviewed, reversible EF migrations verified on both providers",
+        "appliesTo": {
+          "phases": [
+            "code",
+            "review",
+            "pr"
+          ],
+          "languages": [
+            "dotnet"
+          ],
+          "domains": [
+            "database"
+          ]
+        },
+        "requirements": [
+          "Generate migrations via dotnet ef migrations add against Andy.Policies.Infrastructure",
+          "Commit Up, Down, and model snapshot in the same PR as the entity change",
+          "Provide a reversible Down that restores prior schema and preserves data",
+          "Verify the migration applies on PostgreSQL and SQLite providers",
+          "Export and commit OpenAPI YAML when REST surface changes with the migration"
+        ],
+        "prohibited": [
+          "Hand-editing the database or a previously merged migration",
+          "Empty or throwing Down methods",
+          "Relying on Development auto-migration as the only apply path",
+          "Committing entity changes without the migration"
+        ],
+        "references": [
+          "template:Infrastructure/Data/DesignTimeDbContextFactory.cs",
+          "claude-md:ef-migrations-commands",
+          "claude-md:openapi-export"
+        ]
+      }
+    },
+    {
+      "id": "std-data-naming",
+      "name": "std-data-naming",
+      "description": "Tables, columns, keys, and indexes follow one documented naming convention applied through EF Core model configuration, so the physical schema is consistent across PostgreSQL and SQLite and across every entity.",
+      "severity": "Moderate",
+      "enforcement": "Should",
+      "scopes": [
+        "area:data",
+        "phase:design",
+        "phase:code",
+        "phase:review",
+        "lang:dotnet",
+        "domain:database",
+        "topic:naming",
+        "topic:efcore"
+      ],
+      "rulesJson": {
+        "standard": "std-data-naming",
+        "intent": "Apply one documented schema naming convention through EF Core configuration",
+        "appliesTo": {
+          "phases": [
+            "design",
+            "code",
+            "review"
+          ],
+          "languages": [
+            "dotnet"
+          ],
+          "domains": [
+            "database"
+          ]
+        },
+        "requirements": [
+          "Configure naming uniformly via modelBuilder or IEntityTypeConfiguration classes",
+          "Use Id for primary keys and {Entity}Id for foreign keys",
+          "Name indexes and constraints with a predictable greppable pattern",
+          "Document the chosen convention and keep new entities consistent",
+          "Deliver physical renames as reviewed migrations"
+        ],
+        "prohibited": [
+          "Mixed naming conventions across entities without rationale",
+          "Relying on EF defaults that differ between PostgreSQL and SQLite",
+          "Mixed-case physical table names assumed identical across providers",
+          "Renaming columns directly in the database"
+        ],
+        "references": [
+          "template:naming-conventions",
+          "claude-md:naming-section",
+          "claude-md:provider-settings"
+        ]
+      }
+    },
+    {
+      "id": "std-data-no-destructive-ops",
+      "name": "std-data-no-destructive-ops",
+      "description": "Bulk DELETE, DROP TABLE, TRUNCATE, or any unbounded data-destroying statement against real data requires explicit human approval and a reviewed migration; an agent must not execute or auto-approve such operations.",
+      "severity": "Critical",
+      "enforcement": "Must",
+      "scopes": [
+        "area:data",
+        "phase:design",
+        "phase:code",
+        "phase:review",
+        "phase:pr",
+        "domain:database",
+        "topic:destructive",
+        "topic:data-loss",
+        "risk:high"
+      ],
+      "rulesJson": {
+        "standard": "std-data-no-destructive-ops",
+        "intent": "Gate bulk delete, drop, and truncate behind explicit human approval and reviewed migrations",
+        "appliesTo": {
+          "phases": [
+            "design",
+            "code",
+            "review",
+            "pr"
+          ],
+          "languages": [
+            "all"
+          ],
+          "domains": [
+            "database"
+          ]
+        },
+        "requirements": [
+          "Surface bulk DELETE/UPDATE, DROP, TRUNCATE for explicit human approval before executing",
+          "Deliver required destructive changes as reviewed data-preserving migrations",
+          "Prefer soft-delete (DeletedAt/status) for audited domain records",
+          "Restrict destructive setup/teardown to disposable test and e2e databases"
+        ],
+        "prohibited": [
+          "Agent executing TRUNCATE, DROP, or unfiltered ExecuteDelete on real data",
+          "Auto-approving plan steps that destroy data in bulk",
+          "Running ad-hoc deletion scripts outside the migration pipeline",
+          "Hard-deleting records that carry an audit trail"
+        ],
+        "references": [
+          "template:clean-architecture-service-layer",
+          "claude-md:evaluatePlan-high-risk-guardrail",
+          "claude-md:lifecycle-and-audit-trail"
+        ]
+      }
+    },
+    {
+      "id": "std-data-provider-parity",
+      "name": "std-data-provider-parity",
+      "description": "Data access works identically on PostgreSQL (default) and SQLite (embedded/Conductor mode); migrations, queries, and column types must not depend on features only one provider supports.",
+      "severity": "Moderate",
+      "enforcement": "Must",
+      "scopes": [
+        "area:data",
+        "phase:design",
+        "phase:code",
+        "phase:test",
+        "phase:review",
+        "lang:dotnet",
+        "domain:database",
+        "topic:provider-parity",
+        "topic:efcore",
+        "topic:portability"
+      ],
+      "rulesJson": {
+        "standard": "std-data-provider-parity",
+        "intent": "Keep data access working on both PostgreSQL and SQLite providers",
+        "appliesTo": {
+          "phases": [
+            "design",
+            "code",
+            "test",
+            "review"
+          ],
+          "languages": [
+            "dotnet"
+          ],
+          "domains": [
+            "database"
+          ]
+        },
+        "requirements": [
+          "Support both PostgreSQL (default) and SQLite (embedded) data access paths",
+          "Prefer EF Core LINQ so the provider translates the query",
+          "Guard provider-specific types or SQL with Database.IsNpgsql/IsSqlite checks",
+          "Verify migrations apply under both providers",
+          "Cover both providers in tests, including the SQLite-backed PoliciesApiFactory"
+        ],
+        "prohibited": [
+          "PostgreSQL-only SQL (jsonb, array, uuid) with no SQLite fallback",
+          "Migrations that throw on SQLite due to unsupported ALTER TABLE",
+          "Tests that pass only on InMemory while the SQLite path breaks",
+          "Assuming SQLite loose typing matches PostgreSQL coercion"
+        ],
+        "references": [
+          "template:dual-provider-data-layer",
+          "claude-md:sqlite-embedded-conductor",
+          "claude-md:integration-tests-sqlite-factory"
+        ]
+      }
+    },
+    {
+      "id": "std-data-retention-backup",
+      "name": "std-data-retention-backup",
+      "description": "Every persisted data store has a documented retention policy and a backup procedure whose restore path has been exercised and proven before the service ships to production.",
+      "severity": "Critical",
+      "enforcement": "Must",
+      "scopes": [
+        "area:data",
+        "phase:design",
+        "phase:code",
+        "phase:review",
+        "domain:database",
+        "topic:retention",
+        "topic:backup",
+        "topic:restore"
+      ],
+      "rulesJson": {
+        "standard": "std-data-retention-backup",
+        "intent": "Give every persisted store a documented retention policy and a tested backup/restore path before production",
+        "appliesTo": {
+          "phases": [
+            "design",
+            "code",
+            "review"
+          ],
+          "languages": [
+            "all"
+          ],
+          "domains": [
+            "database"
+          ]
+        },
+        "requirements": [
+          "Document a per-entity/table retention policy for every real or shared store (PostgreSQL, embedded SQLite, object stores)",
+          "Define backup mechanism, cadence, storage location, and encryption-at-rest before production",
+          "Exercise and record at least one successful restore against a non-production instance, including measured restore time",
+          "Source retention windows and schedules from IAndySettingsClient or IConfiguration",
+          "Ensure EF Core migrations replay cleanly onto a restored snapshot",
+          "Include retention and restore-proof tasks in Conductor plans that add or change persisted data"
+        ],
+        "prohibited": [
+          "Shipping a persisted store to production with no documented backup or retention policy",
+          "Treating a backup as valid when its restore path has never been executed",
+          "Hard-coding retention periods as source constants",
+          "Hard-deleting audited records in place of soft-delete plus a defined purge window",
+          "Leaving backups that contain PII unencrypted or in shared storage"
+        ],
+        "references": [
+          "template:postgres-default-sqlite-embedded",
+          "claude-md:database-providers",
+          "claude-md:lifecycle-and-audit-trail"
+        ]
+      }
+    },
+    {
+      "id": "std-data-transactions",
+      "name": "std-data-transactions",
+      "description": "Any operation that writes more than one row or table commits atomically through a single `SaveChangesAsync` or an explicit transaction, so a failure leaves no partially applied state observable to other readers.",
+      "severity": "Critical",
+      "enforcement": "Must",
+      "scopes": [
+        "area:data",
+        "phase:code",
+        "phase:design",
+        "phase:review",
+        "lang:dotnet",
+        "domain:database",
+        "topic:transactions",
+        "topic:consistency",
+        "topic:efcore"
+      ],
+      "rulesJson": {
+        "standard": "std-data-transactions",
+        "intent": "Commit multi-row writes atomically so partial state is never observable",
+        "appliesTo": {
+          "phases": [
+            "design",
+            "code",
+            "review"
+          ],
+          "languages": [
+            "dotnet"
+          ],
+          "domains": [
+            "database"
+          ]
+        },
+        "requirements": [
+          "Persist a multi-entity change with a single SaveChangesAsync where possible",
+          "Wrap multi-step workflows in an explicit BeginTransactionAsync and commit only after all steps succeed",
+          "Own the transaction boundary in the shared service layer, not controllers",
+          "Honor CancellationToken and roll back on failure",
+          "Surface DbUpdateConcurrencyException as an explicit conflict"
+        ],
+        "prohibited": [
+          "Splitting one logical operation across multiple SaveChanges with no transaction",
+          "Transactions that never roll back on exception",
+          "Duplicating transaction logic across transports",
+          "Silently overwriting concurrent changes"
+        ],
+        "references": [
+          "template:shared-service-layer",
+          "claude-md:no-duplicate-business-logic",
+          "claude-md:async-cancellationtoken"
+        ]
+      }
+    },
+    {
+      "id": "std-vcs-branch-naming",
+      "name": "std-vcs-branch-naming",
+      "description": "Work happens on a topic branch named `feature|fix|chore|spike/<short-kebab-desc>` (optionally `feature/<issue>-<desc>`); never commit or push directly to the default `main` branch.",
+      "severity": "Moderate",
+      "enforcement": "Must",
+      "scopes": [
+        "area:vcs",
+        "phase:pr",
+        "topic:branch",
+        "topic:git"
+      ],
+      "rulesJson": {
+        "standard": "std-vcs-branch-naming",
+        "intent": "Name branches type/short-desc and never commit directly to main",
+        "appliesTo": {
+          "phases": [
+            "pr"
+          ],
+          "languages": [
+            "all"
+          ],
+          "domains": [
+            "vcs"
+          ]
+        },
+        "requirements": [
+          "Branch name starts with feature/, fix/, chore/, or spike/",
+          "Description is lower-case kebab-case ASCII, no spaces",
+          "Create a topic branch before committing when currently on the default branch main"
+        ],
+        "prohibited": [
+          "Committing or pushing directly to main",
+          "Branch names without a recognized type prefix",
+          "Upper-case, camelCase, or space-containing branch names"
+        ],
+        "references": [
+          "template:CLAUDE.md#git-branch-first",
+          "claude-md:git-default-branch-main"
+        ]
+      }
+    },
+    {
+      "id": "std-vcs-closes-keyword",
+      "name": "std-vcs-closes-keyword",
+      "description": "A PR that resolves an issue MUST put a GitHub closing keyword (Closes #N / Fixes #N / Resolves #N) in the PR body; a bare (#N) in the title is only a reference and does not auto-close the issue on merge.",
+      "severity": "Moderate",
+      "enforcement": "Must",
+      "scopes": [
+        "area:vcs",
+        "phase:pr",
+        "topic:pr",
+        "topic:issue-linking"
+      ],
+      "rulesJson": {
+        "standard": "std-vcs-closes-keyword",
+        "intent": "Put a closing keyword (Closes/Fixes/Resolves #N) in the PR body for every resolved issue",
+        "appliesTo": {
+          "phases": [
+            "pr"
+          ],
+          "languages": [
+            "all"
+          ],
+          "domains": [
+            "vcs"
+          ]
+        },
+        "requirements": [
+          "PR body contains Closes #N / Fixes #N / Resolves #N for each issue the PR fully resolves",
+          "Use one keyword per issue when multiple issues are closed",
+          "Use Refs #N (no closing keyword) for issues only partially advanced"
+        ],
+        "prohibited": [
+          "Treating a bare (#N) in the PR title as a closing keyword",
+          "Merging a resolving PR with no closing keyword in the body",
+          "Adding a closing keyword for UI work whose backend endpoints do not exist yet"
+        ],
+        "references": [
+          "template:CLAUDE.md#pr-body",
+          "claude-md:feedback_pr_closes_keyword",
+          "claude-md:feedback_no_frontend_stubs_for_missing_backend"
+        ]
+      }
+    },
+    {
+      "id": "std-vcs-commit-format",
+      "name": "std-vcs-commit-format",
+      "description": "Commit subjects use Conventional-style `type(scope): summary` (type in feat|fix|chore|docs|test|refactor|perf|build|ci), imperative mood, <= 72 chars, and every commit ends with the required Co-Authored-By trailer.",
+      "severity": "Moderate",
+      "enforcement": "Must",
+      "scopes": [
+        "area:vcs",
+        "phase:pr",
+        "topic:commit",
+        "topic:git"
+      ],
+      "rulesJson": {
+        "standard": "std-vcs-commit-format",
+        "intent": "Use Conventional-style commit subjects and the required Co-Authored-By trailer",
+        "appliesTo": {
+          "phases": [
+            "pr"
+          ],
+          "languages": [
+            "all"
+          ],
+          "domains": [
+            "vcs"
+          ]
+        },
+        "requirements": [
+          "Subject matches type(scope): summary with type in feat|fix|chore|docs|test|refactor|perf|build|ci",
+          "Summary is imperative mood, lower-case start, no trailing period, <= 72 chars",
+          "Every commit ends with trailer Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "Trailer is the final line, separated from the body by a blank line"
+        ],
+        "prohibited": [
+          "Past-tense or capitalized subjects with trailing periods",
+          "Non-canonical type tokens such as feature: or bugfix:",
+          "Agent-authored commits missing the Co-Authored-By trailer"
+        ],
+        "references": [
+          "template:CLAUDE.md#git-commit-trailer",
+          "claude-md:recent-commit-history-conventions"
+        ]
+      }
+    },
+    {
+      "id": "std-vcs-no-force-push-protected",
+      "name": "std-vcs-no-force-push-protected",
+      "description": "Never force-push or rewrite history on protected branches (main, master, release/*); it is a destructive operation forbidden without explicit human authorization.",
+      "severity": "Critical",
+      "enforcement": "Must",
+      "scopes": [
+        "area:vcs",
+        "phase:pr",
+        "topic:git",
+        "topic:guardrail",
+        "topic:data-loss"
+      ],
+      "rulesJson": {
+        "standard": "std-vcs-no-force-push-protected",
+        "intent": "Forbid force-push and history rewrites on protected branches main/master/release/*",
+        "appliesTo": {
+          "phases": [
+            "pr"
+          ],
+          "languages": [
+            "all"
+          ],
+          "domains": [
+            "vcs"
+          ]
+        },
+        "requirements": [
+          "Integrate into protected branches only via pull request merges",
+          "Restrict history rewriting to private, un-reviewed topic branches",
+          "Escalate to a human owner when a protected branch needs history surgery"
+        ],
+        "prohibited": [
+          "git push --force or --force-with-lease to main, master, or release/*",
+          "Amend/reset/rebase followed by force-push of a protected branch",
+          "Agent self-authorizing any force-push to a protected branch"
+        ],
+        "references": [
+          "template:CLAUDE.md#git-no-interactive-and-push-on-request",
+          "claude-md:protected-branch-main"
+        ]
+      }
+    },
+    {
+      "id": "std-vcs-pr-hygiene",
+      "name": "std-vcs-pr-hygiene",
+      "description": "A pull request is small and single-purpose: it advances one issue, carries a description stating what and why, links its issue, and includes any required test and generated-artifact updates in the same PR.",
+      "severity": "Moderate",
+      "enforcement": "Should",
+      "scopes": [
+        "area:vcs",
+        "phase:pr",
+        "phase:review",
+        "topic:pr",
+        "topic:review"
+      ],
+      "rulesJson": {
+        "standard": "std-vcs-pr-hygiene",
+        "intent": "Keep PRs small, single-purpose, described, issue-linked, and self-consistent with tests and generated artifacts",
+        "appliesTo": {
+          "phases": [
+            "pr",
+            "review"
+          ],
+          "languages": [
+            "all"
+          ],
+          "domains": [
+            "vcs"
+          ]
+        },
+        "requirements": [
+          "PR addresses one logical change or issue",
+          "PR description states what and why and links the issue",
+          "Agent-generated PR bodies end with the Generated with Claude Code attribution line",
+          "Tests pass and ship in the same PR; regenerated OpenAPI YAML is committed when REST endpoints change"
+        ],
+        "prohibited": [
+          "Mixing unrelated refactors, dependency bumps, and features in one PR",
+          "Empty or one-word PR descriptions with no linked issue",
+          "Changing REST endpoints without committing the regenerated OpenAPI YAML",
+          "Adding emojis beyond the sanctioned Claude Code attribution marker"
+        ],
+        "references": [
+          "template:CLAUDE.md#pr-attribution",
+          "claude-md:feedback_openapi_export",
+          "claude-md:run-dotnet-test-before-completion"
+        ]
+      }
+    },
+    {
+      "id": "std-struct-claude-md",
+      "name": "std-struct-claude-md",
+      "description": "Each service must keep a top-level CLAUDE.md development guide aligned with the template and updated whenever architecture, ports, dependencies, or commands change.",
+      "severity": "Moderate",
+      "enforcement": "Must",
+      "scopes": [
+        "area:structure",
+        "phase:design",
+        "phase:review",
+        "topic:documentation",
+        "topic:claude-md"
+      ],
+      "rulesJson": {
+        "standard": "std-struct-claude-md",
+        "intent": "Keep a template-aligned CLAUDE.md current with the service",
+        "appliesTo": {
+          "phases": [
+            "design",
+            "review"
+          ],
+          "languages": [
+            "all"
+          ],
+          "domains": [
+            "structure"
+          ]
+        },
+        "requirements": [
+          "Maintain a root CLAUDE.md scaffolded from the template",
+          "Update CLAUDE.md in the same change that alters layers, ports, dependencies, or commands",
+          "Keep headings and tables aligned with the template structure and emoji-free"
+        ],
+        "prohibited": [
+          "Letting CLAUDE.md drift from the solution, compose files, or Program.cs wiring",
+          "Removing CLAUDE.md",
+          "Documenting ports or dependencies that do not match runtime configuration"
+        ],
+        "references": [
+          "template:template/CLAUDE.md",
+          "claude-md:Template Origin"
+        ]
+      }
+    },
+    {
+      "id": "std-struct-layer-projects",
+      "name": "std-struct-layer-projects",
+      "description": "Projects must follow the `{Service}.{Layer}` naming convention and provide the Domain, Application, Infrastructure, Api, Shared, and Cli layers with the dependency direction flowing inward only.",
+      "severity": "Moderate",
+      "enforcement": "Must",
+      "scopes": [
+        "area:structure",
+        "phase:design",
+        "phase:review",
+        "lang:dotnet",
+        "topic:clean-architecture",
+        "topic:layering"
+      ],
+      "rulesJson": {
+        "standard": "std-struct-layer-projects",
+        "intent": "Use {Service}.{Layer} projects with inward-only dependencies",
+        "appliesTo": {
+          "phases": [
+            "design",
+            "review"
+          ],
+          "languages": [
+            "dotnet"
+          ],
+          "domains": [
+            "structure"
+          ]
+        },
+        "requirements": [
+          "Provide Domain, Application, Infrastructure, Api, Shared, and Cli projects named {Service}.{Layer}",
+          "Keep dependencies flowing inward: Api -> Infrastructure -> Application -> Domain",
+          "Place code in the layer matching its responsibility"
+        ],
+        "prohibited": [
+          "Referencing EF Core or ASP.NET from the Domain project",
+          "Putting business logic in Api controllers",
+          "Naming projects outside the {Service}.{Layer} convention"
+        ],
+        "references": [
+          "template:clean-architecture-layers",
+          "claude-md:Architecture/Dependency rule"
+        ]
+      }
+    },
+    {
+      "id": "std-struct-no-committed-env",
+      "name": "std-struct-no-committed-env",
+      "description": "Generated env files, Angular environment files with secrets, corporate CA certs, and any credential material must be gitignored and never committed to the repository.",
+      "severity": "Critical",
+      "enforcement": "Must",
+      "scopes": [
+        "area:structure",
+        "phase:design",
+        "phase:review",
+        "topic:secrets",
+        "topic:gitignore",
+        "domain:security"
+      ],
+      "rulesJson": {
+        "standard": "std-struct-no-committed-env",
+        "intent": "Keep env files, secrets, and certs out of version control",
+        "appliesTo": {
+          "phases": [
+            "design",
+            "review"
+          ],
+          "languages": [
+            "all"
+          ],
+          "domains": [
+            "security",
+            "structure"
+          ]
+        },
+        "requirements": [
+          "Gitignore certs/, generated .env files, and secret-bearing environment files",
+          "Supply real secrets via environment variables or IConfiguration",
+          "Install the pre-commit secret-scanning hook via scripts/setup-git-hooks.sh"
+        ],
+        "prohibited": [
+          "Committing private keys, real API keys, or production passwords",
+          "Committing corporate CA certificates under certs/",
+          "Using git commit --no-verify to bypass the hook for real secrets"
+        ],
+        "references": [
+          "template:certs-not-committed",
+          "claude-md:Secret Scanning"
+        ]
+      }
+    },
+    {
+      "id": "std-struct-ports-registry",
+      "name": "std-struct-ports-registry",
+      "description": "Service and dependency ports must come from the canonical port registry documented in CLAUDE.md, not ad-hoc values, and must never be hard-coded as constants in source.",
+      "severity": "Moderate",
+      "enforcement": "Must",
+      "scopes": [
+        "area:structure",
+        "phase:design",
+        "phase:review",
+        "topic:ports",
+        "topic:configuration"
+      ],
+      "rulesJson": {
+        "standard": "std-struct-ports-registry",
+        "intent": "Use registry-assigned ports sourced from configuration",
+        "appliesTo": {
+          "phases": [
+            "design",
+            "review"
+          ],
+          "languages": [
+            "all"
+          ],
+          "domains": [
+            "structure"
+          ]
+        },
+        "requirements": [
+          "Use the exact ports from the CLAUDE.md Ports and External Dependencies tables",
+          "Source ports and base URLs from environment variables or IConfiguration",
+          "Record any new port in the registry table in the same change"
+        ],
+        "prohibited": [
+          "Hard-coding ports or base URLs as constants or literals in source",
+          "Choosing an arbitrary undocumented port",
+          "Claiming a port that collides without updating the registry"
+        ],
+        "references": [
+          "template:port-registry",
+          "claude-md:Ports and External Dependencies; No hard-coded URLs"
+        ]
+      }
+    },
+    {
+      "id": "std-struct-template-compliance",
+      "name": "std-struct-template-compliance",
+      "description": "Every service must pass the andy-service-template `check-compliance.sh` script with zero failures before a structural change is considered complete.",
+      "severity": "Moderate",
+      "enforcement": "Must",
+      "scopes": [
+        "area:structure",
+        "phase:design",
+        "phase:review",
+        "topic:template",
+        "topic:compliance"
+      ],
+      "rulesJson": {
+        "standard": "std-struct-template-compliance",
+        "intent": "Pass andy-service-template check-compliance.sh with zero failures",
+        "appliesTo": {
+          "phases": [
+            "design",
+            "review"
+          ],
+          "languages": [
+            "all"
+          ],
+          "domains": [
+            "structure"
+          ]
+        },
+        "requirements": [
+          "Run check-compliance.sh from the template repo against the service",
+          "Resolve all reported drift by restoring expected files and names",
+          "Document any intentional deviation in CLAUDE.md and the PR body"
+        ],
+        "prohibited": [
+          "Editing check-compliance.sh to suppress a real deviation",
+          "Deleting Directory.Build.props, nuget.config, or Dockerfile without restoring them"
+        ],
+        "references": [
+          "template:check-compliance.sh",
+          "claude-md:Template Origin"
+        ]
+      }
+    }
+  ]
+}
