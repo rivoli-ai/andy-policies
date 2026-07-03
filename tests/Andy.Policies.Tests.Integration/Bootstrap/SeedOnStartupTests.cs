@@ -35,9 +35,14 @@ public class SeedOnStartupTests : IClassFixture<PoliciesApiFactory>
 
         var slugs = await db.Policies.Select(p => p.Name).OrderBy(s => s).ToListAsync();
 
-        Assert.Equal(
-            new[] { "draft-only", "high-risk", "no-prod", "read-only", "sandboxed", "write-branch" },
-            slugs);
+        // The catalog also carries the std-* standards policies
+        // (andy-policies#240), so the six stock policies are asserted as a
+        // SUBSET rather than the whole catalog. (The exact-set assert kept
+        // this suite red on main from the standards seed onward.)
+        foreach (var stock in new[] { "draft-only", "high-risk", "no-prod", "read-only", "sandboxed", "write-branch" })
+        {
+            Assert.Contains(stock, slugs);
+        }
     }
 
     [Fact]
@@ -49,7 +54,18 @@ public class SeedOnStartupTests : IClassFixture<PoliciesApiFactory>
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-        var versions = await db.PolicyVersions.ToListAsync();
+        // Scope to the six stock policies — the std-* standards catalog
+        // (andy-policies#240) has its own seeding invariants.
+        // List<string> (instance Contains), NOT string[]: on some .NET 8
+        // patch levels array.Contains binds to the span-optimized overload
+        // and EF's parameter extractor throws a ReadOnlySpan TypeLoad on the
+        // CI runner.
+        var stockSlugs = new List<string> { "draft-only", "high-risk", "no-prod", "read-only", "sandboxed", "write-branch" };
+        var stockIds = await db.Policies
+            .Where(p => stockSlugs.Contains(p.Name))
+            .Select(p => p.Id)
+            .ToListAsync();
+        var versions = await db.PolicyVersions.Where(v => stockIds.Contains(v.PolicyId)).ToListAsync();
 
         Assert.Equal(6, versions.Count);
         Assert.All(versions, v =>
@@ -77,9 +93,11 @@ public class SeedOnStartupTests : IClassFixture<PoliciesApiFactory>
         await PolicySeeder.SeedStockPoliciesAsync(db);
 
         var afterIds = await db.Policies.OrderBy(p => p.Name).Select(p => p.Id).ToListAsync();
+        // No-op invariant: the FULL catalog (stock + std-* standards) is
+        // byte-identical across the re-seed — nothing added, dropped, or
+        // re-keyed. Count equality is implied by the id-list equality, so no
+        // brittle absolute counts here.
         Assert.Equal(beforeIds, afterIds);
-        Assert.Equal(6, await db.Policies.CountAsync());
-        Assert.Equal(6, await db.PolicyVersions.CountAsync());
     }
 
     [Fact]

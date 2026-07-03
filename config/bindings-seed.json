@@ -1,37 +1,942 @@
 {
-  "$comment": "SD4.2 (rivoli-ai/andy-policies#1182) — default policy bindings for the six seeded agents from SD2 at org-wide (root) scope. Each row creates a Binding(TargetType=Agent, TargetRef='agent:{slug}') against the v1 Active version of the named policy. The seeder dedupes by (policyVersionId, targetType, targetRef) and is idempotent across reruns. Agent slugs and policy slugs are validated against this fixture — andy-policies never calls andy-agents at seed time.",
+  "$comment": "SD4.2 (rivoli-ai/andy-policies#1182) \u2014 default policy bindings for the six seeded agents from SD2 at org-wide (root) scope. Each row creates a Binding(TargetType=Agent, TargetRef='agent:{slug}') against the v1 Active version of the named policy. The seeder dedupes by (policyVersionId, targetType, targetRef) and is idempotent across reruns. Agent slugs and policy slugs are validated against this fixture \u2014 andy-policies never calls andy-agents at seed time. Extended for the full built-in agent catalog (rivoli-ai/andy-policies#242): read-only analysts, doc/design authors (draft-only), writers/implementers (write-branch+sandboxed), and runner/validator agents (sandboxed); every catalog agent carries no-prod + high-risk.",
   "agents": [
     "triage",
     "research",
     "planning",
     "coding",
     "validation",
-    "review"
+    "review",
+    "accessibility-reviewer",
+    "architect",
+    "code-reviewer",
+    "codebase-explorer",
+    "coverage-auditor",
+    "issue-triager",
+    "license-auditor",
+    "planner",
+    "privacy-reviewer",
+    "requirements-analyst",
+    "security-reviewer",
+    "spike-researcher",
+    "adr-author",
+    "api-designer",
+    "changelog-author",
+    "data-model-designer",
+    "doc-writer",
+    "release-notes-author",
+    "api-implementer",
+    "boilerplate-scaffolder",
+    "bug-fixer",
+    "db-schema-migrator",
+    "dependency-updater",
+    "e2e-test-author",
+    "feature-implementer",
+    "frontend-implementer",
+    "integration-test-author",
+    "migration-runner",
+    "observability-engineer",
+    "performance-optimizer",
+    "pr-author",
+    "pr-merger",
+    "refactorer",
+    "release-manager",
+    "repro-test-writer",
+    "swe-orchestrator",
+    "unit-test-author",
+    "vulnerability-patcher",
+    "ci-doctor",
+    "contract-compat-tester",
+    "incident-responder",
+    "static-analysis-runner",
+    "test-runner",
+    "validation-runner"
   ],
   "bindings": [
-    { "agent": "triage",     "policy": "read-only",    "bindStrength": "Mandatory" },
-    { "agent": "research",   "policy": "read-only",    "bindStrength": "Mandatory" },
-    { "agent": "review",     "policy": "read-only",    "bindStrength": "Mandatory" },
-
-    { "agent": "planning",   "policy": "draft-only",   "bindStrength": "Mandatory" },
-
-    { "agent": "coding",     "policy": "write-branch", "bindStrength": "Mandatory" },
-    { "agent": "coding",     "policy": "sandboxed",    "bindStrength": "Mandatory" },
-
-    { "agent": "validation", "policy": "sandboxed",    "bindStrength": "Mandatory" },
-    { "agent": "validation", "policy": "no-prod",      "bindStrength": "Mandatory" },
-
-    { "agent": "triage",     "policy": "no-prod",      "bindStrength": "Mandatory" },
-    { "agent": "research",   "policy": "no-prod",      "bindStrength": "Mandatory" },
-    { "agent": "planning",   "policy": "no-prod",      "bindStrength": "Mandatory" },
-    { "agent": "coding",     "policy": "no-prod",      "bindStrength": "Mandatory" },
-    { "agent": "review",     "policy": "no-prod",      "bindStrength": "Mandatory" },
-
-    { "agent": "triage",     "policy": "high-risk",    "bindStrength": "Mandatory" },
-    { "agent": "research",   "policy": "high-risk",    "bindStrength": "Mandatory" },
-    { "agent": "planning",   "policy": "high-risk",    "bindStrength": "Mandatory" },
-    { "agent": "coding",     "policy": "high-risk",    "bindStrength": "Mandatory" },
-    { "agent": "validation", "policy": "high-risk",    "bindStrength": "Mandatory" },
-    { "agent": "review",     "policy": "high-risk",    "bindStrength": "Mandatory" }
+    {
+      "agent": "triage",
+      "policy": "read-only",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "research",
+      "policy": "read-only",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "review",
+      "policy": "read-only",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "planning",
+      "policy": "draft-only",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "coding",
+      "policy": "write-branch",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "coding",
+      "policy": "sandboxed",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "validation",
+      "policy": "sandboxed",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "validation",
+      "policy": "no-prod",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "triage",
+      "policy": "no-prod",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "research",
+      "policy": "no-prod",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "planning",
+      "policy": "no-prod",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "coding",
+      "policy": "no-prod",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "review",
+      "policy": "no-prod",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "triage",
+      "policy": "high-risk",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "research",
+      "policy": "high-risk",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "planning",
+      "policy": "high-risk",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "coding",
+      "policy": "high-risk",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "validation",
+      "policy": "high-risk",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "review",
+      "policy": "high-risk",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "accessibility-reviewer",
+      "policy": "read-only",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "accessibility-reviewer",
+      "policy": "no-prod",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "accessibility-reviewer",
+      "policy": "high-risk",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "architect",
+      "policy": "read-only",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "architect",
+      "policy": "no-prod",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "architect",
+      "policy": "high-risk",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "code-reviewer",
+      "policy": "read-only",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "code-reviewer",
+      "policy": "no-prod",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "code-reviewer",
+      "policy": "high-risk",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "codebase-explorer",
+      "policy": "read-only",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "codebase-explorer",
+      "policy": "no-prod",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "codebase-explorer",
+      "policy": "high-risk",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "coverage-auditor",
+      "policy": "read-only",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "coverage-auditor",
+      "policy": "no-prod",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "coverage-auditor",
+      "policy": "high-risk",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "issue-triager",
+      "policy": "read-only",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "issue-triager",
+      "policy": "no-prod",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "issue-triager",
+      "policy": "high-risk",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "license-auditor",
+      "policy": "read-only",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "license-auditor",
+      "policy": "no-prod",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "license-auditor",
+      "policy": "high-risk",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "planner",
+      "policy": "read-only",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "planner",
+      "policy": "no-prod",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "planner",
+      "policy": "high-risk",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "privacy-reviewer",
+      "policy": "read-only",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "privacy-reviewer",
+      "policy": "no-prod",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "privacy-reviewer",
+      "policy": "high-risk",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "requirements-analyst",
+      "policy": "read-only",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "requirements-analyst",
+      "policy": "no-prod",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "requirements-analyst",
+      "policy": "high-risk",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "security-reviewer",
+      "policy": "read-only",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "security-reviewer",
+      "policy": "no-prod",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "security-reviewer",
+      "policy": "high-risk",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "spike-researcher",
+      "policy": "read-only",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "spike-researcher",
+      "policy": "no-prod",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "spike-researcher",
+      "policy": "high-risk",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "adr-author",
+      "policy": "draft-only",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "adr-author",
+      "policy": "sandboxed",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "adr-author",
+      "policy": "no-prod",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "adr-author",
+      "policy": "high-risk",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "api-designer",
+      "policy": "draft-only",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "api-designer",
+      "policy": "sandboxed",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "api-designer",
+      "policy": "no-prod",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "api-designer",
+      "policy": "high-risk",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "changelog-author",
+      "policy": "draft-only",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "changelog-author",
+      "policy": "sandboxed",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "changelog-author",
+      "policy": "no-prod",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "changelog-author",
+      "policy": "high-risk",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "data-model-designer",
+      "policy": "draft-only",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "data-model-designer",
+      "policy": "sandboxed",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "data-model-designer",
+      "policy": "no-prod",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "data-model-designer",
+      "policy": "high-risk",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "doc-writer",
+      "policy": "draft-only",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "doc-writer",
+      "policy": "sandboxed",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "doc-writer",
+      "policy": "no-prod",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "doc-writer",
+      "policy": "high-risk",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "release-notes-author",
+      "policy": "draft-only",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "release-notes-author",
+      "policy": "sandboxed",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "release-notes-author",
+      "policy": "no-prod",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "release-notes-author",
+      "policy": "high-risk",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "api-implementer",
+      "policy": "write-branch",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "api-implementer",
+      "policy": "sandboxed",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "api-implementer",
+      "policy": "no-prod",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "api-implementer",
+      "policy": "high-risk",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "boilerplate-scaffolder",
+      "policy": "write-branch",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "boilerplate-scaffolder",
+      "policy": "sandboxed",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "boilerplate-scaffolder",
+      "policy": "no-prod",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "boilerplate-scaffolder",
+      "policy": "high-risk",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "bug-fixer",
+      "policy": "write-branch",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "bug-fixer",
+      "policy": "sandboxed",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "bug-fixer",
+      "policy": "no-prod",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "bug-fixer",
+      "policy": "high-risk",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "db-schema-migrator",
+      "policy": "write-branch",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "db-schema-migrator",
+      "policy": "sandboxed",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "db-schema-migrator",
+      "policy": "no-prod",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "db-schema-migrator",
+      "policy": "high-risk",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "dependency-updater",
+      "policy": "write-branch",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "dependency-updater",
+      "policy": "sandboxed",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "dependency-updater",
+      "policy": "no-prod",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "dependency-updater",
+      "policy": "high-risk",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "e2e-test-author",
+      "policy": "write-branch",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "e2e-test-author",
+      "policy": "sandboxed",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "e2e-test-author",
+      "policy": "no-prod",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "e2e-test-author",
+      "policy": "high-risk",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "feature-implementer",
+      "policy": "write-branch",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "feature-implementer",
+      "policy": "sandboxed",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "feature-implementer",
+      "policy": "no-prod",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "feature-implementer",
+      "policy": "high-risk",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "frontend-implementer",
+      "policy": "write-branch",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "frontend-implementer",
+      "policy": "sandboxed",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "frontend-implementer",
+      "policy": "no-prod",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "frontend-implementer",
+      "policy": "high-risk",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "integration-test-author",
+      "policy": "write-branch",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "integration-test-author",
+      "policy": "sandboxed",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "integration-test-author",
+      "policy": "no-prod",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "integration-test-author",
+      "policy": "high-risk",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "migration-runner",
+      "policy": "write-branch",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "migration-runner",
+      "policy": "sandboxed",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "migration-runner",
+      "policy": "no-prod",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "migration-runner",
+      "policy": "high-risk",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "observability-engineer",
+      "policy": "write-branch",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "observability-engineer",
+      "policy": "sandboxed",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "observability-engineer",
+      "policy": "no-prod",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "observability-engineer",
+      "policy": "high-risk",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "performance-optimizer",
+      "policy": "write-branch",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "performance-optimizer",
+      "policy": "sandboxed",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "performance-optimizer",
+      "policy": "no-prod",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "performance-optimizer",
+      "policy": "high-risk",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "pr-author",
+      "policy": "write-branch",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "pr-author",
+      "policy": "sandboxed",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "pr-author",
+      "policy": "no-prod",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "pr-author",
+      "policy": "high-risk",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "pr-merger",
+      "policy": "write-branch",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "pr-merger",
+      "policy": "sandboxed",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "pr-merger",
+      "policy": "no-prod",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "pr-merger",
+      "policy": "high-risk",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "refactorer",
+      "policy": "write-branch",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "refactorer",
+      "policy": "sandboxed",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "refactorer",
+      "policy": "no-prod",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "refactorer",
+      "policy": "high-risk",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "release-manager",
+      "policy": "write-branch",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "release-manager",
+      "policy": "sandboxed",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "release-manager",
+      "policy": "no-prod",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "release-manager",
+      "policy": "high-risk",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "repro-test-writer",
+      "policy": "write-branch",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "repro-test-writer",
+      "policy": "sandboxed",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "repro-test-writer",
+      "policy": "no-prod",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "repro-test-writer",
+      "policy": "high-risk",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "swe-orchestrator",
+      "policy": "write-branch",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "swe-orchestrator",
+      "policy": "sandboxed",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "swe-orchestrator",
+      "policy": "no-prod",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "swe-orchestrator",
+      "policy": "high-risk",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "unit-test-author",
+      "policy": "write-branch",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "unit-test-author",
+      "policy": "sandboxed",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "unit-test-author",
+      "policy": "no-prod",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "unit-test-author",
+      "policy": "high-risk",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "vulnerability-patcher",
+      "policy": "write-branch",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "vulnerability-patcher",
+      "policy": "sandboxed",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "vulnerability-patcher",
+      "policy": "no-prod",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "vulnerability-patcher",
+      "policy": "high-risk",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "ci-doctor",
+      "policy": "sandboxed",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "ci-doctor",
+      "policy": "no-prod",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "ci-doctor",
+      "policy": "high-risk",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "contract-compat-tester",
+      "policy": "sandboxed",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "contract-compat-tester",
+      "policy": "no-prod",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "contract-compat-tester",
+      "policy": "high-risk",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "incident-responder",
+      "policy": "sandboxed",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "incident-responder",
+      "policy": "no-prod",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "incident-responder",
+      "policy": "high-risk",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "static-analysis-runner",
+      "policy": "sandboxed",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "static-analysis-runner",
+      "policy": "no-prod",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "static-analysis-runner",
+      "policy": "high-risk",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "test-runner",
+      "policy": "sandboxed",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "test-runner",
+      "policy": "no-prod",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "test-runner",
+      "policy": "high-risk",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "validation-runner",
+      "policy": "sandboxed",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "validation-runner",
+      "policy": "no-prod",
+      "bindStrength": "Mandatory"
+    },
+    {
+      "agent": "validation-runner",
+      "policy": "high-risk",
+      "bindStrength": "Mandatory"
+    }
   ]
 }
