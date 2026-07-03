@@ -46,7 +46,7 @@ public class BindingSeederTests
         var bindings = await db.Bindings.AsNoTracking()
             .Where(b => b.TargetType == BindingTargetType.Agent)
             .ToListAsync();
-        Assert.Equal(19, bindings.Count);
+        Assert.Equal(177, bindings.Count);
     }
 
     [Fact]
@@ -59,7 +59,7 @@ public class BindingSeederTests
         await BindingSeeder.SeedDefaultBindingsAsync(db);
         await BindingSeeder.SeedDefaultBindingsAsync(db);
 
-        Assert.Equal(19, await db.Bindings.CountAsync(b => b.TargetType == BindingTargetType.Agent));
+        Assert.Equal(177, await db.Bindings.CountAsync(b => b.TargetType == BindingTargetType.Agent));
     }
 
     [Fact]
@@ -227,11 +227,24 @@ public class BindingSeederTests
     }
 
     [Fact]
-    public void SeedAgentSlugs_AreExactlyTheSixSD2Agents()
+    public void SeedAgentSlugs_ContainTheSixSD2Agents_AndTheFullCatalog()
     {
-        Assert.Equal(
-            new[] { "coding", "planning", "research", "review", "triage", "validation" },
-            BindingSeeder.SeedAgentSlugs.OrderBy(s => s).ToArray());
+        // #242: the seed grew from the six SD2 agents to the full built-in
+        // catalog. The six legacy slugs must always remain (their rows are
+        // pinned by other tests); the catalog coverage is pinned by count so
+        // an accidental truncation of the extension surfaces.
+        var slugs = BindingSeeder.SeedAgentSlugs.ToHashSet(StringComparer.Ordinal);
+        foreach (var legacy in new[] { "coding", "planning", "research", "review", "triage", "validation" })
+        {
+            Assert.Contains(legacy, slugs);
+        }
+        Assert.Equal(50, slugs.Count);
+        // Spot-check the catalog categories exist.
+        Assert.Contains("doc-writer", slugs);
+        Assert.Contains("frontend-implementer", slugs);
+        Assert.Contains("pr-author", slugs);
+        Assert.Contains("security-reviewer", slugs);
+        Assert.Contains("test-runner", slugs);
     }
 
     [Fact]
