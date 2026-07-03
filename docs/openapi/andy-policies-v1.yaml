@@ -760,6 +760,114 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+  /api/policies/evaluate-plan:
+    post:
+      tags:
+        - EvaluatePlan
+      summary: "Evaluate the plan for request.GoalId against\r\nthe workspace's policies. Returns:\r\n<list type=\"bullet\"><item>`200` with the decision + predicate trace when the\r\n    goal resolves and the evaluator reaches a verdict.</item><item>`400` when the request body is missing or\r\n    `GoalId` is the empty GUID.</item><item>`404` when andy-tasks doesn't recognise the goal.</item></list>\r\nIdempotent for 5 minutes per `(goalId, planVersion)` — a\r\nsecond call within the window returns the cached response\r\nverbatim, including the same predicate trace; a replanned goal\r\n(new `planVersion`) bypasses the cache."
+      operationId: EvaluatePlan_EvaluatePlan
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EvaluatePlanRequest'
+          text/json:
+            schema:
+              $ref: '#/components/schemas/EvaluatePlanRequest'
+          application/*+json:
+            schema:
+              $ref: '#/components/schemas/EvaluatePlanRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/EvaluatePlanResponse'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EvaluatePlanResponse'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/EvaluatePlanResponse'
+        '400':
+          description: Bad Request
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /api/policies/evaluate-task:
+    post:
+      tags:
+        - EvaluateTask
+      summary: "Evaluate the task identified by request against\r\nthe workspace's policies. Returns:\r\n<list type=\"bullet\"><item>`200` with the structured compliance assessment when\r\n    the goal + task resolve and the evaluator reaches a verdict.</item><item>`400` when the request body is missing or either id is\r\n    the empty GUID.</item><item>`404` when andy-tasks doesn't recognise the goal, or\r\n    the goal does not contain the task.</item></list>\r\nIdempotent for 5 minutes per `(goalId, taskId, planVersion)` —\r\na replanned goal (new `planVersion`) bypasses the cache."
+      operationId: EvaluateTask_EvaluateTask
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EvaluateTaskRequest'
+          text/json:
+            schema:
+              $ref: '#/components/schemas/EvaluateTaskRequest'
+          application/*+json:
+            schema:
+              $ref: '#/components/schemas/EvaluateTaskRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/EvaluateTaskResponse'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EvaluateTaskResponse'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/EvaluateTaskResponse'
+        '400':
+          description: Bad Request
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /api/Help/topics:
     get:
       tags:
@@ -2285,157 +2393,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
-  '/api/policies/evaluate-task':
-    post:
-      tags:
-        - PlanEvaluation
-      summary: Per-task / per-run compliance evaluation (rivoli-ai/conductor#1944, TX F7.1).
-      description: >-
-        Re-evaluates a single task (or agent run) of a goal against the
-        workspace's effective policies during execution and returns a
-        structured ComplianceAssessment: the typed violations plus an
-        aggregate risk tier and numeric score, not just the binary
-        plan-finalize decision string. Reuses the same binding-resolution
-        and predicate pipeline as /api/policies/evaluate-plan (no forked
-        evaluator). Idempotent for 5 minutes per (goalId, taskId,
-        planVersion); a replanned goal (new planVersion) busts the cache.
-      operationId: EvaluateTask
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/EvaluateTaskRequest'
-      responses:
-        '200':
-          description: The structured compliance assessment for the task.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/EvaluateTaskResponse'
-        '400':
-          description: Missing body, empty goalId, or empty taskId.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
-        '403':
-          description: Principal lacks andy-policies:plan:evaluate-task.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
-        '404':
-          description: andy-tasks doesn't recognise the goal, or the goal does not contain the task.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
 components:
   schemas:
-    EvaluateTaskRequest:
-      type: object
-      required:
-        - goalId
-        - taskId
-      properties:
-        goalId:
-          type: string
-          format: uuid
-          description: The owning goal (resolves the binding chain).
-        taskId:
-          type: string
-          format: uuid
-          description: The task to scope the evaluation to.
-    EvaluateTaskResponse:
-      type: object
-      required:
-        - goalId
-        - taskId
-        - assessment
-      properties:
-        goalId:
-          type: string
-          format: uuid
-        taskId:
-          type: string
-          format: uuid
-        assessment:
-          $ref: '#/components/schemas/ComplianceAssessment'
-    ComplianceAssessment:
-      type: object
-      required:
-        - decision
-        - riskTier
-        - riskScore
-        - violations
-        - predicates
-        - evaluatedAt
-      properties:
-        decision:
-          type: string
-          enum: [approve, manual, reject]
-          description: Back-compat verdict derived from the firing decision rules.
-        riskTier:
-          type: string
-          enum: [none, low, medium, high, critical]
-          description: Aggregate risk tier (deterministic fold over the violations).
-        riskScore:
-          type: integer
-          description: Deterministic numeric risk score; 0 when there are no violations.
-        violations:
-          type: array
-          items:
-            $ref: '#/components/schemas/ComplianceViolation'
-        predicates:
-          type: array
-          items:
-            $ref: '#/components/schemas/PredicateResultDto'
-        evaluatedAt:
-          type: string
-          format: date-time
-          description: ISO-8601 timestamp of evaluation.
-    ComplianceViolation:
-      type: object
-      required:
-        - policyKey
-        - predicate
-        - outcome
-        - decision
-        - reason
-      properties:
-        policyKey:
-          type: string
-          description: Wire-stable policy slug that fired the violation (never the GUID).
-        predicate:
-          type: string
-          description: camelCase predicate name the firing rule required but which did not pass.
-        outcome:
-          type: string
-          enum: [fail, unevaluable]
-          description: Predicate outcome on the wire; unevaluable is surfaced as a violation, never a silent pass.
-        decision:
-          type: string
-          enum: [reject, manual]
-          description: The decision the firing rule emits; reject outranks manual in scoring.
-        reason:
-          type: string
-          description: Human-readable explanation (e.g. "data unavailable" for unevaluable).
-    PredicateResultDto:
-      type: object
-      required:
-        - name
-        - passed
-        - reason
-      properties:
-        name:
-          type: string
-        passed:
-          type: boolean
-        reason:
-          type: string
     AuditEventDto:
       type: object
       properties:
@@ -2872,6 +2831,62 @@ components:
           format: int64
       additionalProperties: false
       description: "Wire-format projection of\r\nAndy.Policies.Application.Interfaces.ChainVerificationResult (P6.5, story\r\nrivoli-ai/andy-policies#45). Returned by\r\n`GET /api/audit/verify` and the corresponding MCP /\r\ngRPC surfaces."
+    ComplianceAssessment:
+      type: object
+      properties:
+        decision:
+          type: string
+          description: "Back-compat lowercase verdict `approve` / `manual` /\r\n`reject` derived from the firing decision rules."
+          nullable: true
+        riskTier:
+          $ref: '#/components/schemas/RiskTier'
+        riskScore:
+          type: integer
+          description: "Deterministic numeric risk score — the fold of violation weights.\r\n0 when there are no violations."
+          format: int32
+        violations:
+          type: array
+          items:
+            $ref: '#/components/schemas/ComplianceViolation'
+          description: The typed violation list (empty when clean).
+          nullable: true
+        predicates:
+          type: array
+          items:
+            $ref: '#/components/schemas/PredicateResultDto'
+          description: "The full predicate trace (every predicate evaluated against the\r\nscoped view), identical in shape to the plan-finalize trace."
+          nullable: true
+        evaluatedAt:
+          type: string
+          description: ISO-8601 timestamp of evaluation.
+          format: date-time
+      additionalProperties: false
+      description: "Structured compliance assessment for a single task / agent run\r\n(rivoli-ai/conductor#1944 — TX F7.1). Richer than the binary\r\nAndy.Policies.Application.Dtos.EvaluatePlanResponse.Decision string: it carries the\r\nindividual Andy.Policies.Application.Dtos.ComplianceAssessment.Violations plus an aggregate\r\nAndy.Policies.Application.Dtos.ComplianceAssessment.RiskTier and a numeric Andy.Policies.Application.Dtos.ComplianceAssessment.RiskScore."
+    ComplianceViolation:
+      type: object
+      properties:
+        policyKey:
+          type: string
+          description: "Wire-stable string identifier of the policy that fired this violation\r\n(the policy slug, e.g. `no-prod-deploy`) — never the internal\r\nGUID. Matches what callers see in catalog listings and audit trails."
+          nullable: true
+        predicate:
+          type: string
+          description: "The camelCase predicate name (e.g. `noProductionDeploy`) that the\r\nfiring rule required but which did not pass."
+          nullable: true
+        outcome:
+          type: string
+          description: "The predicate's outcome on the wire: `fail` or `unevaluable`\r\n(a `pass` is never a violation)."
+          nullable: true
+        decision:
+          type: string
+          description: "The decision the firing rule emits — `reject` or `manual`.\r\nA `reject`-grade violation outranks a `manual`-grade one in\r\nscoring."
+          nullable: true
+        reason:
+          type: string
+          description: "Human-readable explanation produced by the predicate evaluation\r\n(e.g. `\"data unavailable\"` for an unevaluable predicate)."
+          nullable: true
+      additionalProperties: false
+      description: "One typed compliance violation surfaced by a per-task / per-run\r\nevaluation (rivoli-ai/conductor#1944). A violation is recorded for\r\neach predicate that a firing decision rule depended on but which did\r\nnot `Pass` — i.e. an Andy.Policies.Application.Dtos.ComplianceViolation.Outcome of\r\n`fail` or `unevaluable`. `unevaluable` (\"couldn't prove\r\nit passed\") is surfaced as a violation exactly like `fail`, never\r\nas a silent pass — mirroring the conservative `RuleFires`\r\nsemantics on the plan-finalize path."
     CreateBindingRequest:
       type: object
       properties:
@@ -3029,6 +3044,58 @@ components:
           nullable: true
       additionalProperties: false
       description: "Envelope for `IBindingResolutionService` results (P4.3, story\r\nrivoli-ai/andy-policies#30). Andy.Policies.Application.Dtos.EffectivePolicySetDto.ScopeNodeId is null when\r\nthe resolver was called with a target that does not map to a known\r\n`ScopeNode` — the service then degrades to P3 exact-match\r\nsemantics rather than returning 404."
+    EvaluatePlanRequest:
+      type: object
+      properties:
+        goalId:
+          type: string
+          format: uuid
+      additionalProperties: false
+      description: "Inbound request for `POST /api/policies/evaluate-plan`\r\n(rivoli-ai/andy-policies#232, companion to rivoli-ai/conductor#1633\r\nSP.4.2). andy-tasks calls this on plan finalize. The service fetches\r\nthe goal + tasks back from andy-tasks via M2M, projects them into a\r\n`PlanEvaluationGoalView`, runs the workspace's policies over\r\nthe registered plan-aware predicates, and returns a single\r\napprove/manual/reject decision plus the predicate trace."
+    EvaluatePlanResponse:
+      type: object
+      properties:
+        decision:
+          type: string
+          nullable: true
+        policyId:
+          type: string
+          nullable: true
+        predicates:
+          type: array
+          items:
+            $ref: '#/components/schemas/PredicateResultDto'
+          nullable: true
+      additionalProperties: false
+      description: "Result of evaluating a plan against the workspace's policies.\r\nAndy.Policies.Application.Dtos.EvaluatePlanResponse.Decision is the wire-stable lowercase string\r\n`approve` / `manual` / `reject`; Andy.Policies.Application.Dtos.EvaluatePlanResponse.PolicyId\r\nis the policy that fired the approve/reject decision (null when the\r\ndecision degraded to the default `manual`); Andy.Policies.Application.Dtos.EvaluatePlanResponse.Predicates\r\nis the full evaluation trace — every predicate evaluated against\r\nthe plan, regardless of which policy used it."
+    EvaluateTaskRequest:
+      type: object
+      properties:
+        goalId:
+          type: string
+          description: The owning goal (resolves the binding chain).
+          format: uuid
+        taskId:
+          type: string
+          description: The task to scope the evaluation to.
+          format: uuid
+      additionalProperties: false
+      description: "Inbound request for `POST /api/policies/evaluate-task`\r\n(rivoli-ai/conductor#1944 — TX F7.1). The cockpit (via andy-tasks'\r\n`PlanExecutor`) calls this per task / per agent run during\r\nexecution — governance during execution, not just at plan finalize.\r\nThe service fetches the goal view from andy-tasks, scopes the\r\npredicate inputs down to the single Andy.Policies.Application.Dtos.EvaluateTaskRequest.TaskId, resolves the\r\nsame effective policy set the plan got, and returns a structured\r\nAndy.Policies.Application.Dtos.ComplianceAssessment."
+    EvaluateTaskResponse:
+      type: object
+      properties:
+        goalId:
+          type: string
+          description: The goal the assessment was computed for.
+          format: uuid
+        taskId:
+          type: string
+          description: The task the assessment was scoped to.
+          format: uuid
+        assessment:
+          $ref: '#/components/schemas/ComplianceAssessment'
+      additionalProperties: false
+      description: "Result of a per-task evaluation: a structured\r\nAndy.Policies.Application.Dtos.ComplianceAssessment plus the identifiers it was scoped\r\nto. The assessment embeds the back-compat decision string so\r\nplan-finalize-style callers can read a verdict, while #1945/#1946 read\r\nthe violations + risk tier/score."
     HelpTopic:
       type: object
       properties:
@@ -3261,6 +3328,19 @@ components:
           type: boolean
       additionalProperties: false
       description: "Wire-format projection of a `PolicyVersion`. Enum-shaped fields are\r\nserialised in the casing required by ADR 0001 §6:\r\n<list type=\"bullet\"><item><term>Enforcement</term><description>uppercase RFC 2119 tokens (`MUST` / `SHOULD` / `MAY`).</description></item><item><term>Severity</term><description>lowercase (`info` / `moderate` / `critical`).</description></item><item><term>State</term><description>PascalCase (`Draft` / `Active` / `WindingDown` / `Retired`) — matches DB storage and consumer-visible lifecycle labels.</description></item></list>\r\nService layer performs the casing conversion; controllers pass the DTO through unchanged.\r\n\n`Revision` is the optimistic-concurrency token (P9 follow-up #194,\r\n2026-05-07). On Postgres + SQLite alike it's a manually-bumped `uint`;\r\nEF raises `DbUpdateConcurrencyException` when the loaded version's\r\n`Revision` diverges from what's on disk. UI flows that present a\r\nversion DTO and let the user save later should round-trip the value via\r\n`UpdatePolicyVersionRequest.ExpectedRevision` and the lifecycle\r\ntransition request's `ExpectedRevision`; mismatch returns 412.\r\n"
+    PredicateResultDto:
+      type: object
+      properties:
+        name:
+          type: string
+          nullable: true
+        passed:
+          type: boolean
+        reason:
+          type: string
+          nullable: true
+      additionalProperties: false
+      description: "One predicate evaluation result. Andy.Policies.Application.Dtos.PredicateResultDto.Passed is the\r\nraw boolean; Andy.Policies.Application.Dtos.PredicateResultDto.Reason carries a human-readable\r\nexplanation, especially in the negative case (e.g.\r\n`\"data unavailable\"` when the predicate could not evaluate\r\nbecause the goal view was missing the relevant field — per the\r\nissue spec, missing data must never be treated as silently passing)."
     ProblemDetails:
       type: object
       properties:
@@ -3384,6 +3464,15 @@ components:
           nullable: true
       additionalProperties: false
       description: "Request payload for `IOverrideService.RevokeAsync` (P5.2).\r\nThe reason is required and persisted to\r\n`Override.RevocationReason`; reaper-driven expiry\r\n(`Expired`) leaves the column null."
+    RiskTier:
+      enum:
+        - None
+        - Low
+        - Medium
+        - High
+        - Critical
+      type: string
+      description: "Aggregate risk tier for a Andy.Policies.Application.Dtos.ComplianceAssessment\r\n(rivoli-ai/conductor#1944 — TX F7.1). Wire-stable, lowercase on the\r\nwire; the order is the severity order (a higher enum value is a\r\nstrictly worse tier). The tier is a deterministic fold over the\r\nassessment's Andy.Policies.Application.Dtos.ComplianceViolations — see\r\n`IComplianceScorer` for the weight table — so the same violation\r\nset always produces the same tier."
     ScopeNodeDto:
       type: object
       properties:
@@ -3491,6 +3580,10 @@ tags:
     description: "REST surface for `Binding` mutation, single-id read, and target-side\r\nquery (P3.3, story rivoli-ai/andy-policies#21). Delegates to\r\nAndy.Policies.Application.Interfaces.IBindingService from P3.2 — same service powering MCP\r\n(P3.5), gRPC (P3.6), and CLI (P3.7). Service exceptions are mapped by\r\nthe global `PolicyExceptionHandler` (already covers\r\nAndy.Policies.Application.Exceptions.NotFoundException,\r\nAndy.Policies.Application.Exceptions.ConflictException, and\r\nAndy.Policies.Application.Exceptions.ValidationException; the\r\nAndy.Policies.Application.Exceptions.BindingRetiredVersionException\r\ninherits from Andy.Policies.Application.Exceptions.ConflictException so\r\nthe existing 409 mapping catches it)."
   - name: Bundles
     description: "REST surface for resolving and reading from a frozen\r\nAndy.Policies.Domain.Entities.Bundle snapshot\r\n(P8.3, story rivoli-ai/andy-policies#83). Two endpoints today:\r\n<list type=\"bullet\"><item>`GET /api/bundles/{id}/resolve?targetType=&targetRef=`\r\n    — bindings against the snapshot for a target.</item><item>`GET /api/bundles/{id}/policies/{policyId}` — pinned\r\n    policy lookup.</item></list>\r\nMutation surfaces (POST / DELETE) land in P8.4–P8.5 alongside the\r\nMCP and gRPC parity."
+  - name: EvaluatePlan
+    description: "Plan-evaluation surface for rivoli-ai/andy-policies#232 (companion\r\nto rivoli-ai/conductor#1633 SP.4.2). andy-tasks calls\r\n`POST /api/policies/evaluate-plan` on plan finalize to decide\r\nwhether the plan can auto-approve, must surface to a human, or is\r\nrejected outright. The endpoint itself is intentionally narrow —\r\nidempotent per `(goalId, planVersion)`, no side effects beyond\r\nthe 5-minute decision cache, no audit row of its own (the caller\r\nrecords the decision as it pipes it into the goal lifecycle)."
+  - name: EvaluateTask
+    description: "Per-task / per-run compliance-evaluation surface for\r\nrivoli-ai/conductor#1944 (TX F7.1). The cockpit (via andy-tasks'\r\n`PlanExecutor`) calls `POST /api/policies/evaluate-task`\r\nduring execution — once per task / agent run — to re-evaluate the\r\ntask against the goal's effective policies and obtain a structured\r\nAndy.Policies.Application.Dtos.ComplianceAssessment (violations + risk tier/score),\r\nnot just the binary plan-finalize verdict. Reuses the same\r\nbinding-resolution + predicate pipeline as\r\nAndy.Policies.Api.Controllers.EvaluatePlanController (no forked evaluator) and is\r\nidempotent per `(goalId, taskId, planVersion)`."
   - name: Help
     description: "Serves help content from markdown files in content/help/.\r\nConsumable by any client: Angular, Swift (Conductor), CLI, MCP."
   - name: Overrides
