@@ -56,8 +56,9 @@ public class SeedOnStartupTests : IClassFixture<PoliciesApiFactory>
 
         // Scope to the six stock policies — the std-* standards catalog
         // (andy-policies#240) has its own seeding invariants.
+        var stockSlugs = new[] { "draft-only", "high-risk", "no-prod", "read-only", "sandboxed", "write-branch" };
         var stockIds = await db.Policies
-            .Where(p => new[] { "draft-only", "high-risk", "no-prod", "read-only", "sandboxed", "write-branch" }.Contains(p.Name))
+            .Where(p => stockSlugs.Contains(p.Name))
             .Select(p => p.Id)
             .ToListAsync();
         var versions = await db.PolicyVersions.Where(v => stockIds.Contains(v.PolicyId)).ToListAsync();
