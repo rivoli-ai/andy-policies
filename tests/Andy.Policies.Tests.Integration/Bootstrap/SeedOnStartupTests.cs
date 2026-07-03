@@ -56,7 +56,11 @@ public class SeedOnStartupTests : IClassFixture<PoliciesApiFactory>
 
         // Scope to the six stock policies — the std-* standards catalog
         // (andy-policies#240) has its own seeding invariants.
-        var stockSlugs = new[] { "draft-only", "high-risk", "no-prod", "read-only", "sandboxed", "write-branch" };
+        // List<string> (instance Contains), NOT string[]: on some .NET 8
+        // patch levels array.Contains binds to the span-optimized overload
+        // and EF's parameter extractor throws a ReadOnlySpan TypeLoad on the
+        // CI runner.
+        var stockSlugs = new List<string> { "draft-only", "high-risk", "no-prod", "read-only", "sandboxed", "write-branch" };
         var stockIds = await db.Policies
             .Where(p => stockSlugs.Contains(p.Name))
             .Select(p => p.Id)
