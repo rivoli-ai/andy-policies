@@ -16,7 +16,7 @@ namespace Andy.Policies.Tests.Integration.Parity;
 /// SD4 (rivoli-ai/andy-policies#1171) — provider parity for the seed
 /// path. The PR adds <see cref="PolicySeeder"/> (six lifecycle policies
 /// in <see cref="LifecycleState.Active"/>) + <see cref="BindingSeeder"/>
-/// (19 agent → policy bindings) + <see cref="BindingTargetType.Agent"/>
+/// (177 agent → policy bindings after #242 extended the seed to the full catalog) + <see cref="BindingTargetType.Agent"/>
 /// = 6. The seed wiring is provider-agnostic by construction
 /// (<see cref="DatabaseExtensions.EnsureSeedDataAsync"/> drives a plain
 /// <see cref="AppDbContext"/> with no provider branches), but the
@@ -32,7 +32,7 @@ namespace Andy.Policies.Tests.Integration.Parity;
 ///     use EF InMemory — no provider on either side.</item>
 ///   <item><see cref="Andy.Policies.Tests.Integration.Embedded.SqliteBootTests"/>
 ///     boots the API against SQLite but only asserts the 6 policies
-///     land, not the 19 bindings nor the rules-json shape.</item>
+///     land, not the 177 bindings nor the rules-json shape.</item>
 ///   <item><see cref="Andy.Policies.Tests.Integration.Migration.PostgresMigrationTests"/>
 ///     proves migrations apply on Postgres, but never runs the seeders.</item>
 /// </list>
@@ -98,7 +98,7 @@ public class Sd4SeedProviderParityTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Sqlite_FreshBoot_LandsSixPoliciesAndNineteenBindings()
+    public async Task Sqlite_FreshBoot_LandsSixPoliciesAndFullCatalogBindings()
     {
         var (conn, db) = await NewSqliteAsync();
         await using var _c = conn;
@@ -111,7 +111,7 @@ public class Sd4SeedProviderParityTests : IAsyncLifetime
         (await db.PolicyVersions.CountAsync(v => v.State == LifecycleState.Active))
             .Should().Be(6, "all six seeded versions land directly in Active state");
         (await db.Bindings.CountAsync(b => b.TargetType == BindingTargetType.Agent))
-            .Should().Be(19, "SD4.2 fixture: 19 unique (agent, policy) edges");
+            .Should().Be(177, "SD4.2 + #242 fixture: 177 unique (agent, policy) edges");
     }
 
     [Fact]
@@ -187,7 +187,7 @@ public class Sd4SeedProviderParityTests : IAsyncLifetime
         (await db.Policies.CountAsync()).Should().Be(6);
         (await db.PolicyVersions.CountAsync()).Should().Be(6);
         (await db.Bindings.CountAsync(b => b.TargetType == BindingTargetType.Agent))
-            .Should().Be(19);
+            .Should().Be(177);
         (await db.Bundles.CountAsync()).Should().Be(
             firstBundleCount,
             "SD4 contract: reseed never bumps the bundle snapshot");
@@ -206,7 +206,7 @@ public class Sd4SeedProviderParityTests : IAsyncLifetime
     }
 
     [SkippableFact]
-    public async Task Postgres_FreshBoot_LandsSixPoliciesAndNineteenBindings()
+    public async Task Postgres_FreshBoot_LandsSixPoliciesAndFullCatalogBindings()
     {
         Skip.IfNot(_dockerAvailable);
         await using var db = await NewPostgresAsync();
@@ -218,7 +218,7 @@ public class Sd4SeedProviderParityTests : IAsyncLifetime
         (await db.PolicyVersions.CountAsync(v => v.State == LifecycleState.Active))
             .Should().Be(6);
         (await db.Bindings.CountAsync(b => b.TargetType == BindingTargetType.Agent))
-            .Should().Be(19);
+            .Should().Be(177);
     }
 
     [SkippableFact]
@@ -287,7 +287,7 @@ public class Sd4SeedProviderParityTests : IAsyncLifetime
         (await db.Policies.CountAsync()).Should().Be(6);
         (await db.PolicyVersions.CountAsync()).Should().Be(6);
         (await db.Bindings.CountAsync(b => b.TargetType == BindingTargetType.Agent))
-            .Should().Be(19);
+            .Should().Be(177);
         (await db.Bundles.CountAsync()).Should().Be(
             firstBundleCount,
             "SD4 contract: reseed never bumps the bundle snapshot");
