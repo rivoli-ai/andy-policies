@@ -21,6 +21,6 @@ mkdir -p "$OUTPUT_DIR"
 UPDATE_OPENAPI=1 dotnet test \
     tests/Andy.Policies.Tests.Integration/Andy.Policies.Tests.Integration.csproj \
     --filter 'FullyQualifiedName~OpenApiSnapshotExportTests.ExportYaml_WhenExplicitlyRequested' \
-    --no-restore --nologo --verbosity minimal
+    --nologo --verbosity minimal
 
 echo "Wrote $OUTPUT_FILE"
