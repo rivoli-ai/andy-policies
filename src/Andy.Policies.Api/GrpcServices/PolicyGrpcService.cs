@@ -1,6 +1,7 @@
 // Copyright (c) Rivoli AI 2026. All rights reserved.
 // Licensed under the Apache License, Version 2.0.
 
+using Andy.Policies.Api.Authorization;
 using Andy.Policies.Api.Protos;
 using Andy.Policies.Application.Dtos;
 using Andy.Policies.Application.Exceptions;
@@ -124,7 +125,8 @@ public class PolicyGrpcService : Protos.PolicyService.PolicyServiceBase
                     Enforcement: request.Enforcement,
                     Severity: request.Severity,
                     Scopes: request.Scopes.ToList(),
-                    RulesJson: request.RulesJson),
+                    RulesJson: request.RulesJson,
+                    Rationale: NullIfEmpty(request.Rationale)),
                 ResolveSubjectId(context),
                 context.CancellationToken);
 
@@ -146,7 +148,8 @@ public class PolicyGrpcService : Protos.PolicyService.PolicyServiceBase
                     Enforcement: request.Enforcement,
                     Severity: request.Severity,
                     Scopes: request.Scopes.ToList(),
-                    RulesJson: request.RulesJson),
+                    RulesJson: request.RulesJson,
+                    Rationale: NullIfEmpty(request.Rationale)),
                 ResolveSubjectId(context),
                 context.CancellationToken);
 
@@ -162,7 +165,11 @@ public class PolicyGrpcService : Protos.PolicyService.PolicyServiceBase
         try
         {
             var dto = await _policies.BumpDraftFromVersionAsync(
-                policyId, sourceVersionId, ResolveSubjectId(context), context.CancellationToken);
+                policyId,
+                sourceVersionId,
+                ResolveSubjectId(context),
+                NullIfEmpty(request.Rationale),
+                context.CancellationToken);
 
             return new PolicyVersionResponse { Version = ToMessage(dto) };
         }
@@ -186,10 +193,11 @@ public class PolicyGrpcService : Protos.PolicyService.PolicyServiceBase
 
     private static string ResolveSubjectId(ServerCallContext context)
     {
-        // Mirrors PoliciesController + ItemsGrpcService: prefer the
-        // authenticated principal name, fall back to a labeled placeholder.
         var http = context.GetHttpContext();
-        return http?.User.Identity?.Name ?? "grpc-anonymous";
+        return ActorSubjectResolver.Resolve(http?.User)
+            ?? throw new RpcException(new Status(
+                StatusCode.Unauthenticated,
+                "Authentication required: no subject id present on the caller's claims principal."));
     }
 
     private static RpcException MapToRpcException(Exception ex) => ex switch

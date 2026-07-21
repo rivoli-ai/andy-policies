@@ -42,11 +42,17 @@ public static class ScopeTools
         "type is one of Org / Tenant / Team / Repo / Template / Run " +
         "(case-insensitive); omit to return the entire catalogue. " +
         "Returns one line per node with id, type, ref, and depth.")]
+    [RbacGuard("andy-policies:scope:read")]
     public static async Task<string> List(
         IScopeService service,
+        IHttpContextAccessor httpContext,
+        IRbacChecker rbac,
         [Description("Optional type filter (Org/Tenant/Team/Repo/Template/Run). Omit for all.")] string? type = null,
         CancellationToken ct = default)
     {
+        var denial = await McpRbacGuard.GetDenialAsync(
+            rbac, httpContext, "andy-policies:scope:read", "policy.scope", null, ct);
+        if (denial is not null) return denial;
         ScopeType? filter = null;
         if (!string.IsNullOrEmpty(type))
         {
@@ -74,11 +80,17 @@ public static class ScopeTools
     [McpServerTool(Name = "policy.scope.get"), Description(
         "Get a single scope node by id. Returns formatted detail or " +
         "policy.scope.not_found.")]
+    [RbacGuard("andy-policies:scope:read")]
     public static async Task<string> Get(
         IScopeService service,
+        IHttpContextAccessor httpContext,
+        IRbacChecker rbac,
         [Description("Scope node id (GUID).")] string id,
         CancellationToken ct = default)
     {
+        var denial = await McpRbacGuard.GetDenialAsync(
+            rbac, httpContext, "andy-policies:scope:read", "policy.scope", id, ct);
+        if (denial is not null) return denial;
         if (!Guid.TryParse(id, out var nodeId))
         {
             return $"policy.scope.invalid_input: '{id}' is not a valid GUID.";
@@ -92,10 +104,16 @@ public static class ScopeTools
     [McpServerTool(Name = "policy.scope.tree"), Description(
         "Return the full scope forest as JSON. Each entry has " +
         "{ node, children[] } and is ordered by Ref ASC at every level.")]
+    [RbacGuard("andy-policies:scope:read")]
     public static async Task<string> Tree(
         IScopeService service,
+        IHttpContextAccessor httpContext,
+        IRbacChecker rbac,
         CancellationToken ct = default)
     {
+        var denial = await McpRbacGuard.GetDenialAsync(
+            rbac, httpContext, "andy-policies:scope:read", "policy.scope", null, ct);
+        if (denial is not null) return denial;
         var forest = await service.GetTreeAsync(ct);
         return JsonSerializer.Serialize(forest, JsonOptions);
     }
@@ -115,6 +133,7 @@ public static class ScopeTools
         [Description("Scope type (Org/Tenant/Team/Repo/Template/Run).")] string type,
         [Description("Opaque scope reference (e.g. 'repo:rivoli-ai/conductor').")] string @ref,
         [Description("Human-readable display name.")] string displayName,
+        [Description("Human-readable reason recorded in the audit chain.")] string? rationale = null,
         CancellationToken ct = default)
     {
         if (!Enum.TryParse<ScopeType>(type, ignoreCase: true, out var scopeType))
@@ -146,7 +165,9 @@ public static class ScopeTools
         try
         {
             var dto = await service.CreateAsync(
-                new CreateScopeNodeRequest(parentGuid, scopeType, @ref, displayName), ct);
+                new CreateScopeNodeRequest(parentGuid, scopeType, @ref, displayName, rationale),
+                Andy.Policies.Api.Authorization.ActorSubjectResolver.Require(httpContext.HttpContext?.User),
+                ct);
             return FormatNodeDetail(dto);
         }
         catch (InvalidScopeTypeException ex)
@@ -176,6 +197,7 @@ public static class ScopeTools
         IHttpContextAccessor httpContext,
         IRbacChecker rbac,
         [Description("Scope node id (GUID).")] string id,
+        [Description("Human-readable reason recorded in the audit chain.")] string? rationale = null,
         CancellationToken ct = default)
     {
         if (!Guid.TryParse(id, out var nodeId))
@@ -193,7 +215,11 @@ public static class ScopeTools
         }
         try
         {
-            await service.DeleteAsync(nodeId, ct);
+            await service.DeleteAsync(
+                nodeId,
+                Andy.Policies.Api.Authorization.ActorSubjectResolver.Require(httpContext.HttpContext?.User),
+                rationale,
+                ct);
             return $"ScopeNode {nodeId} deleted.";
         }
         catch (NotFoundException ex)
@@ -211,18 +237,34 @@ public static class ScopeTools
         "stricter-tightens-only fold from P4.3. Returns JSON envelope " +
         "{ scopeNodeId, policies[] } ordered Mandatory-first then by " +
         "PolicyKey ASC. Returns policy.scope.not_found for unknown ids.")]
+    [RbacGuard("andy-policies:scope:read")]
     public static async Task<string> Effective(
         IBindingResolutionService resolver,
+        IHttpContextAccessor httpContext,
+        IRbacChecker rbac,
         [Description("Scope node id (GUID).")] string id,
+        [Description("Principal subject id. Defaults to the authenticated caller.")] string? principalSubjectId = null,
+        [Description("Comma-separated cohort refs.")] string? cohorts = null,
         CancellationToken ct = default)
     {
+        var denial = await McpRbacGuard.GetDenialAsync(
+            rbac, httpContext, "andy-policies:scope:read", "policy.scope", id, ct);
+        if (denial is not null) return denial;
         if (!Guid.TryParse(id, out var nodeId))
         {
             return $"policy.scope.invalid_input: '{id}' is not a valid GUID.";
         }
         try
         {
-            var result = await resolver.ResolveForScopeAsync(nodeId, ct);
+            var principal = string.IsNullOrWhiteSpace(principalSubjectId)
+                ? Andy.Policies.Api.Authorization.ActorSubjectResolver.Resolve(httpContext.HttpContext?.User)
+                : principalSubjectId.Trim();
+            var cohortRefs = (cohorts ?? string.Empty)
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            var result = await resolver.ResolveForScopeAsync(
+                nodeId,
+                new OverrideResolutionContext(principal, cohortRefs),
+                ct);
             return JsonSerializer.Serialize(result, JsonOptions);
         }
         catch (NotFoundException ex)

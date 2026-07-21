@@ -2,6 +2,7 @@
 // Licensed under the Apache License, Version 2.0.
 
 using System.Security.Claims;
+using Andy.Policies.Api.Authorization;
 using Andy.Policies.Application.Interfaces;
 using Grpc.Core;
 using Grpc.Core.Interceptors;
@@ -26,8 +27,8 @@ namespace Andy.Policies.Api.GrpcServices.Authorization;
 /// <see cref="GrpcMethodPermissionMap"/> would be a security gap.
 /// </para>
 /// <para>
-/// <b>Items service is intentionally bypassed</b> — see
-/// <see cref="GrpcMethodPermissionMap.IsEnforcedService"/>.
+/// Every business service, including Items, is enforced. Only non-business
+/// framework endpoints outside the mapped service set bypass this interceptor.
 /// </para>
 /// </remarks>
 public sealed class RbacServerInterceptor : Interceptor
@@ -80,10 +81,7 @@ public sealed class RbacServerInterceptor : Interceptor
         }
 
         var user = context.GetHttpContext().User;
-        var subjectId = user.FindFirstValue(ClaimTypes.NameIdentifier)
-                     ?? user.FindFirstValue("sub")
-                     ?? user.Identity?.Name
-                     ?? string.Empty;
+        var subjectId = ActorSubjectResolver.Resolve(user) ?? string.Empty;
         if (string.IsNullOrWhiteSpace(subjectId))
         {
             throw new RpcException(new Status(StatusCode.Unauthenticated, "no subject claim"));

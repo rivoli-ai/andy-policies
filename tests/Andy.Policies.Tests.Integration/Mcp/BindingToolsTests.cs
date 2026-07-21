@@ -46,9 +46,12 @@ public class BindingToolsTests
     {
         var db = NewDb();
         return (
-            new BindingService(db, new NoopAuditWriter(NullLogger<NoopAuditWriter>.Instance), TimeProvider.System),
+            new BindingService(
+                db, new NoopAuditWriter(NullLogger<NoopAuditWriter>.Instance),
+                TimeProvider.System, tightenValidator: null,
+                IntegrationAllowAnyRationalePolicy.Instance),
             new BindingResolver(db),
-            new PolicyService(db),
+            new PolicyService(db, rationale: IntegrationAllowAnyRationalePolicy.Instance),
             db);
     }
 
@@ -176,7 +179,8 @@ public class BindingToolsTests
         await BindingTools.Create(svc, AccessorFor("agent-1"), AllowRbac,
             draft.Id.ToString(), "Repo", "repo:a/x", "Mandatory");
 
-        var output = await BindingTools.List(svc, draft.Id.ToString());
+        var output = await BindingTools.List(
+            svc, AccessorFor("test:user"), AllowRbac, draft.Id.ToString());
 
         output.Should().Contain("1 binding on version");
         output.Should().Contain("Repo=repo:a/x");
@@ -188,7 +192,8 @@ public class BindingToolsTests
     {
         var (svc, _, _, _) = NewServices();
 
-        var output = await BindingTools.List(svc, "not-a-guid");
+        var output = await BindingTools.List(
+            svc, AccessorFor("test:user"), AllowRbac, "not-a-guid");
 
         output.Should().StartWith("Invalid policy version id:");
     }
@@ -230,7 +235,8 @@ public class BindingToolsTests
         await BindingTools.Create(svc, AccessorFor("agent-1"), AllowRbac,
             draft.Id.ToString(), "Template", "template:abc", "Mandatory");
 
-        var output = await BindingTools.Resolve(resolver, "Template", "template:abc");
+        var output = await BindingTools.Resolve(
+            resolver, AccessorFor("test:user"), AllowRbac, "Template", "template:abc");
 
         // Output is JSON; parse it back to confirm the envelope shape.
         using var doc = JsonDocument.Parse(output);
@@ -249,7 +255,8 @@ public class BindingToolsTests
     {
         var (_, resolver, _, _) = NewServices();
 
-        var output = await BindingTools.Resolve(resolver, "Unicorn", "anything");
+        var output = await BindingTools.Resolve(
+            resolver, AccessorFor("test:user"), AllowRbac, "Unicorn", "anything");
 
         output.Should().StartWith("policy.binding.invalid_target:");
     }
@@ -259,7 +266,8 @@ public class BindingToolsTests
     {
         var (_, resolver, _, _) = NewServices();
 
-        var output = await BindingTools.Resolve(resolver, "Template", "  ");
+        var output = await BindingTools.Resolve(
+            resolver, AccessorFor("test:user"), AllowRbac, "Template", "  ");
 
         output.Should().StartWith("policy.binding.invalid_target:");
     }

@@ -3,6 +3,7 @@
 
 using Andy.Policies.Application.Dtos;
 using Andy.Policies.Application.Exceptions;
+using Andy.Policies.Application.Interfaces;
 using Andy.Policies.Domain.Enums;
 using Andy.Policies.Infrastructure.Data;
 using Andy.Policies.Infrastructure.Services;
@@ -63,7 +64,9 @@ public class ScopeServiceConcurrencyTests : IAsyncLifetime
             .UseNpgsql(_connectionString)
             .Options);
 
-    private static ScopeService NewService(AppDbContext db) => new(db, TimeProvider.System);
+    private static ScopeService NewService(AppDbContext db) => new(
+        db, TimeProvider.System, IntegrationTestAuditWriter.Instance,
+        IntegrationAllowAnyRationalePolicy.Instance);
 
     [SkippableFact]
     public async Task DuplicateTypeRefPair_ThrowsScopeRefConflict()

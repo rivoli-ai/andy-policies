@@ -34,12 +34,8 @@ namespace Andy.Policies.Api.Mcp;
 /// <c>andy-policies-cli audit verify --file</c> (P6.5).
 /// </para>
 /// <para>
-/// <b>RBAC posture.</b> Per-tool RBAC (<c>audit:verify</c>,
-/// <c>audit:export</c>) is enforced via <see cref="McpRbacGuard"/>
-/// since P7.6 (#64), mirroring the gRPC interceptor on
-/// <c>AuditService</c>. Reads (<c>list</c>, <c>get</c>) remain
-/// gated only by JWT auth at the MCP edge; the gRPC
-/// surface is the canonical enforcement point for read-side.
+/// <b>RBAC posture.</b> Every tool enforces its operation-specific
+/// permission through <see cref="McpRbacGuard"/>, matching REST and gRPC.
 /// </para>
 /// </remarks>
 [McpServerToolType]
@@ -57,10 +53,13 @@ public static class AuditTools
         "pageSize (1..500, default 50). Returns a JSON object with items, " +
         "nextCursor, and pageSize fields. fieldDiff is a parsed JSON Patch " +
         "array; hashes travel as lowercase hex.")]
+    [RbacGuard("andy-policies:audit:read")]
     public static async Task<string> List(
         IAuditQuery query,
         IAuditRetentionPolicy retention,
         TimeProvider clock,
+        IHttpContextAccessor httpContext,
+        IRbacChecker rbac,
         [Description("Filter by actor subject id (exact match)")] string? actor = null,
         [Description("Filter by entity type, e.g. Policy, Override")] string? entityType = null,
         [Description("Filter by entity id (exact match)")] string? entityId = null,
@@ -71,6 +70,10 @@ public static class AuditTools
         [Description("Rows per page; clamped 1..500")] int pageSize = 50,
         CancellationToken ct = default)
     {
+        var denial = await McpRbacGuard.GetDenialAsync(
+            rbac, httpContext, "andy-policies:audit:read", "policy.audit", null, ct);
+        if (denial is not null) return denial;
+
         if (pageSize < 1 || pageSize > 500)
         {
             return $"policy.audit.invalid_argument: pageSize must be in [1, 500]; got {pageSize}.";
@@ -121,11 +124,18 @@ public static class AuditTools
     [McpServerTool(Name = "policy.audit.get"), Description(
         "Get a single audit event by id. Returns " +
         "policy.audit.not_found when no row matches.")]
+    [RbacGuard("andy-policies:audit:read")]
     public static async Task<string> Get(
         IAuditQuery query,
+        IHttpContextAccessor httpContext,
+        IRbacChecker rbac,
         [Description("Audit event id (GUID)")] string id,
         CancellationToken ct = default)
     {
+        var denial = await McpRbacGuard.GetDenialAsync(
+            rbac, httpContext, "andy-policies:audit:read", "policy.audit", null, ct);
+        if (denial is not null) return denial;
+
         if (!Guid.TryParse(id, out var oid))
         {
             return $"policy.audit.invalid_argument: '{id}' is not a valid GUID.";

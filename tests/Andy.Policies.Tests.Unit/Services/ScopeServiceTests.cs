@@ -25,7 +25,8 @@ public class ScopeServiceTests
     private static (ScopeService service, AppDbContext db) NewService()
     {
         var db = InMemoryDbFixture.Create();
-        var service = new ScopeService(db, TimeProvider.System);
+        var service = new ScopeService(
+            db, TimeProvider.System, TestAuditWriter.Instance, AllowAnyRationalePolicy.Instance);
         return (service, db);
     }
 

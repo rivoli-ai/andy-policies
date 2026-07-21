@@ -23,6 +23,7 @@ public class GrpcPermissionMapCoverageTests
     /// <summary>The proto-generated bases for every enforced gRPC service.</summary>
     public static IEnumerable<object[]> EnforcedServiceBases() => new[]
     {
+        new object[] { typeof(ItemsService.ItemsServiceBase) },
         new object[] { typeof(PolicyService.PolicyServiceBase) },
         new object[] { typeof(LifecycleService.LifecycleServiceBase) },
         new object[] { typeof(BindingService.BindingServiceBase) },
@@ -80,14 +81,11 @@ public class GrpcPermissionMapCoverageTests
     }
 
     [Fact]
-    public void ItemsServiceIsBypassedNotMapped()
+    public void ItemsServiceIsMappedAndEnforced()
     {
         var map = new GrpcMethodPermissionMap();
-        // ItemsService ships as template scaffolding; it is intentionally
-        // not enforced. Defend the bypass: no map entries, IsEnforcedService
-        // returns false.
-        map.Entries.Keys.Should().NotContain(k => k.StartsWith("/andy_policies.ItemsService/"));
-        GrpcMethodPermissionMap.IsEnforcedService("/andy_policies.ItemsService/CreateItem").Should().BeFalse();
+        map.Entries.Keys.Should().Contain(k => k.StartsWith("/andy_policies.ItemsService/"));
+        GrpcMethodPermissionMap.IsEnforcedService("/andy_policies.ItemsService/Create").Should().BeTrue();
     }
 
     /// <summary>

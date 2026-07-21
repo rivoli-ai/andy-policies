@@ -3,6 +3,7 @@
 
 using Andy.Policies.Application.Dtos;
 using Andy.Policies.Application.Exceptions;
+using Andy.Policies.Application.Interfaces;
 using Andy.Policies.Domain.Entities;
 using Andy.Policies.Domain.Enums;
 using Andy.Policies.Infrastructure.Data;
@@ -33,11 +34,12 @@ namespace Andy.Policies.Tests.Unit.Services;
 public class BindingResolutionServiceTests
 {
     private static (BindingResolutionService resolver, ScopeService scopes, AppDbContext db)
-        NewServices()
+        NewServices(IOverrideService? overrides = null)
     {
         var db = InMemoryDbFixture.Create();
-        var scopes = new ScopeService(db, TimeProvider.System);
-        var resolver = new BindingResolutionService(db, scopes);
+        var scopes = new ScopeService(
+            db, TimeProvider.System, TestAuditWriter.Instance, AllowAnyRationalePolicy.Instance);
+        var resolver = new BindingResolutionService(db, scopes, overrides);
         return (resolver, scopes, db);
     }
 
@@ -299,5 +301,87 @@ public class BindingResolutionServiceTests
         result.ScopeNodeId.Should().BeNull("no scope node matched — fallback to exact-match");
         result.Policies.Should().ContainSingle();
         result.Policies[0].PolicyKey.Should().Be("exact-only");
+    }
+
+    [Fact]
+    public async Task MatchingPrincipalExempt_RemovesPolicy_AndExplainsOverride()
+    {
+        var overrides = new StubOverrideService();
+        var (resolver, scopes, db) = NewServices(overrides);
+        var chain = await SeedFiveLevelChainAsync(scopes);
+        var (_, version) = await SeedPolicyAndPublishAsync(db, "exempted");
+        await AddScopeBindingAsync(db, chain.Repo, version.Id, BindStrength.Mandatory);
+        var grant = Override(version.Id, OverrideScopeKind.Principal, "user:42", OverrideEffect.Exempt);
+        overrides.Active[(OverrideScopeKind.Principal, "user:42")] = new[] { grant };
+
+        var result = await resolver.ResolveForScopeAsync(
+            chain.Repo, new OverrideResolutionContext("user:42", Array.Empty<string>()));
+
+        result.Policies.Should().BeEmpty();
+        result.AppliedOverrides.Should().ContainSingle().Which.OverrideId.Should().Be(grant.Id);
+    }
+
+    [Fact]
+    public async Task PrincipalOverride_BeatsCohort_WhileCohortReplaceSubstitutesForOtherPrincipal()
+    {
+        var overrides = new StubOverrideService();
+        var (resolver, scopes, db) = NewServices(overrides);
+        var chain = await SeedFiveLevelChainAsync(scopes);
+        var (_, baseline) = await SeedPolicyAndPublishAsync(db, "baseline");
+        var replacementPolicy = PolicyBuilders.APolicy(name: "replacement");
+        var replacement = PolicyBuilders.AVersion(
+            replacementPolicy.Id, number: 3, state: LifecycleState.WindingDown);
+        db.Policies.Add(replacementPolicy);
+        db.PolicyVersions.Add(replacement);
+        await db.SaveChangesAsync();
+        await AddScopeBindingAsync(db, chain.Repo, baseline.Id, BindStrength.Mandatory);
+
+        var cohort = Override(
+            baseline.Id, OverrideScopeKind.Cohort, "cohort:beta", OverrideEffect.Replace,
+            replacement.Id, approvedAt: DateTimeOffset.UtcNow.AddMinutes(-2));
+        var principal = Override(
+            baseline.Id, OverrideScopeKind.Principal, "user:42", OverrideEffect.Exempt,
+            approvedAt: DateTimeOffset.UtcNow.AddMinutes(-1));
+        overrides.Active[(OverrideScopeKind.Cohort, "cohort:beta")] = new[] { cohort };
+        overrides.Active[(OverrideScopeKind.Principal, "user:42")] = new[] { principal };
+
+        var principalResult = await resolver.ResolveForScopeAsync(
+            chain.Repo, new OverrideResolutionContext("user:42", new[] { "cohort:beta" }));
+        var cohortResult = await resolver.ResolveForScopeAsync(
+            chain.Repo, new OverrideResolutionContext("user:7", new[] { "cohort:beta" }));
+
+        principalResult.Policies.Should().BeEmpty("principal-specific overrides have precedence");
+        cohortResult.Policies.Should().ContainSingle().Which.PolicyVersionId.Should().Be(replacement.Id);
+        cohortResult.AppliedOverrides.Should().ContainSingle().Which.OverrideId.Should().Be(cohort.Id);
+    }
+
+    private static OverrideDto Override(
+        Guid policyVersionId,
+        OverrideScopeKind scopeKind,
+        string scopeRef,
+        OverrideEffect effect,
+        Guid? replacementId = null,
+        DateTimeOffset? approvedAt = null) => new(
+            Guid.NewGuid(), policyVersionId, scopeKind, scopeRef, effect, replacementId,
+            "proposer", "approver", OverrideState.Approved,
+            DateTimeOffset.UtcNow.AddHours(-1), approvedAt ?? DateTimeOffset.UtcNow,
+            DateTimeOffset.UtcNow.AddHours(1), "test", null);
+
+    private sealed class StubOverrideService : IOverrideService
+    {
+        public Dictionary<(OverrideScopeKind Kind, string Ref), IReadOnlyList<OverrideDto>> Active { get; } = new();
+
+        public Task<IReadOnlyList<OverrideDto>> GetActiveAsync(
+            OverrideScopeKind scopeKind, string scopeRef, CancellationToken ct = default) =>
+            Task.FromResult(Active.GetValueOrDefault((scopeKind, scopeRef))
+                ?? (IReadOnlyList<OverrideDto>)Array.Empty<OverrideDto>());
+
+        public Task<OverrideDto> ProposeAsync(ProposeOverrideRequest request, string proposerSubjectId, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<OverrideDto> ApproveAsync(Guid id, string approverSubjectId, string? rationale = null, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<OverrideDto> RevokeAsync(Guid id, RevokeOverrideRequest request, string actorSubjectId, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<OverrideDto> RejectAsync(Guid id, RejectOverrideRequest request, string actorSubjectId, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<OverrideDto> ExpireAsync(Guid id, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<OverrideDto?> GetAsync(Guid id, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<IReadOnlyList<OverrideDto>> ListAsync(OverrideListFilter filter, CancellationToken ct = default) => throw new NotSupportedException();
     }
 }

@@ -2,6 +2,7 @@
 // Licensed under the Apache License, Version 2.0.
 
 using System.Security.Claims;
+using Andy.Policies.Api.Authorization;
 using Andy.Policies.Api.Protos;
 using Andy.Policies.Application.Dtos;
 using Andy.Policies.Application.Exceptions;
@@ -51,7 +52,11 @@ public class BindingsGrpcService : Andy.Policies.Api.Protos.BindingService.Bindi
         {
             var dto = await _bindings.CreateAsync(
                 new Andy.Policies.Application.Dtos.CreateBindingRequest(
-                    versionId, targetType, request.TargetRef, bindStrength),
+                    versionId,
+                    targetType,
+                    request.TargetRef,
+                    bindStrength,
+                    string.IsNullOrWhiteSpace(request.Rationale) ? null : request.Rationale),
                 ResolveSubjectId(context),
                 context.CancellationToken);
             return new BindingResponse { Binding = ToMessage(dto) };
@@ -151,8 +156,7 @@ public class BindingsGrpcService : Andy.Policies.Api.Protos.BindingService.Bindi
         // to act when no subject id is on the principal rather than write a
         // fallback string into the catalog.
         var http = context.GetHttpContext();
-        var sub = http?.User.FindFirst(ClaimTypes.NameIdentifier)?.Value
-            ?? http?.User.Identity?.Name;
+        var sub = ActorSubjectResolver.Resolve(http?.User);
         if (string.IsNullOrEmpty(sub))
         {
             throw new RpcException(new Status(StatusCode.Unauthenticated,

@@ -41,28 +41,41 @@ public static class ItemCommands
         var createCommand = new Command("create", "Create a new item");
         var nameOpt = new Option<string>("--name", "Item name") { IsRequired = true };
         var descOpt = new Option<string?>("--description", "Item description");
+        var createRationaleOpt = new Option<string?>(
+            aliases: new[] { "--rationale", "-r" },
+            description: "Reason recorded in the audit chain; required when rationale enforcement is enabled.");
         createCommand.AddOption(nameOpt);
         createCommand.AddOption(descOpt);
-        createCommand.SetHandler(async (apiUrl, token, name, desc) =>
+        createCommand.AddOption(createRationaleOpt);
+        createCommand.SetHandler(async (apiUrl, token, name, desc, rationale) =>
         {
             using var client = CreateClient(apiUrl, token);
-            var response = await client.PostAsJsonAsync("/api/items", new { Name = name, Description = desc });
+            var response = await client.PostAsJsonAsync(
+                "/api/items", new { Name = name, Description = desc, Rationale = rationale });
             response.EnsureSuccessStatusCode();
             var body = await response.Content.ReadAsStringAsync();
             Console.WriteLine(body);
-        }, apiUrlOption, tokenOption, nameOpt, descOpt);
+        }, apiUrlOption, tokenOption, nameOpt, descOpt, createRationaleOpt);
         parent.AddCommand(createCommand);
 
         var deleteCommand = new Command("delete", "Delete an item");
         var deleteIdArg = new Argument<string>("id", "Item ID");
+        var deleteRationaleOpt = new Option<string?>(
+            aliases: new[] { "--rationale", "-r" },
+            description: "Reason recorded in the audit chain; required when rationale enforcement is enabled.");
         deleteCommand.AddArgument(deleteIdArg);
-        deleteCommand.SetHandler(async (apiUrl, token, id) =>
+        deleteCommand.AddOption(deleteRationaleOpt);
+        deleteCommand.SetHandler(async (apiUrl, token, id, rationale) =>
         {
             using var client = CreateClient(apiUrl, token);
-            var response = await client.DeleteAsync($"/api/items/{id}");
+            using var request = new HttpRequestMessage(HttpMethod.Delete, $"/api/items/{id}")
+            {
+                Content = JsonContent.Create(new { Rationale = rationale }),
+            };
+            var response = await client.SendAsync(request);
             response.EnsureSuccessStatusCode();
             Console.WriteLine($"Item {id} deleted.");
-        }, apiUrlOption, tokenOption, deleteIdArg);
+        }, apiUrlOption, tokenOption, deleteIdArg, deleteRationaleOpt);
         parent.AddCommand(deleteCommand);
     }
 

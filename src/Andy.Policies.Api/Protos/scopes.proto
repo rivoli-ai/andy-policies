@@ -127,16 +127,20 @@ message CreateScopeRequest {
   ScopeType type = 2;
   string target_ref = 3;
   string display_name = 4;
+  string rationale = 5;
 }
 
 message DeleteScopeRequest {
   string id = 1;
+  string rationale = 2;
 }
 
 message DeleteScopeResponse {}
 
 message GetEffectivePoliciesRequest {
   string id = 1;
+  string principal_subject_id = 2;
+  repeated string cohort_refs = 3;
 }
 
 message EffectivePolicySetResponse {

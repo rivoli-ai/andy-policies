@@ -141,7 +141,9 @@ public class LifecycleGrpcServiceTests : IClassFixture<PoliciesApiFactory>, IDis
         var policies = new Andy.Policies.Api.Protos.PolicyService.PolicyServiceClient(localChannel);
 
         var metadata = new Metadata { { TestAuthHandler.SubjectHeader, "test-creator" } };
-        var draft = (await policies.CreateDraftAsync(MinimalCreate(Slug("nora")), metadata)).Version;
+        var create = MinimalCreate(Slug("nora"));
+        create.Rationale = "create test draft";
+        var draft = (await policies.CreateDraftAsync(create, metadata)).Version;
 
         var ex = await Assert.ThrowsAsync<RpcException>(() =>
             lifecycle.PublishVersionAsync(new PublishVersionRequest

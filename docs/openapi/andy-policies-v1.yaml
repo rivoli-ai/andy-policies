@@ -13,7 +13,7 @@ paths:
   /health:
     get:
       tags:
-        - 'Andy.Policies.Api, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null'
+        - Andy.Policies.Api
       operationId: health
       responses:
         '200':
@@ -1071,6 +1071,17 @@ paths:
           schema:
             type: string
             format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeleteItemMutationRequest'
+          text/json:
+            schema:
+              $ref: '#/components/schemas/DeleteItemMutationRequest'
+          application/*+json:
+            schema:
+              $ref: '#/components/schemas/DeleteItemMutationRequest'
       responses:
         '200':
           description: OK
@@ -1193,6 +1204,17 @@ paths:
           schema:
             type: string
             format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApproveOverrideRequest'
+          text/json:
+            schema:
+              $ref: '#/components/schemas/ApproveOverrideRequest'
+          application/*+json:
+            schema:
+              $ref: '#/components/schemas/ApproveOverrideRequest'
       responses:
         '200':
           description: OK
@@ -1718,7 +1740,7 @@ paths:
     get:
       tags:
         - Policies
-      summary: "Resolves the active version per ADR 0001 (highest `Version` with\r\n`State != Draft` in P1; `State == Active` after P2 lands).\r\nRoute literal \"active\" sits before `{versionId:guid}` in match precedence,\r\nand the GUID constraint makes the two routes unambiguous regardless."
+      summary: "Resolves the active version per ADR 0001/P2: the highest\r\n`Version` whose lifecycle `State == Active`.\r\nRoute literal \"active\" sits before `{versionId:guid}` in match precedence,\r\nand the GUID constraint makes the two routes unambiguous regardless."
       operationId: Policies_GetActiveVersion
       parameters:
         - name: id
@@ -1852,6 +1874,17 @@ paths:
           schema:
             type: string
             format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BumpPolicyVersionRequest'
+          text/json:
+            schema:
+              $ref: '#/components/schemas/BumpPolicyVersionRequest'
+          application/*+json:
+            schema:
+              $ref: '#/components/schemas/BumpPolicyVersionRequest'
       responses:
         '200':
           description: OK
@@ -2333,6 +2366,17 @@ paths:
           schema:
             type: string
             format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeleteScopeNodeRequest'
+          text/json:
+            schema:
+              $ref: '#/components/schemas/DeleteScopeNodeRequest'
+          application/*+json:
+            schema:
+              $ref: '#/components/schemas/DeleteScopeNodeRequest'
       responses:
         '204':
           description: No Content
@@ -2373,6 +2417,16 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: principalSubjectId
+          in: query
+          schema:
+            type: string
+        - name: cohort
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
       responses:
         '200':
           description: OK
@@ -2395,6 +2449,35 @@ paths:
                 $ref: '#/components/schemas/ProblemDetails'
 components:
   schemas:
+    AppliedOverrideDto:
+      type: object
+      properties:
+        overrideId:
+          type: string
+          format: uuid
+        effect:
+          $ref: '#/components/schemas/OverrideEffect'
+        scopeKind:
+          $ref: '#/components/schemas/OverrideScopeKind'
+        scopeRef:
+          type: string
+          nullable: true
+        originalPolicyVersionId:
+          type: string
+          format: uuid
+        replacementPolicyVersionId:
+          type: string
+          format: uuid
+          nullable: true
+      additionalProperties: false
+    ApproveOverrideRequest:
+      type: object
+      properties:
+        rationale:
+          type: string
+          nullable: true
+      additionalProperties: false
+      description: Audit rationale supplied by the override approver.
     AuditEventDto:
       type: object
       properties:
@@ -2512,6 +2595,14 @@ components:
         - Org
         - Agent
       type: string
+    BumpPolicyVersionRequest:
+      type: object
+      properties:
+        rationale:
+          type: string
+          nullable: true
+      additionalProperties: false
+      description: Audit rationale for creating a new Draft from a source version.
     BundleContentsBindingDto:
       type: object
       properties:
@@ -2934,6 +3025,9 @@ components:
         description:
           type: string
           nullable: true
+        rationale:
+          type: string
+          nullable: true
       additionalProperties: false
     CreatePolicyRequest:
       type: object
@@ -2989,6 +3083,9 @@ components:
         displayName:
           type: string
           nullable: true
+        rationale:
+          type: string
+          nullable: true
       additionalProperties: false
       description: "Request payload for `IScopeService.CreateAsync` (P4.2, story\r\nrivoli-ai/andy-policies#29). Andy.Policies.Application.Dtos.CreateScopeNodeRequest.ParentId is null for a\r\nroot Andy.Policies.Domain.Enums.ScopeType.Org node; non-null for any other type.\r\nThe service enforces the canonical Org→Tenant→Team→Repo→Template→Run\r\nladder."
     DeleteBindingBody:
@@ -2999,6 +3096,21 @@ components:
           nullable: true
       additionalProperties: false
       description: "Optional body for `DELETE /api/bindings/{id}`. New canonical\r\nshape — the existing `?rationale=` query parameter still\r\nworks (P9.5 follow-up #197)."
+    DeleteItemMutationRequest:
+      type: object
+      properties:
+        rationale:
+          type: string
+          nullable: true
+      additionalProperties: false
+    DeleteScopeNodeRequest:
+      type: object
+      properties:
+        rationale:
+          type: string
+          nullable: true
+      additionalProperties: false
+      description: Audit rationale for deleting a leaf scope node.
     EffectivePolicyDto:
       type: object
       properties:
@@ -3041,6 +3153,12 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/EffectivePolicyDto'
+          nullable: true
+        appliedOverrides:
+          type: array
+          items:
+            $ref: '#/components/schemas/AppliedOverrideDto'
+          description: "Deterministic explanation of every override that changed\r\n            the baseline set, including Exempt entries whose policy is absent\r\n            from Andy.Policies.Application.Dtos.EffectivePolicySetDto.Policies."
           nullable: true
       additionalProperties: false
       description: "Envelope for `IBindingResolutionService` results (P4.3, story\r\nrivoli-ai/andy-policies#30). Andy.Policies.Application.Dtos.EffectivePolicySetDto.ScopeNodeId is null when\r\nthe resolver was called with a target that does not map to a known\r\n`ScopeNode` — the service then degrades to P3 exact-match\r\nsemantics rather than returning 404."

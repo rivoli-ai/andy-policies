@@ -17,7 +17,10 @@ namespace Andy.Policies.Application.Interfaces;
 /// </summary>
 public interface IScopeService
 {
-    Task<ScopeNodeDto> CreateAsync(CreateScopeNodeRequest request, CancellationToken ct = default);
+    Task<ScopeNodeDto> CreateAsync(
+        CreateScopeNodeRequest request,
+        string actorSubjectId,
+        CancellationToken ct = default);
 
     Task<ScopeNodeDto?> GetAsync(Guid id, CancellationToken ct = default);
 
@@ -25,12 +28,20 @@ public interface IScopeService
 
     Task<IReadOnlyList<ScopeNodeDto>> ListAsync(ScopeType? type, CancellationToken ct = default);
 
-    Task<ScopeNodeDto> UpdateAsync(Guid id, UpdateScopeNodeRequest request, CancellationToken ct = default);
+    Task<ScopeNodeDto> UpdateAsync(
+        Guid id,
+        UpdateScopeNodeRequest request,
+        string actorSubjectId,
+        CancellationToken ct = default);
 
     /// <summary>Hard-delete a leaf node. Throws
     /// <c>ScopeHasDescendantsException</c> when the node still has
     /// children.</summary>
-    Task DeleteAsync(Guid id, CancellationToken ct = default);
+    Task DeleteAsync(
+        Guid id,
+        string actorSubjectId,
+        string? rationale,
+        CancellationToken ct = default);
 
     /// <summary>
     /// Walk-up: returns every ancestor of <paramref name="id"/> ordered

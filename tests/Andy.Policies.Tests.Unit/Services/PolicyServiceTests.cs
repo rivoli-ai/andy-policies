@@ -7,6 +7,7 @@ using Andy.Policies.Application.Queries;
 using Andy.Policies.Domain.Enums;
 using Andy.Policies.Infrastructure.Data;
 using Andy.Policies.Infrastructure.Services;
+using Andy.Policies.Tests.Unit.Fixtures;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Xunit;
@@ -15,6 +16,9 @@ namespace Andy.Policies.Tests.Unit.Services;
 
 public class PolicyServiceTests
 {
+    private static PolicyService NewService(AppDbContext db) =>
+        new(db, rationale: AllowAnyRationalePolicy.Instance);
+
     private static AppDbContext CreateInMemoryDb()
     {
         var options = new DbContextOptionsBuilder<AppDbContext>()
@@ -40,7 +44,7 @@ public class PolicyServiceTests
     public async Task CreateDraftAsync_AssignsVersionOne_ForNewPolicy()
     {
         using var db = CreateInMemoryDb();
-        var service = new PolicyService(db);
+        var service = NewService(db);
 
         var dto = await service.CreateDraftAsync(MinimalCreate("no-prod"), "sam");
 
@@ -56,7 +60,7 @@ public class PolicyServiceTests
     public async Task CreateDraftAsync_WhenSlugDuplicate_ThrowsConflictException()
     {
         using var db = CreateInMemoryDb();
-        var service = new PolicyService(db);
+        var service = NewService(db);
         await service.CreateDraftAsync(MinimalCreate("high-risk"), "sam");
 
         var ex = await Assert.ThrowsAsync<ConflictException>(
@@ -69,7 +73,7 @@ public class PolicyServiceTests
     public async Task CreateDraftAsync_WhenScopeContainsWildcard_ThrowsValidationException()
     {
         using var db = CreateInMemoryDb();
-        var service = new PolicyService(db);
+        var service = NewService(db);
 
         await Assert.ThrowsAsync<ValidationException>(
             () => service.CreateDraftAsync(MinimalCreate("bad-scope", scope: "*"), "sam"));
@@ -79,7 +83,7 @@ public class PolicyServiceTests
     public async Task CreateDraftAsync_WhenNameInvalid_ThrowsValidationException()
     {
         using var db = CreateInMemoryDb();
-        var service = new PolicyService(db);
+        var service = NewService(db);
 
         var ex = await Assert.ThrowsAsync<ValidationException>(
             () => service.CreateDraftAsync(MinimalCreate("BadSlug"), "sam"));
@@ -90,7 +94,7 @@ public class PolicyServiceTests
     public async Task CreateDraftAsync_WhenRulesJsonMalformed_ThrowsValidationException()
     {
         using var db = CreateInMemoryDb();
-        var service = new PolicyService(db);
+        var service = NewService(db);
         var request = MinimalCreate("bad-json") with { RulesJson = "{not: 'json'" };
 
         await Assert.ThrowsAsync<ValidationException>(
@@ -101,7 +105,7 @@ public class PolicyServiceTests
     public async Task CreateDraftAsync_WhenRulesJsonTooLarge_ThrowsValidationException()
     {
         using var db = CreateInMemoryDb();
-        var service = new PolicyService(db);
+        var service = NewService(db);
         // 65 KB — just over the 64 KB cap.
         var oversized = "{\"x\":\"" + new string('a', 64 * 1024 + 100) + "\"}";
         var request = MinimalCreate("big") with { RulesJson = oversized };
@@ -115,7 +119,7 @@ public class PolicyServiceTests
     public async Task CreateDraftAsync_CanonicalisesScopes()
     {
         using var db = CreateInMemoryDb();
-        var service = new PolicyService(db);
+        var service = NewService(db);
         var req = MinimalCreate("canonical") with { Scopes = new[] { "tool:write", "prod", "tool:write" } };
 
         var dto = await service.CreateDraftAsync(req, "sam");
@@ -127,7 +131,7 @@ public class PolicyServiceTests
     public async Task UpdateDraftAsync_MutatesFields_InDraftState()
     {
         using var db = CreateInMemoryDb();
-        var service = new PolicyService(db);
+        var service = NewService(db);
         var created = await service.CreateDraftAsync(MinimalCreate("mutable"), "sam");
 
         var updated = await service.UpdateDraftAsync(
@@ -150,7 +154,7 @@ public class PolicyServiceTests
     public async Task UpdateDraftAsync_WhenVersionIsPublished_ThrowsConflictException()
     {
         using var db = CreateInMemoryDb();
-        var service = new PolicyService(db);
+        var service = NewService(db);
         var created = await service.CreateDraftAsync(MinimalCreate("published"), "sam");
 
         // Forcefully transition the underlying entity to Active (P2 territory — simulated here).
@@ -168,7 +172,7 @@ public class PolicyServiceTests
     public async Task UpdateDraftAsync_WhenVersionNotFound_ThrowsNotFoundException()
     {
         using var db = CreateInMemoryDb();
-        var service = new PolicyService(db);
+        var service = NewService(db);
         var req = new UpdatePolicyVersionRequest("x", "must", "critical", Array.Empty<string>(), "{}");
 
         await Assert.ThrowsAsync<NotFoundException>(
@@ -179,7 +183,7 @@ public class PolicyServiceTests
     public async Task BumpDraftFromVersionAsync_AssignsNextVersionNumber()
     {
         using var db = CreateInMemoryDb();
-        var service = new PolicyService(db);
+        var service = NewService(db);
         var v1 = await service.CreateDraftAsync(MinimalCreate("bump-target"), "sam");
 
         // Simulate P2 publish so the draft-count guard does not fire.
@@ -198,7 +202,7 @@ public class PolicyServiceTests
     public async Task BumpDraftFromVersionAsync_WhenOpenDraftExists_ThrowsConflictException()
     {
         using var db = CreateInMemoryDb();
-        var service = new PolicyService(db);
+        var service = NewService(db);
         var v1 = await service.CreateDraftAsync(MinimalCreate("has-draft"), "sam");
         // v1 is still Draft — a bump attempt must refuse.
 
@@ -213,17 +217,17 @@ public class PolicyServiceTests
     public async Task BumpDraftFromVersionAsync_WhenPolicyMissing_ThrowsNotFoundException()
     {
         using var db = CreateInMemoryDb();
-        var service = new PolicyService(db);
+        var service = NewService(db);
 
         await Assert.ThrowsAsync<NotFoundException>(
             () => service.BumpDraftFromVersionAsync(Guid.NewGuid(), Guid.NewGuid(), "sam"));
     }
 
     [Fact]
-    public async Task GetActiveVersionAsync_ReturnsHighestNonDraft()
+    public async Task GetActiveVersionAsync_ReturnsActiveVersion()
     {
         using var db = CreateInMemoryDb();
-        var service = new PolicyService(db);
+        var service = NewService(db);
         var v1 = await service.CreateDraftAsync(MinimalCreate("active"), "sam");
         var entity = await db.PolicyVersions.FirstAsync(v => v.Id == v1.Id);
         entity.State = LifecycleState.Active;
@@ -235,11 +239,29 @@ public class PolicyServiceTests
         Assert.Equal(v1.Id, active!.Id);
     }
 
+    [Theory]
+    [InlineData(LifecycleState.Draft)]
+    [InlineData(LifecycleState.WindingDown)]
+    [InlineData(LifecycleState.Retired)]
+    public async Task GetActiveVersionAsync_DoesNotReturnAnyNonActiveState(LifecycleState state)
+    {
+        using var db = CreateInMemoryDb();
+        var service = NewService(db);
+        var version = await service.CreateDraftAsync(MinimalCreate($"not-active-{state.ToString().ToLowerInvariant()}"), "sam");
+        var entity = await db.PolicyVersions.FirstAsync(v => v.Id == version.Id);
+        entity.State = state;
+        await db.SaveChangesAsync();
+
+        var active = await service.GetActiveVersionAsync(version.PolicyId);
+
+        Assert.Null(active);
+    }
+
     [Fact]
     public async Task GetActiveVersionAsync_ReturnsNull_WhenAllDraft()
     {
         using var db = CreateInMemoryDb();
-        var service = new PolicyService(db);
+        var service = NewService(db);
         var v1 = await service.CreateDraftAsync(MinimalCreate("all-draft"), "sam");
 
         var active = await service.GetActiveVersionAsync(v1.PolicyId);
@@ -251,7 +273,7 @@ public class PolicyServiceTests
     public async Task ListPoliciesAsync_FiltersByScope_AgainstActiveVersion()
     {
         using var db = CreateInMemoryDb();
-        var service = new PolicyService(db);
+        var service = NewService(db);
 
         // Two published policies, one scoped to prod.
         var a = await service.CreateDraftAsync(MinimalCreate("a-policy", scope: "prod"), "sam");
@@ -274,7 +296,7 @@ public class PolicyServiceTests
     public async Task ListPoliciesAsync_ExcludesPoliciesWithNoActiveVersion_WhenFilterIsApplied()
     {
         using var db = CreateInMemoryDb();
-        var service = new PolicyService(db);
+        var service = NewService(db);
         await service.CreateDraftAsync(MinimalCreate("never-published", scope: "prod"), "sam");
 
         // A filter-scoped query on a policy that's still Draft should return nothing.
@@ -290,7 +312,7 @@ public class PolicyServiceTests
     public async Task ListPoliciesAsync_RespectsPagination()
     {
         using var db = CreateInMemoryDb();
-        var service = new PolicyService(db);
+        var service = NewService(db);
         for (var i = 0; i < 5; i++)
         {
             await service.CreateDraftAsync(MinimalCreate($"p-{i}"), "sam");
@@ -307,7 +329,7 @@ public class PolicyServiceTests
     public async Task ListPoliciesAsync_CapsTakeAtFiveHundred()
     {
         using var db = CreateInMemoryDb();
-        var service = new PolicyService(db);
+        var service = NewService(db);
         // Request well above the cap; service should not crash, just return whatever we have.
         var results = await service.ListPoliciesAsync(new ListPoliciesQuery(Take: 10_000));
 
@@ -318,7 +340,7 @@ public class PolicyServiceTests
     public async Task GetPolicyAsync_ReturnsNull_WhenMissing()
     {
         using var db = CreateInMemoryDb();
-        var service = new PolicyService(db);
+        var service = NewService(db);
 
         var result = await service.GetPolicyAsync(Guid.NewGuid());
 
@@ -329,7 +351,7 @@ public class PolicyServiceTests
     public async Task PolicyDto_ReportsVersionCountAndActiveVersionId()
     {
         using var db = CreateInMemoryDb();
-        var service = new PolicyService(db);
+        var service = NewService(db);
         var v1 = await service.CreateDraftAsync(MinimalCreate("count-me"), "sam");
 
         // Still all Draft — ActiveVersionId should be null.
@@ -353,7 +375,7 @@ public class PolicyServiceTests
     public async Task ProposeDraftAsync_FlipsReadyForReview_AndIsIdempotent()
     {
         using var db = CreateInMemoryDb();
-        var service = new PolicyService(db);
+        var service = NewService(db);
         var draft = await service.CreateDraftAsync(MinimalCreate("propose-1"), "author");
 
         var proposed = await service.ProposeDraftAsync(
@@ -376,7 +398,7 @@ public class PolicyServiceTests
     public async Task ProposeDraftAsync_NonDraftState_ThrowsConflict()
     {
         using var db = CreateInMemoryDb();
-        var service = new PolicyService(db);
+        var service = NewService(db);
         var draft = await service.CreateDraftAsync(MinimalCreate("propose-2"), "author");
 
         // Force out of Draft (skip the lifecycle service — this test is
@@ -393,7 +415,7 @@ public class PolicyServiceTests
     public async Task RejectDraftAsync_ClearsReadyForReview_AndRequiresRationale()
     {
         using var db = CreateInMemoryDb();
-        var service = new PolicyService(db);
+        var service = NewService(db);
         var draft = await service.CreateDraftAsync(MinimalCreate("reject-1"), "author");
         await service.ProposeDraftAsync(draft.PolicyId, draft.Id, "ready", "author");
 
@@ -412,7 +434,7 @@ public class PolicyServiceTests
     public async Task RejectDraftAsync_WhenNotReadyForReview_IsNoOp()
     {
         using var db = CreateInMemoryDb();
-        var service = new PolicyService(db);
+        var service = NewService(db);
         var draft = await service.CreateDraftAsync(MinimalCreate("reject-2"), "author");
 
         // Not yet proposed — reject is idempotent / no-op, no exception.
@@ -425,7 +447,7 @@ public class PolicyServiceTests
     public async Task ListPendingApprovalAsync_ReturnsOnlyDraftWithReadyForReview()
     {
         using var db = CreateInMemoryDb();
-        var service = new PolicyService(db);
+        var service = NewService(db);
 
         var d1 = await service.CreateDraftAsync(MinimalCreate("pending-1"), "author");
         var d2 = await service.CreateDraftAsync(MinimalCreate("pending-2"), "author");

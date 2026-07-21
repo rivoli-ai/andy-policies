@@ -207,6 +207,10 @@ public sealed class BundleService : IBundleService
             throw new ValidationException("Rationale is required and may not be empty or whitespace.");
         }
 
+        await using var transaction = _db.Database.IsRelational()
+            ? await _db.Database.BeginTransactionAsync(ct).ConfigureAwait(false)
+            : null;
+
         var bundle = await _db.Bundles
             .FirstOrDefaultAsync(b => b.Id == bundleId, ct)
             .ConfigureAwait(false);
@@ -230,6 +234,10 @@ public sealed class BundleService : IBundleService
             Rationale: rationale.Trim(),
             ActorSubjectId: actorSubjectId,
             ActorRoles: Array.Empty<string>()), ct).ConfigureAwait(false);
+        if (transaction is not null)
+        {
+            await transaction.CommitAsync(ct).ConfigureAwait(false);
+        }
         return true;
     }
 

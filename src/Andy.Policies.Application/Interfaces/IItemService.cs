@@ -10,6 +10,6 @@ public interface IItemService
     Task<IEnumerable<ItemDto>> GetAllAsync(CancellationToken ct = default);
     Task<ItemDto?> GetByIdAsync(Guid id, CancellationToken ct = default);
     Task<ItemDto> CreateAsync(CreateItemRequest request, string userId, CancellationToken ct = default);
-    Task<ItemDto?> UpdateAsync(Guid id, CreateItemRequest request, CancellationToken ct = default);
-    Task<bool> DeleteAsync(Guid id, CancellationToken ct = default);
+    Task<ItemDto?> UpdateAsync(Guid id, CreateItemRequest request, string actorSubjectId, CancellationToken ct = default);
+    Task<bool> DeleteAsync(Guid id, string actorSubjectId, string? rationale, CancellationToken ct = default);
 }

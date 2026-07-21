@@ -62,7 +62,8 @@ public class PolicyLifecycleToolsTests
             new RequireNonEmptyRationalePolicy(),
             new NoopDispatcher(),
             TimeProvider.System);
-        return (new PolicyService(db), lifecycle, db);
+        return (new PolicyService(
+            db, rationale: IntegrationAllowAnyRationalePolicy.Instance), lifecycle, db);
     }
 
     private static IHttpContextAccessor AccessorFor(string? subjectId)
@@ -226,11 +227,12 @@ public class PolicyLifecycleToolsTests
     }
 
     [Fact]
-    public void Matrix_ReturnsTheFourCanonicalRules()
+    public async Task Matrix_ReturnsTheFourCanonicalRules()
     {
         var (_, lifecycle, _) = NewServices();
 
-        var output = PolicyLifecycleTools.Matrix(lifecycle);
+        var output = await PolicyLifecycleTools.Matrix(
+            lifecycle, AccessorFor("test:user"), AllowRbac);
 
         output.Should().Contain("4 allowed transitions:");
         output.Should().Contain("Draft -> Active (Publish)");

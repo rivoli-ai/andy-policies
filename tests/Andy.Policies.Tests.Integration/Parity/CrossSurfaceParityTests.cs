@@ -7,11 +7,14 @@ using Andy.Policies.Api.Protos;
 using Andy.Policies.Application.Dtos;
 using Andy.Policies.Application.Interfaces;
 using Andy.Policies.Tests.Integration.Controllers;
+using Andy.Policies.Tests.Integration.Fixtures;
 using FluentAssertions;
 using Grpc.Net.Client;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
+
+using static Andy.Policies.Tests.Integration.Fixtures.McpToolStubs;
 
 namespace Andy.Policies.Tests.Integration.Parity;
 
@@ -85,7 +88,8 @@ public class CrossSurfaceParityTests : IClassFixture<PoliciesApiFactory>
 
         using var scope = _factory.Services.CreateScope();
         var service = scope.ServiceProvider.GetRequiredService<IPolicyService>();
-        var mcp = await PolicyTools.GetPolicy(service, seeded.Id.ToString());
+        var mcp = await PolicyTools.GetPolicy(
+            service, AccessorFor("test:user"), AllowAllRbac, seeded.Id.ToString());
 
         rest.Should().NotBeNull();
         mcp.Should().Contain(rest!.Name);
@@ -136,7 +140,8 @@ public class CrossSurfaceParityTests : IClassFixture<PoliciesApiFactory>
 
         using var scope = _factory.Services.CreateScope();
         var service = scope.ServiceProvider.GetRequiredService<IPolicyService>();
-        var mcp = await PolicyTools.GetActiveVersion(service, seeded.Id.ToString());
+        var mcp = await PolicyTools.GetActiveVersion(
+            service, AccessorFor("test:user"), AllowAllRbac, seeded.Id.ToString());
         mcp.Should().Contain("no active version");
     }
 }

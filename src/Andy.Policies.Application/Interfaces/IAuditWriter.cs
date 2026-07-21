@@ -4,11 +4,9 @@
 namespace Andy.Policies.Application.Interfaces;
 
 /// <summary>
-/// Append-only audit writer hook (P3.2, story rivoli-ai/andy-policies#20).
-/// Per-mutation services call this to record an audit row; the real
-/// hash-chained implementation lands in Epic P6
-/// (rivoli-ai/andy-policies#6). A no-op implementation in Infrastructure
-/// keeps DI satisfied until then.
+/// Append-only mutation audit adapter. Production DI maps this interface
+/// to the tamper-evident <see cref="IAuditChain"/> implementation; callers
+/// append inside the same database transaction as the catalog mutation.
 /// </summary>
 public interface IAuditWriter
 {

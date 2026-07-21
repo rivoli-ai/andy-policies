@@ -3,6 +3,7 @@
 
 using System.ComponentModel;
 using System.Security.Claims;
+using Andy.Policies.Api.Authorization;
 using System.Text;
 using Andy.Policies.Api.Mcp.Authorization;
 using Andy.Policies.Application.Dtos;
@@ -82,8 +83,16 @@ public static class PolicyLifecycleTools
     [McpServerTool(Name = "policy.lifecycle.matrix"), Description(
         "Returns the canonical lifecycle transition matrix as one rule per line. " +
         "Read-only and side-effect free; safe to call from agent planning loops.")]
-    public static string Matrix(ILifecycleTransitionService transitions)
+    [RbacGuard("andy-policies:policy:read")]
+    public static async Task<string> Matrix(
+        ILifecycleTransitionService transitions,
+        IHttpContextAccessor httpContext,
+        IRbacChecker rbac,
+        CancellationToken ct = default)
     {
+        var denial = await McpRbacGuard.GetDenialAsync(
+            rbac, httpContext, "andy-policies:policy:read", "policy.lifecycle", null, ct);
+        if (denial is not null) return denial;
         var rules = transitions.GetMatrix();
         var sb = new StringBuilder();
         sb.AppendLine($"{rules.Count} allowed transition{(rules.Count == 1 ? "" : "s")}:");
@@ -171,8 +180,7 @@ public static class PolicyLifecycleTools
     {
         var user = accessor.HttpContext?.User;
         if (user is null) return null;
-        var sub = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? user.Identity?.Name;
-        return string.IsNullOrEmpty(sub) ? null : sub;
+        return ActorSubjectResolver.Resolve(user);
     }
 
     private static string FormatVersionDetail(PolicyVersionDto v)

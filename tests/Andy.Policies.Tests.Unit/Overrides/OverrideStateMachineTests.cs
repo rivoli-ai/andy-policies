@@ -53,7 +53,9 @@ public class OverrideStateMachineTests
     private static (OverrideService svc, AppDbContext db) NewService()
     {
         var db = InMemoryDbFixture.Create();
-        var svc = new OverrideService(db, new AllowRbac(), new NoopDispatcher(), TimeProvider.System);
+        var svc = new OverrideService(
+            db, new AllowRbac(), new NoopDispatcher(), TimeProvider.System,
+            rationale: AllowAnyRationalePolicy.Instance);
         return (svc, db);
     }
 

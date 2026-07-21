@@ -47,5 +47,5 @@ public sealed record PlanEvaluationGoalView(
 public sealed record PlanEvaluationTaskView(
     Guid TaskId,
     string? EffectiveAgentId,
-    IReadOnlyList<string> ToolsAllowed,
+    IReadOnlyList<string>? ToolsAllowed,
     string? TargetEnv);

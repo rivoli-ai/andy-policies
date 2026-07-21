@@ -3,6 +3,7 @@
 
 using System.Collections.Concurrent;
 using System.Security.Claims;
+using Andy.Policies.Api.Authorization;
 using Andy.Policies.Application.Interfaces;
 using Andy.Policies.Application.Manifest;
 using Microsoft.AspNetCore.Authorization;
@@ -66,8 +67,7 @@ public sealed class AuthController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<IReadOnlyList<string>>> Permissions(CancellationToken ct)
     {
-        var subjectId = User.FindFirstValue(ClaimTypes.NameIdentifier)
-            ?? User.Identity?.Name;
+        var subjectId = ActorSubjectResolver.Resolve(User);
         if (string.IsNullOrEmpty(subjectId))
         {
             // [Authorize] should have already returned 401; belt to the

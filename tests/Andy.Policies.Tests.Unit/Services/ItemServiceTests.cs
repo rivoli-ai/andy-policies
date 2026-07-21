@@ -4,6 +4,7 @@
 using Andy.Policies.Application.Dtos;
 using Andy.Policies.Infrastructure.Data;
 using Andy.Policies.Infrastructure.Services;
+using Andy.Policies.Tests.Unit.Fixtures;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 
@@ -11,6 +12,9 @@ namespace Andy.Policies.Tests.Unit.Services;
 
 public class ItemServiceTests
 {
+    private static ItemService NewService(AppDbContext db) => new(
+        db, TestAuditWriter.Instance, AllowAnyRationalePolicy.Instance);
+
     private static AppDbContext CreateInMemoryDb()
     {
         var options = new DbContextOptionsBuilder<AppDbContext>()
@@ -23,7 +27,7 @@ public class ItemServiceTests
     public async Task CreateAsync_ShouldReturnNewItem()
     {
         using var db = CreateInMemoryDb();
-        var service = new ItemService(db);
+        var service = NewService(db);
         var request = new CreateItemRequest("Test Item", "A test description");
 
         var result = await service.CreateAsync(request, "test-user");
@@ -39,7 +43,7 @@ public class ItemServiceTests
     public async Task GetAllAsync_ShouldReturnAllItems()
     {
         using var db = CreateInMemoryDb();
-        var service = new ItemService(db);
+        var service = NewService(db);
         await service.CreateAsync(new CreateItemRequest("Item 1", null), "user1");
         await service.CreateAsync(new CreateItemRequest("Item 2", null), "user2");
 
@@ -52,7 +56,7 @@ public class ItemServiceTests
     public async Task GetByIdAsync_WhenNotFound_ShouldReturnNull()
     {
         using var db = CreateInMemoryDb();
-        var service = new ItemService(db);
+        var service = NewService(db);
 
         var result = await service.GetByIdAsync(Guid.NewGuid());
 
@@ -63,10 +67,11 @@ public class ItemServiceTests
     public async Task UpdateAsync_ShouldUpdateItem()
     {
         using var db = CreateInMemoryDb();
-        var service = new ItemService(db);
+        var service = NewService(db);
         var created = await service.CreateAsync(new CreateItemRequest("Original", null), "user1");
 
-        var updated = await service.UpdateAsync(created.Id, new CreateItemRequest("Updated", "New desc"));
+        var updated = await service.UpdateAsync(
+            created.Id, new CreateItemRequest("Updated", "New desc"), "user1");
 
         Assert.NotNull(updated);
         Assert.Equal("Updated", updated!.Name);
@@ -78,10 +83,10 @@ public class ItemServiceTests
     public async Task DeleteAsync_ShouldRemoveItem()
     {
         using var db = CreateInMemoryDb();
-        var service = new ItemService(db);
+        var service = NewService(db);
         var created = await service.CreateAsync(new CreateItemRequest("To Delete", null), "user1");
 
-        var deleted = await service.DeleteAsync(created.Id);
+        var deleted = await service.DeleteAsync(created.Id, "user1", "delete test item");
         var found = await service.GetByIdAsync(created.Id);
 
         Assert.True(deleted);
@@ -92,9 +97,9 @@ public class ItemServiceTests
     public async Task DeleteAsync_WhenNotFound_ShouldReturnFalse()
     {
         using var db = CreateInMemoryDb();
-        var service = new ItemService(db);
+        var service = NewService(db);
 
-        var deleted = await service.DeleteAsync(Guid.NewGuid());
+        var deleted = await service.DeleteAsync(Guid.NewGuid(), "user1", "missing item");
 
         Assert.False(deleted);
     }

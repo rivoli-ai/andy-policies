@@ -26,9 +26,10 @@ public sealed class BindingService : IBindingService
     private readonly IAuditWriter _audit;
     private readonly TimeProvider _clock;
     private readonly ITightenOnlyValidator? _tightenValidator;
+    private readonly IRationalePolicy _rationale;
 
     public BindingService(AppDbContext db, IAuditWriter audit, TimeProvider clock)
-        : this(db, audit, clock, tightenValidator: null) { }
+        : this(db, audit, clock, tightenValidator: null, rationale: null) { }
 
     /// <summary>
     /// Optional <see cref="ITightenOnlyValidator"/> overload (P4.4,
@@ -44,12 +45,14 @@ public sealed class BindingService : IBindingService
         AppDbContext db,
         IAuditWriter audit,
         TimeProvider clock,
-        ITightenOnlyValidator? tightenValidator)
+        ITightenOnlyValidator? tightenValidator,
+        IRationalePolicy? rationale = null)
     {
         _db = db;
         _audit = audit;
         _clock = clock;
         _tightenValidator = tightenValidator;
+        _rationale = rationale ?? new RequireNonEmptyRationalePolicy();
     }
 
     public async Task<BindingDto> CreateAsync(
@@ -59,6 +62,11 @@ public sealed class BindingService : IBindingService
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentException.ThrowIfNullOrEmpty(actorSubjectId);
+        ValidateRationale(request.Rationale);
+
+        await using var transaction = _db.Database.IsRelational()
+            ? await _db.Database.BeginTransactionAsync(ct).ConfigureAwait(false)
+            : null;
 
         var targetRef = (request.TargetRef ?? string.Empty).Trim();
         if (string.IsNullOrEmpty(targetRef))
@@ -117,6 +125,11 @@ public sealed class BindingService : IBindingService
             "binding.created", binding.Id, actorSubjectId, request.Rationale, ct)
             .ConfigureAwait(false);
 
+        if (transaction is not null)
+        {
+            await transaction.CommitAsync(ct).ConfigureAwait(false);
+        }
+
         return ToDto(binding);
     }
 
@@ -127,6 +140,11 @@ public sealed class BindingService : IBindingService
         CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(actorSubjectId);
+        ValidateRationale(rationale);
+
+        await using var transaction = _db.Database.IsRelational()
+            ? await _db.Database.BeginTransactionAsync(ct).ConfigureAwait(false)
+            : null;
 
         var binding = await _db.Bindings
             .FirstOrDefaultAsync(b => b.Id == bindingId, ct)
@@ -146,6 +164,10 @@ public sealed class BindingService : IBindingService
         await _audit.AppendAsync(
             "binding.deleted", binding.Id, actorSubjectId, rationale, ct)
             .ConfigureAwait(false);
+        if (transaction is not null)
+        {
+            await transaction.CommitAsync(ct).ConfigureAwait(false);
+        }
     }
 
     public async Task<BindingDto?> GetAsync(Guid bindingId, CancellationToken ct = default)
@@ -155,6 +177,15 @@ public sealed class BindingService : IBindingService
             .FirstOrDefaultAsync(b => b.Id == bindingId, ct)
             .ConfigureAwait(false);
         return binding is null ? null : ToDto(binding);
+    }
+
+    private void ValidateRationale(string? rationale)
+    {
+        var error = _rationale.ValidateRationale(rationale);
+        if (error is not null)
+        {
+            throw new RationaleRequiredException(error);
+        }
     }
 
     public async Task<IReadOnlyList<BindingDto>> ListByPolicyVersionAsync(

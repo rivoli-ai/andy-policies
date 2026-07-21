@@ -50,17 +50,23 @@ public sealed class OverrideService : IOverrideService
     private readonly IRbacChecker _rbac;
     private readonly IDomainEventDispatcher _events;
     private readonly TimeProvider _clock;
+    private readonly IAuditWriter? _audit;
+    private readonly IRationalePolicy _rationale;
 
     public OverrideService(
         AppDbContext db,
         IRbacChecker rbac,
         IDomainEventDispatcher events,
-        TimeProvider clock)
+        TimeProvider clock,
+        IAuditWriter? audit = null,
+        IRationalePolicy? rationale = null)
     {
         _db = db;
         _rbac = rbac;
         _events = events;
         _clock = clock;
+        _audit = audit;
+        _rationale = rationale ?? new RequireNonEmptyRationalePolicy();
     }
 
     public async Task<OverrideDto> ProposeAsync(
@@ -70,6 +76,10 @@ public sealed class OverrideService : IOverrideService
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentException.ThrowIfNullOrEmpty(proposerSubjectId);
+
+        await using var transaction = _db.Database.IsRelational()
+            ? await _db.Database.BeginTransactionAsync(ct).ConfigureAwait(false)
+            : null;
 
         var scopeRef = (request.ScopeRef ?? string.Empty).Trim();
         if (string.IsNullOrEmpty(scopeRef))
@@ -157,6 +167,16 @@ public sealed class OverrideService : IOverrideService
         };
         _db.Overrides.Add(ovr);
         await _db.SaveChangesAsync(ct).ConfigureAwait(false);
+        if (_audit is not null)
+        {
+            await _audit.AppendAsync(
+                "override.proposed", ovr.Id, proposerSubjectId, rationale, ct)
+                .ConfigureAwait(false);
+        }
+        if (transaction is not null)
+        {
+            await transaction.CommitAsync(ct).ConfigureAwait(false);
+        }
 
         await _events.DispatchAsync(new OverrideProposed(
             OverrideId: ovr.Id,
@@ -173,9 +193,11 @@ public sealed class OverrideService : IOverrideService
     public async Task<OverrideDto> ApproveAsync(
         Guid id,
         string approverSubjectId,
+        string? rationale = null,
         CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(approverSubjectId);
+        ValidateRationale(rationale);
 
         await using var transaction = await _db.Database
             .BeginTransactionAsync(IsolationLevel.Serializable, ct)
@@ -222,6 +244,12 @@ public sealed class OverrideService : IOverrideService
         ovr.ApproverSubjectId = approverSubjectId;
         ovr.ApprovedAt = now;
         await _db.SaveChangesAsync(ct).ConfigureAwait(false);
+        if (_audit is not null)
+        {
+            await _audit.AppendAsync(
+                "override.approved", ovr.Id, approverSubjectId, rationale, ct)
+                .ConfigureAwait(false);
+        }
         await transaction.CommitAsync(ct).ConfigureAwait(false);
 
         await _events.DispatchAsync(new OverrideApproved(
@@ -290,6 +318,12 @@ public sealed class OverrideService : IOverrideService
         ovr.State = OverrideState.Revoked;
         ovr.RevocationReason = reason;
         await _db.SaveChangesAsync(ct).ConfigureAwait(false);
+        if (_audit is not null)
+        {
+            await _audit.AppendAsync(
+                "override.revoked", ovr.Id, actorSubjectId, reason, ct)
+                .ConfigureAwait(false);
+        }
         await transaction.CommitAsync(ct).ConfigureAwait(false);
 
         await _events.DispatchAsync(new OverrideRevoked(
@@ -359,6 +393,12 @@ public sealed class OverrideService : IOverrideService
         ovr.State = OverrideState.Rejected;
         ovr.RevocationReason = reason;
         await _db.SaveChangesAsync(ct).ConfigureAwait(false);
+        if (_audit is not null)
+        {
+            await _audit.AppendAsync(
+                "override.rejected", ovr.Id, actorSubjectId, reason, ct)
+                .ConfigureAwait(false);
+        }
         await transaction.CommitAsync(ct).ConfigureAwait(false);
 
         await _events.DispatchAsync(new OverrideRejected(
@@ -403,6 +443,12 @@ public sealed class OverrideService : IOverrideService
 
         ovr.State = OverrideState.Expired;
         await _db.SaveChangesAsync(ct).ConfigureAwait(false);
+        if (_audit is not null)
+        {
+            await _audit.AppendAsync(
+                "override.expired", ovr.Id, "system:reaper", "automatic expiry", ct)
+                .ConfigureAwait(false);
+        }
         await transaction.CommitAsync(ct).ConfigureAwait(false);
 
         await _events.DispatchAsync(new OverrideExpired(
@@ -465,6 +511,15 @@ public sealed class OverrideService : IOverrideService
             .OrderBy(o => o.ApprovedAt)
             .Select(ToDto)
             .ToList();
+    }
+
+    private void ValidateRationale(string? rationale)
+    {
+        var error = _rationale.ValidateRationale(rationale);
+        if (error is not null)
+        {
+            throw new RationaleRequiredException(error);
+        }
     }
 
     private static OverrideDto ToDto(Override o) => new(

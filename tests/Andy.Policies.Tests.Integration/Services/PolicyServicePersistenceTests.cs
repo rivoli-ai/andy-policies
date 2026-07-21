@@ -55,7 +55,8 @@ public class PolicyServicePersistenceTests : IDisposable
     public async Task CreateDraftAsync_PersistsBothPolicyAndFirstVersion()
     {
         using var db = NewContext();
-        var service = new PolicyService(db);
+        var service = new PolicyService(
+            db, rationale: IntegrationAllowAnyRationalePolicy.Instance);
 
         var dto = await service.CreateDraftAsync(MinimalCreate("persistence"), "sam");
 
@@ -70,7 +71,8 @@ public class PolicyServicePersistenceTests : IDisposable
     public async Task CreateDraftAsync_OnSlugConflict_DoesNotLeakRows()
     {
         using var db = NewContext();
-        var service = new PolicyService(db);
+        var service = new PolicyService(
+            db, rationale: IntegrationAllowAnyRationalePolicy.Instance);
         await service.CreateDraftAsync(MinimalCreate("same-slug"), "sam");
 
         await Assert.ThrowsAsync<ConflictException>(
@@ -85,7 +87,8 @@ public class PolicyServicePersistenceTests : IDisposable
     public async Task BumpDraftFromVersionAsync_UnderPartialUniqueIndex_RejectsSecondOpenDraft()
     {
         using var db = NewContext();
-        var service = new PolicyService(db);
+        var service = new PolicyService(
+            db, rationale: IntegrationAllowAnyRationalePolicy.Instance);
         var v1 = await service.CreateDraftAsync(MinimalCreate("only-one-draft"), "sam");
 
         // v1 is still in Draft — service guard triggers BEFORE the DB partial index would.
@@ -107,7 +110,8 @@ public class PolicyServicePersistenceTests : IDisposable
         // Use service to create the initial draft.
         using (var setupDb = NewContext())
         {
-            var service = new PolicyService(setupDb);
+            var service = new PolicyService(
+                setupDb, rationale: IntegrationAllowAnyRationalePolicy.Instance);
             var v1 = await service.CreateDraftAsync(MinimalCreate("race"), "sam");
             versionId = v1.Id;
             policyId = v1.PolicyId;
@@ -116,8 +120,10 @@ public class PolicyServicePersistenceTests : IDisposable
         // Two parallel services each load the entity at Revision=0.
         using var contextA = NewContext();
         using var contextB = NewContext();
-        var serviceA = new PolicyService(contextA);
-        var serviceB = new PolicyService(contextB);
+        var serviceA = new PolicyService(
+            contextA, rationale: IntegrationAllowAnyRationalePolicy.Instance);
+        var serviceB = new PolicyService(
+            contextB, rationale: IntegrationAllowAnyRationalePolicy.Instance);
 
         // Service A writes first — Revision advances from 0 to 1.
         await serviceA.UpdateDraftAsync(policyId, versionId,
@@ -145,7 +151,8 @@ public class PolicyServicePersistenceTests : IDisposable
     public async Task CreateDraftAsync_StoresCanonicalisedScopes_InPersistedRow()
     {
         using var db = NewContext();
-        var service = new PolicyService(db);
+        var service = new PolicyService(
+            db, rationale: IntegrationAllowAnyRationalePolicy.Instance);
         var req = MinimalCreate("scope-order") with { Scopes = new[] { "tool:z", "tool:a", "prod" } };
 
         var dto = await service.CreateDraftAsync(req, "sam");
@@ -159,7 +166,8 @@ public class PolicyServicePersistenceTests : IDisposable
     public async Task GetActiveVersionAsync_AfterForcedActiveTransition_ResolvesVersion()
     {
         using var db = NewContext();
-        var service = new PolicyService(db);
+        var service = new PolicyService(
+            db, rationale: IntegrationAllowAnyRationalePolicy.Instance);
         var v1 = await service.CreateDraftAsync(MinimalCreate("active-flow"), "sam");
 
         using (var transitionDb = NewContext())

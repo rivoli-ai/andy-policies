@@ -86,10 +86,10 @@ applies the same self-approval domain invariant before the RBAC call:
 | Surface | Enforcement seam | Implemented in |
 |---|---|---|
 | REST | `[Authorize(Policy = "andy-policies:…")]` per controller action; `RbacAuthorizationHandler` extracts subject + groups + route-derived resource instance and delegates. | P7.4 (#57) |
-| MCP | `McpRbacGuard.EnsureAsync` invoked at the top of every mutating tool body; denials translate to a typed `policy.<area>.forbidden: <reason>` tool result. `[RbacGuard]` attribute pins the contract for review + reflective coverage tests. | P7.6 (#64) |
-| gRPC | Global `RbacServerInterceptor` consults `GrpcMethodPermissionMap`; unmapped RPCs on enforced services hard-fail with `RpcException(Internal)` (fail-closed, never silent allow). `ItemsService` is the one allow-listed bypass (template scaffolding). | P7.6 (#64) |
+| MCP | `McpRbacGuard.EnsureAsync` guards every business tool, reads and writes; denials translate to a typed `policy.<area>.forbidden: <reason>` result. `[RbacGuard]` plus reflection coverage prevents unguarded additions. Public help tools are the sole explicit allowlist. | P7.6 (#64) |
+| gRPC | Global `RbacServerInterceptor` consults `GrpcMethodPermissionMap`; unmapped RPCs on every business service, including `ItemsService`, hard-fail closed. | P7.6 (#64) |
 
-A reflection-driven coverage test
-(`GrpcPermissionMapCoverageTests`) walks every RPC on the proto-generated
-`*ServiceBase` classes and asserts a permission code is mapped — adding a new
-RPC without a mapping fails CI rather than the runtime.
+Reflection-driven coverage walks every proto-generated `*ServiceBase` RPC and
+every `[McpServerTool]`, asserting a valid permission code. Adding a new RPC or
+business tool without a mapping fails CI rather than silently allowing runtime
+access.

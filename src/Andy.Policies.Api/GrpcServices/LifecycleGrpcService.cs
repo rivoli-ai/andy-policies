@@ -1,6 +1,7 @@
 // Copyright (c) Rivoli AI 2026. All rights reserved.
 // Licensed under the Apache License, Version 2.0.
 
+using Andy.Policies.Api.Authorization;
 using Andy.Policies.Api.Protos;
 using Andy.Policies.Application.Dtos;
 using Andy.Policies.Application.Exceptions;
@@ -116,8 +117,7 @@ public class LifecycleGrpcService : Protos.LifecycleService.LifecycleServiceBase
         // act when no subject id is on the principal rather than write a fallback
         // string into the catalog. The MCP / gRPC paths share the same posture.
         var http = context.GetHttpContext();
-        var sub = http?.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
-            ?? http?.User.Identity?.Name;
+        var sub = ActorSubjectResolver.Resolve(http?.User);
         if (string.IsNullOrEmpty(sub))
         {
             throw new RpcException(new Status(StatusCode.Unauthenticated,

@@ -30,10 +30,12 @@ public class BindingServiceTightenOnlyTests
         NewServices()
     {
         var db = InMemoryDbFixture.Create();
-        var scopes = new ScopeService(db, TimeProvider.System);
+        var scopes = new ScopeService(
+            db, TimeProvider.System, TestAuditWriter.Instance, AllowAnyRationalePolicy.Instance);
         var validator = new TightenOnlyValidator(db, scopes);
         var audit = new NoopAuditWriter(NullLogger<NoopAuditWriter>.Instance);
-        var binding = new BindingService(db, audit, TimeProvider.System, validator);
+        var binding = new BindingService(
+            db, audit, TimeProvider.System, validator, AllowAnyRationalePolicy.Instance);
         return (binding, scopes, validator, db);
     }
 

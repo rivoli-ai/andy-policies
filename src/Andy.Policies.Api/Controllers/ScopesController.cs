@@ -1,12 +1,14 @@
 // Copyright (c) Rivoli AI 2026. All rights reserved.
 // Licensed under the Apache License, Version 2.0.
 
+using Andy.Policies.Api.Authorization;
 using Andy.Policies.Api.Filters;
 using Andy.Policies.Application.Dtos;
 using Andy.Policies.Application.Interfaces;
 using Andy.Policies.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace Andy.Policies.Api.Controllers;
 
@@ -98,15 +100,23 @@ public sealed class ScopesController : ControllerBase
     public async Task<ActionResult<EffectivePolicySetDto>> Effective(
         Guid id,
         [FromQuery] Guid? bundleId,
+        [FromQuery] string? principalSubjectId,
+        [FromQuery(Name = "cohort")] string[]? cohorts,
         [FromServices] IBundleResolver bundleResolver,
         CancellationToken ct)
     {
+        var context = new OverrideResolutionContext(
+            string.IsNullOrWhiteSpace(principalSubjectId)
+                ? ActorSubjectResolver.Require(User)
+                : principalSubjectId.Trim(),
+            cohorts ?? Array.Empty<string>());
         if (bundleId is { } pinned)
         {
-            var snapshotResult = await bundleResolver.ResolveEffectiveForScopeAsync(pinned, id, ct);
+            var snapshotResult = await bundleResolver.ResolveEffectiveForScopeAsync(
+                pinned, id, context, ct);
             return snapshotResult is null ? NotFound() : Ok(snapshotResult);
         }
-        var result = await _resolver.ResolveForScopeAsync(id, ct);
+        var result = await _resolver.ResolveForScopeAsync(id, context, ct);
         return Ok(result);
     }
 
@@ -128,7 +138,8 @@ public sealed class ScopesController : ControllerBase
         [FromBody] CreateScopeNodeRequest request,
         CancellationToken ct)
     {
-        var dto = await _scopes.CreateAsync(request, ct);
+        var dto = await _scopes.CreateAsync(
+            request, ActorSubjectResolver.Require(User), ct);
         return CreatedAtAction(nameof(Get), new { id = dto.Id }, dto);
     }
 
@@ -143,9 +154,13 @@ public sealed class ScopesController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
+    public async Task<IActionResult> Delete(
+        Guid id,
+        [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] DeleteScopeNodeRequest? request,
+        CancellationToken ct)
     {
-        await _scopes.DeleteAsync(id, ct);
+        await _scopes.DeleteAsync(
+            id, ActorSubjectResolver.Require(User), request?.Rationale, ct);
         return NoContent();
     }
 }

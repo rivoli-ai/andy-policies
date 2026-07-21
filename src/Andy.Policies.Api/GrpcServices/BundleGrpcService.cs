@@ -2,6 +2,7 @@
 // Licensed under the Apache License, Version 2.0.
 
 using System.Security.Claims;
+using Andy.Policies.Api.Authorization;
 using Andy.Policies.Api.Protos;
 using Andy.Policies.Application.Exceptions;
 using Andy.Policies.Application.Interfaces;
@@ -217,7 +218,7 @@ public class BundleGrpcService : Andy.Policies.Api.Protos.BundleService.BundleSe
     private static string ResolveActor(ServerCallContext context)
     {
         var user = context.GetHttpContext().User;
-        var sub = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? user.Identity?.Name;
+        var sub = ActorSubjectResolver.Resolve(user);
         if (string.IsNullOrEmpty(sub))
         {
             throw new RpcException(new Status(StatusCode.Unauthenticated, "no subject claim"));

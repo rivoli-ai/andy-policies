@@ -3,9 +3,11 @@
 
 using System.ComponentModel;
 using System.Text;
+using Andy.Policies.Api.Mcp.Authorization;
 using Andy.Policies.Application.Dtos;
 using Andy.Policies.Application.Interfaces;
 using Andy.Policies.Application.Queries;
+using Microsoft.AspNetCore.Http;
 using ModelContextProtocol.Server;
 
 namespace Andy.Policies.Api.Mcp;
@@ -24,20 +26,27 @@ public static class PolicyTools
 {
     [McpServerTool(Name = "policy.list"), Description(
         "List policies with optional filters. Filters apply against the active version " +
-        "of each policy (highest non-Draft); policies with no active version are excluded " +
+        "of each policy (LifecycleState.Active only); policies with no active version are excluded " +
         "from filtered results but appear in unfiltered ones. Returns a summary line per " +
         "policy with name, version count, and active version id.")]
+    [RbacGuard("andy-policies:policy:read")]
     public static async Task<string> ListPolicies(
         IPolicyService policies,
+        IHttpContextAccessor httpContext,
+        IRbacChecker rbac,
         [Description("Optional case-sensitive prefix on Policy.Name (e.g. 'risk-')")] string? namePrefix = null,
         [Description("Optional exact-match scope membership filter (e.g. 'prod')")] string? scope = null,
         [Description("Optional enforcement filter — MAY / SHOULD / MUST (case-insensitive)")] string? enforcement = null,
         [Description("Optional severity filter — info / moderate / critical (case-insensitive)")] string? severity = null,
         [Description("Pagination offset (default 0)")] int skip = 0,
-        [Description("Page size (default 100, capped at 500)")] int take = 100)
+        [Description("Page size (default 100, capped at 500)")] int take = 100,
+        CancellationToken ct = default)
     {
+        var denial = await McpRbacGuard.GetDenialAsync(
+            rbac, httpContext, "andy-policies:policy:read", "policy", null, ct);
+        if (denial is not null) return denial;
         var query = new ListPoliciesQuery(namePrefix, scope, enforcement, severity, skip, take);
-        var results = await policies.ListPoliciesAsync(query);
+        var results = await policies.ListPoliciesAsync(query, ct);
 
         if (results.Count == 0)
         {
@@ -57,16 +66,23 @@ public static class PolicyTools
         "Get a single policy by id. Returns the stable identity (name, description) plus " +
         "version-history summary (count + active version id, if any). Use " +
         "policy.version.list to enumerate the versions themselves.")]
+    [RbacGuard("andy-policies:policy:read")]
     public static async Task<string> GetPolicy(
         IPolicyService policies,
-        [Description("Policy id (GUID)")] string policyId)
+        IHttpContextAccessor httpContext,
+        IRbacChecker rbac,
+        [Description("Policy id (GUID)")] string policyId,
+        CancellationToken ct = default)
     {
+        var denial = await McpRbacGuard.GetDenialAsync(
+            rbac, httpContext, "andy-policies:policy:read", "policy", policyId, ct);
+        if (denial is not null) return denial;
         if (!Guid.TryParse(policyId, out var id))
         {
             return $"Invalid policy id: '{policyId}' is not a valid GUID.";
         }
 
-        var policy = await policies.GetPolicyAsync(id);
+        var policy = await policies.GetPolicyAsync(id, ct);
         if (policy is null)
         {
             return $"Policy {id} not found.";
@@ -78,16 +94,23 @@ public static class PolicyTools
     [McpServerTool(Name = "policy.version.list"), Description(
         "List all versions of a policy in descending version order (newest first). Each " +
         "line shows version number, lifecycle state, enforcement, severity, and proposer.")]
+    [RbacGuard("andy-policies:policy:read")]
     public static async Task<string> ListVersions(
         IPolicyService policies,
-        [Description("Policy id (GUID)")] string policyId)
+        IHttpContextAccessor httpContext,
+        IRbacChecker rbac,
+        [Description("Policy id (GUID)")] string policyId,
+        CancellationToken ct = default)
     {
+        var denial = await McpRbacGuard.GetDenialAsync(
+            rbac, httpContext, "andy-policies:policy:read", "policy", policyId, ct);
+        if (denial is not null) return denial;
         if (!Guid.TryParse(policyId, out var id))
         {
             return $"Invalid policy id: '{policyId}' is not a valid GUID.";
         }
 
-        var versions = await policies.ListVersionsAsync(id);
+        var versions = await policies.ListVersionsAsync(id, ct);
         if (versions.Count == 0)
         {
             return $"No versions found for policy {id}. Either the policy does not exist or has no versions yet.";
@@ -105,11 +128,18 @@ public static class PolicyTools
     [McpServerTool(Name = "policy.version.get"), Description(
         "Get a specific version of a policy. Returns full content: enforcement, severity, " +
         "scopes, summary, and the rules JSON blob.")]
+    [RbacGuard("andy-policies:policy:read")]
     public static async Task<string> GetVersion(
         IPolicyService policies,
+        IHttpContextAccessor httpContext,
+        IRbacChecker rbac,
         [Description("Policy id (GUID)")] string policyId,
-        [Description("Version id (GUID) — use policy.version.list to discover")] string versionId)
+        [Description("Version id (GUID) — use policy.version.list to discover")] string versionId,
+        CancellationToken ct = default)
     {
+        var denial = await McpRbacGuard.GetDenialAsync(
+            rbac, httpContext, "andy-policies:policy:read", "policy", policyId, ct);
+        if (denial is not null) return denial;
         if (!Guid.TryParse(policyId, out var pid))
         {
             return $"Invalid policy id: '{policyId}' is not a valid GUID.";
@@ -119,7 +149,7 @@ public static class PolicyTools
             return $"Invalid version id: '{versionId}' is not a valid GUID.";
         }
 
-        var version = await policies.GetVersionAsync(pid, vid);
+        var version = await policies.GetVersionAsync(pid, vid, ct);
         if (version is null)
         {
             return $"Version {vid} not found under policy {pid}.";
@@ -129,21 +159,28 @@ public static class PolicyTools
     }
 
     [McpServerTool(Name = "policy.version.get-active"), Description(
-        "Get the active version of a policy. Active = highest version with State != Draft " +
-        "(ADR 0001 §4); returns 'no active version' while every version is still a Draft.")]
+        "Get the active version of a policy. Active means LifecycleState.Active only " +
+        "(ADR 0001/P2); returns 'no active version' when no version is Active.")]
+    [RbacGuard("andy-policies:policy:read")]
     public static async Task<string> GetActiveVersion(
         IPolicyService policies,
-        [Description("Policy id (GUID)")] string policyId)
+        IHttpContextAccessor httpContext,
+        IRbacChecker rbac,
+        [Description("Policy id (GUID)")] string policyId,
+        CancellationToken ct = default)
     {
+        var denial = await McpRbacGuard.GetDenialAsync(
+            rbac, httpContext, "andy-policies:policy:read", "policy", policyId, ct);
+        if (denial is not null) return denial;
         if (!Guid.TryParse(policyId, out var id))
         {
             return $"Invalid policy id: '{policyId}' is not a valid GUID.";
         }
 
-        var version = await policies.GetActiveVersionAsync(id);
+        var version = await policies.GetActiveVersionAsync(id, ct);
         if (version is null)
         {
-            return $"Policy {id} has no active version (every version is still in Draft, or the policy does not exist).";
+            return $"Policy {id} has no active version, or the policy does not exist.";
         }
 
         return FormatVersionDetail(version);

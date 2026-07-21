@@ -3,6 +3,7 @@
 
 using System.ComponentModel;
 using System.Security.Claims;
+using Andy.Policies.Api.Authorization;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -114,13 +115,19 @@ public static class BundleTools
         "List bundles. Active bundles by default; pass " +
         "includeDeleted=true to include soft-deleted rows. take is " +
         "clamped to [1, 200]. Returns a JSON array of BundleDto.")]
+    [RbacGuard("andy-policies:bundle:read")]
     public static async Task<string> List(
         IBundleService service,
+        IHttpContextAccessor httpContext,
+        IRbacChecker rbac,
         [Description("Include soft-deleted bundles in the result (default false).")] bool includeDeleted = false,
         [Description("Pagination skip (default 0)")] int skip = 0,
         [Description("Pagination take; clamped to [1, 200] (default 50)")] int take = 50,
         CancellationToken ct = default)
     {
+        var denial = await McpRbacGuard.GetDenialAsync(
+            rbac, httpContext, "andy-policies:bundle:read", "policy.bundle", null, ct);
+        if (denial is not null) return denial;
         var clampedTake = Math.Clamp(take, 1, 200);
         var clampedSkip = Math.Max(0, skip);
         var rows = await service.ListAsync(
@@ -131,11 +138,17 @@ public static class BundleTools
     [McpServerTool(Name = "policy.bundle.get"), Description(
         "Get a bundle by id. Returns the JSON DTO or " +
         "policy.bundle.not_found when the bundle does not exist.")]
+    [RbacGuard("andy-policies:bundle:read")]
     public static async Task<string> Get(
         IBundleService service,
+        IHttpContextAccessor httpContext,
+        IRbacChecker rbac,
         [Description("Bundle id (GUID)")] string bundleId,
         CancellationToken ct = default)
     {
+        var denial = await McpRbacGuard.GetDenialAsync(
+            rbac, httpContext, "andy-policies:bundle:read", "policy.bundle", bundleId, ct);
+        if (denial is not null) return denial;
         if (!Guid.TryParse(bundleId, out var bid))
         {
             return $"policy.bundle.invalid_argument: '{bundleId}' is not a valid GUID.";
@@ -151,13 +164,19 @@ public static class BundleTools
         "bundle snapshot. targetType is one of Template, Repo, " +
         "ScopeNode, Tenant, Org. Returns BundleResolveResult JSON; " +
         "soft-deleted bundle returns policy.bundle.not_found.")]
+    [RbacGuard("andy-policies:bundle:read")]
     public static async Task<string> Resolve(
         IBundleResolver resolver,
+        IHttpContextAccessor httpContext,
+        IRbacChecker rbac,
         [Description("Bundle id (GUID)")] string bundleId,
         [Description("One of Template, Repo, ScopeNode, Tenant, Org")] string targetType,
         [Description("Target reference, e.g. 'repo:rivoli-ai/conductor'")] string targetRef,
         CancellationToken ct = default)
     {
+        var denial = await McpRbacGuard.GetDenialAsync(
+            rbac, httpContext, "andy-policies:bundle:read", "policy.bundle", bundleId, ct);
+        if (denial is not null) return denial;
         if (!Guid.TryParse(bundleId, out var bid))
         {
             return $"policy.bundle.invalid_argument: '{bundleId}' is not a valid GUID.";
@@ -241,7 +260,6 @@ public static class BundleTools
     {
         var user = accessor.HttpContext?.User;
         if (user is null) return null;
-        var sub = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? user.Identity?.Name;
-        return string.IsNullOrEmpty(sub) ? null : sub;
+        return ActorSubjectResolver.Resolve(user);
     }
 }

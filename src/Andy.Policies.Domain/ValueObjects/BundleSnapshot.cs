@@ -64,7 +64,9 @@ public sealed record BundleOverrideEntry(
     string ScopeRef,
     string Effect,
     Guid? ReplacementPolicyVersionId,
-    DateTimeOffset ExpiresAt);
+    DateTimeOffset ExpiresAt,
+    BundlePolicyEntry? ReplacementPolicy = null,
+    DateTimeOffset? ApprovedAt = null);
 
 /// <summary>One row per scope node at snapshot time.</summary>
 public sealed record BundleScopeEntry(

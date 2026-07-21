@@ -36,16 +36,19 @@ public sealed partial class PolicyService : IPolicyService
 
     private readonly AppDbContext _db;
     private readonly IAuditWriter? _audit;
+    private readonly IRationalePolicy _rationale;
 
-    /// <param name="audit">Optional audit writer. Production DI wires
-    /// <c>NoopAuditWriter</c> (P3.2) and the real hash-chained writer
-    /// (P6.2). Tests that construct directly may pass <c>null</c> to
-    /// skip audit emission — the 57 pre-existing direct-instantiation
-    /// tests rely on that. New audit-aware tests inject a spy.</param>
-    public PolicyService(AppDbContext db, IAuditWriter? audit = null)
+    /// <param name="audit">Mutation audit adapter. Production DI wires the
+    /// real hash-chained writer; direct-construction tests may pass null when
+    /// audit emission is outside their scope.</param>
+    public PolicyService(
+        AppDbContext db,
+        IAuditWriter? audit = null,
+        IRationalePolicy? rationale = null)
     {
         _db = db;
         _audit = audit;
+        _rationale = rationale ?? new RequireNonEmptyRationalePolicy();
     }
 
     public async Task<IReadOnlyList<PolicyDto>> ListPoliciesAsync(ListPoliciesQuery query, CancellationToken ct = default)
@@ -129,7 +132,7 @@ public sealed partial class PolicyService : IPolicyService
     {
         var active = await _db.PolicyVersions
             .AsNoTracking()
-            .Where(v => v.PolicyId == policyId && v.State != LifecycleState.Draft)
+            .Where(v => v.PolicyId == policyId && v.State == LifecycleState.Active)
             .OrderByDescending(v => v.Version)
             .FirstOrDefaultAsync(ct);
         return active is null ? null : ToVersionDto(active);
@@ -139,6 +142,7 @@ public sealed partial class PolicyService : IPolicyService
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentException.ThrowIfNullOrEmpty(subjectId);
+        ValidateRationale(request.Rationale);
 
         var name = request.Name ?? string.Empty;
         if (!NameRegex().IsMatch(name))
@@ -191,17 +195,13 @@ public sealed partial class PolicyService : IPolicyService
         _db.Policies.Add(policy);
         _db.PolicyVersions.Add(version);
         await _db.SaveChangesAsync(ct);
-        await tx.CommitAsync(ct);
-
-        // Audit append after commit — matches BindingService.CreateAsync's
-        // pattern. NoopAuditWriter today; the P6.2 real writer will need
-        // to fold this into the same transaction when it lands.
         if (_audit is not null)
         {
             await _audit.AppendAsync(
-                "policy.draft.created", policy.Id, subjectId, request.Rationale, ct)
+                "policy.draft.created", version.Id, subjectId, request.Rationale, ct)
                 .ConfigureAwait(false);
         }
+        await tx.CommitAsync(ct);
 
         return ToVersionDto(version);
     }
@@ -210,6 +210,9 @@ public sealed partial class PolicyService : IPolicyService
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentException.ThrowIfNullOrEmpty(subjectId);
+        ValidateRationale(request.Rationale);
+
+        await using var tx = await _db.Database.BeginTransactionAsync(ct);
 
         var version = await _db.PolicyVersions.FirstOrDefaultAsync(
             v => v.PolicyId == policyId && v.Id == versionId, ct)
@@ -263,13 +266,20 @@ public sealed partial class PolicyService : IPolicyService
                 "policy.draft.updated", version.Id, subjectId, request.Rationale, ct)
                 .ConfigureAwait(false);
         }
+        await tx.CommitAsync(ct);
 
         return ToVersionDto(version);
     }
 
-    public async Task<PolicyVersionDto> BumpDraftFromVersionAsync(Guid policyId, Guid sourceVersionId, string subjectId, CancellationToken ct = default)
+    public async Task<PolicyVersionDto> BumpDraftFromVersionAsync(
+        Guid policyId,
+        Guid sourceVersionId,
+        string subjectId,
+        string? rationale = null,
+        CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(subjectId);
+        ValidateRationale(rationale);
 
         await using var tx = await _db.Database.BeginTransactionAsync(ct);
 
@@ -312,6 +322,12 @@ public sealed partial class PolicyService : IPolicyService
 
         _db.PolicyVersions.Add(next);
         await _db.SaveChangesAsync(ct);
+        if (_audit is not null)
+        {
+            await _audit.AppendAsync(
+                "policy.draft.bumped", next.Id, subjectId, rationale, ct)
+                .ConfigureAwait(false);
+        }
         await tx.CommitAsync(ct);
 
         return ToVersionDto(next);
@@ -321,10 +337,9 @@ public sealed partial class PolicyService : IPolicyService
 
     private static PolicyVersion? ResolveActive(IEnumerable<PolicyVersion> versions)
     {
-        // P1 rule: "highest Version with State != Draft". P2 tightens to State == Active
-        // via its own transition service; the resolver here stays compatible with both.
+        // P2 lifecycle semantics: only LifecycleState.Active is active.
         return versions
-            .Where(v => v.State != LifecycleState.Draft)
+            .Where(v => v.State == LifecycleState.Active)
             .OrderByDescending(v => v.Version)
             .FirstOrDefault();
     }
@@ -346,6 +361,9 @@ public sealed partial class PolicyService : IPolicyService
         Guid policyId, Guid versionId, string? rationale, string subjectId, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(subjectId);
+        ValidateRationale(rationale);
+
+        await using var tx = await _db.Database.BeginTransactionAsync(ct);
 
         var version = await _db.PolicyVersions.FirstOrDefaultAsync(
             v => v.PolicyId == policyId && v.Id == versionId, ct)
@@ -365,6 +383,7 @@ public sealed partial class PolicyService : IPolicyService
         // chain with duplicate `policy.draft.proposed` events.
         if (version.ReadyForReview)
         {
+            await tx.CommitAsync(ct);
             return ToVersionDto(version);
         }
 
@@ -380,6 +399,7 @@ public sealed partial class PolicyService : IPolicyService
                 "policy.draft.proposed", version.Id, subjectId, rationale, ct)
                 .ConfigureAwait(false);
         }
+        await tx.CommitAsync(ct);
 
         return ToVersionDto(version);
     }
@@ -397,6 +417,8 @@ public sealed partial class PolicyService : IPolicyService
             throw new ValidationException("Rationale is required and may not be empty or whitespace.");
         }
 
+        await using var tx = await _db.Database.BeginTransactionAsync(ct);
+
         var version = await _db.PolicyVersions.FirstOrDefaultAsync(
             v => v.PolicyId == policyId && v.Id == versionId, ct)
             ?? throw new NotFoundException($"PolicyVersion {versionId} not found under policy {policyId}.");
@@ -412,6 +434,7 @@ public sealed partial class PolicyService : IPolicyService
         // we don't write an audit event for the empty transition.
         if (!version.ReadyForReview)
         {
+            await tx.CommitAsync(ct);
             return ToVersionDto(version);
         }
 
@@ -427,6 +450,7 @@ public sealed partial class PolicyService : IPolicyService
                 "policy.draft.rejected", version.Id, subjectId, rationale, ct)
                 .ConfigureAwait(false);
         }
+        await tx.CommitAsync(ct);
 
         return ToVersionDto(version);
     }
@@ -453,6 +477,15 @@ public sealed partial class PolicyService : IPolicyService
             .Take(clampedTake)
             .Select(ToVersionDto)
             .ToList();
+    }
+
+    private void ValidateRationale(string? rationale)
+    {
+        var error = _rationale.ValidateRationale(rationale);
+        if (error is not null)
+        {
+            throw new RationaleRequiredException(error);
+        }
     }
 
     private static PolicyVersionDto ToVersionDto(PolicyVersion v) => new(

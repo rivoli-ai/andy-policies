@@ -130,10 +130,14 @@ internal static class ScopeCommands
         var displayOpt = new Option<string>(
             aliases: new[] { "--display-name", "-n" },
             description: "Human-readable display name.") { IsRequired = true };
+        var rationaleOpt = new Option<string?>(
+            aliases: new[] { "--rationale", "-r" },
+            description: "Reason recorded in the audit chain; required when rationale enforcement is enabled.");
         command.AddOption(parentOpt);
         command.AddOption(typeOpt);
         command.AddOption(refOpt);
         command.AddOption(displayOpt);
+        command.AddOption(rationaleOpt);
 
         command.SetHandler(async ctx =>
         {
@@ -149,7 +153,14 @@ internal static class ScopeCommands
             using var http = ClientFactory.Create(api, tok);
             var resp = await http.PostAsJsonAsync(
                 "/api/scopes",
-                new { parentId = parent, type, @ref = refValue, displayName },
+                new
+                {
+                    parentId = parent,
+                    type,
+                    @ref = refValue,
+                    displayName,
+                    rationale = ctx.ParseResult.GetValueForOption(rationaleOpt),
+                },
                 ct).ConfigureAwait(false);
             if (!resp.IsSuccessStatusCode)
             {
@@ -166,7 +177,11 @@ internal static class ScopeCommands
     {
         var command = new Command("delete", "Delete a leaf scope node (refused with non-zero exit if it has descendants).");
         var idArg = new Argument<Guid>("id", "Scope node id (GUID).");
+        var rationaleOpt = new Option<string?>(
+            aliases: new[] { "--rationale", "-r" },
+            description: "Reason recorded in the audit chain; required when rationale enforcement is enabled.");
         command.AddArgument(idArg);
+        command.AddOption(rationaleOpt);
 
         command.SetHandler(async ctx =>
         {
@@ -176,7 +191,14 @@ internal static class ScopeCommands
             var ct = ctx.GetCancellationToken();
 
             using var http = ClientFactory.Create(api, tok);
-            var resp = await http.DeleteAsync($"/api/scopes/{id}", ct).ConfigureAwait(false);
+            using var request = new HttpRequestMessage(HttpMethod.Delete, $"/api/scopes/{id}")
+            {
+                Content = JsonContent.Create(new
+                {
+                    rationale = ctx.ParseResult.GetValueForOption(rationaleOpt),
+                }),
+            };
+            var resp = await http.SendAsync(request, ct).ConfigureAwait(false);
             if (!resp.IsSuccessStatusCode)
             {
                 ctx.ExitCode = await ExitCodes.HandleAsync(resp, ct).ConfigureAwait(false);

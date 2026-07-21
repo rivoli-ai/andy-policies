@@ -54,6 +54,17 @@ public interface IBindingResolutionService
         CancellationToken ct = default);
 
     /// <summary>
+    /// Resolve the effective set and apply active overrides matching the
+    /// supplied principal/cohort context. Principal overrides take
+    /// precedence over cohort overrides.
+    /// </summary>
+    Task<EffectivePolicySetDto> ResolveForScopeAsync(
+        Guid scopeNodeId,
+        OverrideResolutionContext overrideContext,
+        CancellationToken ct = default)
+        => ResolveForScopeAsync(scopeNodeId, ct);
+
+    /// <summary>
     /// Resolve the effective policy set for a foreign target. If
     /// <paramref name="targetType"/>/<paramref name="targetRef"/>
     /// maps to a known <see cref="Domain.Entities.ScopeNode"/>, the

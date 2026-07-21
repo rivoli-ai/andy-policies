@@ -48,7 +48,9 @@ public class OverrideExpiryCalculationTests
     {
         var db = InMemoryDbFixture.Create();
         var clock = new FakeTimeProvider(now);
-        var svc = new OverrideService(db, new AllowRbac(), new NoopDispatcher(), clock);
+        var svc = new OverrideService(
+            db, new AllowRbac(), new NoopDispatcher(), clock,
+            rationale: AllowAnyRationalePolicy.Instance);
         return (svc, db, clock);
     }
 

@@ -65,8 +65,13 @@ public sealed class AllTasksReadOnlyPredicate : IPlanPredicate
             return PredicateEvaluation.Pass("no tasks in plan");
         }
 
+        if (view.Tasks.Any(t => t.ToolsAllowed is null))
+        {
+            return PredicateEvaluation.Unevaluable();
+        }
+
         var offenders = view.Tasks
-            .Where(t => t.ToolsAllowed.Any(WriteOrExecToolHeuristics.LooksWriteOrExec))
+            .Where(t => t.ToolsAllowed!.Any(WriteOrExecToolHeuristics.LooksWriteOrExec))
             .Select(t => t.TaskId.ToString())
             .ToList();
 
@@ -107,9 +112,13 @@ public sealed class NoProductionDeployPredicate : IPlanPredicate
             return PredicateEvaluation.Pass("no tasks in plan");
         }
 
+        if (view.Tasks.Any(t => string.IsNullOrWhiteSpace(t.TargetEnv)))
+        {
+            return PredicateEvaluation.Unevaluable();
+        }
+
         var prodTasks = view.Tasks
-            .Where(t => t.TargetEnv is not null &&
-                        ProdMarkers.Any(m => string.Equals(t.TargetEnv, m,
+            .Where(t => ProdMarkers.Any(m => string.Equals(t.TargetEnv, m,
                                               StringComparison.OrdinalIgnoreCase)))
             .Select(t => t.TaskId.ToString())
             .ToList();

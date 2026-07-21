@@ -29,7 +29,8 @@ public class TightenOnlyMatrixTests
     private static (TightenOnlyValidator validator, ScopeService scopes, AppDbContext db) NewServices()
     {
         var db = InMemoryDbFixture.Create();
-        var scopes = new ScopeService(db, TimeProvider.System);
+        var scopes = new ScopeService(
+            db, TimeProvider.System, TestAuditWriter.Instance, AllowAnyRationalePolicy.Instance);
         var validator = new TightenOnlyValidator(db, scopes);
         return (validator, scopes, db);
     }

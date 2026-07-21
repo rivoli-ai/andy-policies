@@ -293,6 +293,13 @@ effective; an `Expired` override has been swept by the reaper
 genuinely was approved + unexpired at bundle-create time —
 review with the override author.
 
+Pinned effective-policy resolution accepts the same principal/cohort context
+as live resolution. Principal matches take precedence over cohort matches;
+`Exempt` removes a policy and `Replace` substitutes the replacement embedded in
+the snapshot. Inspect `appliedOverrides` in the response for the exact grant.
+All explicit scope-node and Org/Tenant/Repo/Template bridge bindings are walked
+against the frozen scope hierarchy.
+
 ### "The diff is empty but I changed a policy"
 
 The two bundles you're diffing were both taken before the

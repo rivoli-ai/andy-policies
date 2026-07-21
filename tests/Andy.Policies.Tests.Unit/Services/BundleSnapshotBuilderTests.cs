@@ -227,6 +227,43 @@ public class BundleSnapshotBuilderTests
     }
 
     [Fact]
+    public async Task Build_EmbedsReplacementPolicyAndApprovalOrderForPinnedResolution()
+    {
+        await using var db = NewDb();
+        var (_, baselineId) = await SeedPolicyVersionAsync(db, "baseline");
+        var (_, replacementId) = await SeedPolicyVersionAsync(
+            db, "replacement", LifecycleState.WindingDown);
+        var approvedAt = Now.AddHours(-2);
+        var grant = new Override
+        {
+            Id = Guid.NewGuid(),
+            PolicyVersionId = baselineId,
+            ScopeKind = OverrideScopeKind.Cohort,
+            ScopeRef = "cohort:beta",
+            Effect = OverrideEffect.Replace,
+            ReplacementPolicyVersionId = replacementId,
+            State = OverrideState.Approved,
+            ExpiresAt = Now.AddDays(1),
+            ProposerSubjectId = "alice",
+            ApproverSubjectId = "bob",
+            Rationale = "controlled replacement",
+            ProposedAt = Now.AddHours(-3),
+            ApprovedAt = approvedAt,
+        };
+        db.Overrides.Add(grant);
+        await db.SaveChangesAsync();
+
+        var entry = (await new BundleSnapshotBuilder(db).BuildAsync(Now))
+            .Overrides.Should().ContainSingle().Subject;
+
+        entry.OverrideId.Should().Be(grant.Id);
+        entry.ApprovedAt.Should().Be(approvedAt);
+        entry.ReplacementPolicyVersionId.Should().Be(replacementId);
+        entry.ReplacementPolicy.Should().NotBeNull();
+        entry.ReplacementPolicy!.Name.Should().Be("replacement");
+    }
+
+    [Fact]
     public async Task Build_OrdersCollectionsStably()
     {
         await using var db = NewDb();

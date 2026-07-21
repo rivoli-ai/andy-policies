@@ -109,7 +109,9 @@ public class ScopeWalkPerfTests : IAsyncLifetime
 
     private static (ScopeService scopes, BindingResolutionService resolver, AppDbContext db) NewServices(AppDbContext db)
     {
-        var scopes = new ScopeService(db, TimeProvider.System);
+        var scopes = new ScopeService(
+            db, TimeProvider.System, IntegrationTestAuditWriter.Instance,
+            IntegrationAllowAnyRationalePolicy.Instance);
         var resolver = new BindingResolutionService(db, scopes);
         return (scopes, resolver, db);
     }

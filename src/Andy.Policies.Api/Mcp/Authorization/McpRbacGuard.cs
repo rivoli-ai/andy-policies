@@ -2,6 +2,7 @@
 // Licensed under the Apache License, Version 2.0.
 
 using System.Security.Claims;
+using Andy.Policies.Api.Authorization;
 using Andy.Policies.Application.Interfaces;
 using Microsoft.AspNetCore.Http;
 
@@ -19,6 +20,28 @@ namespace Andy.Policies.Api.Mcp.Authorization;
 /// </summary>
 public static class McpRbacGuard
 {
+    /// <summary>Convenience wrapper for text-returning tools. Returns
+    /// null on allow or a stable prefixed denial string on deny.</summary>
+    public static async Task<string?> GetDenialAsync(
+        IRbacChecker rbac,
+        IHttpContextAccessor httpContext,
+        string permissionCode,
+        string errorPrefix,
+        string? resourceInstanceId,
+        CancellationToken ct)
+    {
+        try
+        {
+            await EnsureAsync(rbac, httpContext, permissionCode, resourceInstanceId, ct)
+                .ConfigureAwait(false);
+            return null;
+        }
+        catch (McpAuthorizationException ex)
+        {
+            return $"{errorPrefix}.forbidden: {ex.Reason}";
+        }
+    }
+
     /// <summary>
     /// Throws <see cref="McpAuthorizationException"/> when the call
     /// must be denied. Returns silently on allow.
@@ -35,9 +58,7 @@ public static class McpRbacGuard
                 permissionCode, "no-http-context",
                 "MCP tool ran without an HTTP context — cannot extract caller identity.");
 
-        var subjectId = ctx.User.FindFirstValue(ClaimTypes.NameIdentifier)
-                     ?? ctx.User.FindFirstValue("sub")
-                     ?? ctx.User.Identity?.Name;
+        var subjectId = ActorSubjectResolver.Resolve(ctx.User);
         if (string.IsNullOrWhiteSpace(subjectId))
         {
             throw new McpAuthorizationException(
@@ -46,8 +67,23 @@ public static class McpRbacGuard
         }
 
         var groups = ctx.User.FindAll("groups").Select(c => c.Value).ToList();
-        var decision = await rbac.CheckAsync(
-            subjectId, permissionCode, groups, resourceInstanceId, ct).ConfigureAwait(false);
+        RbacDecision decision;
+        try
+        {
+            decision = await rbac.CheckAsync(
+                subjectId, permissionCode, groups, resourceInstanceId, ct).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw new McpAuthorizationException(
+                permissionCode,
+                "rbac-unavailable",
+                $"RBAC dependency failed closed: {ex.GetType().Name}.");
+        }
         if (!decision.Allowed)
         {
             throw new McpAuthorizationException(

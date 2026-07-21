@@ -1,7 +1,7 @@
 // Copyright (c) Rivoli AI 2026. All rights reserved.
 // Licensed under the Apache License, Version 2.0.
 
-using System.Security.Claims;
+using Andy.Policies.Api.Authorization;
 using Andy.Policies.Application.Exceptions;
 using Andy.Policies.Application.Interfaces;
 using Andy.Policies.Domain.Enums;
@@ -152,8 +152,7 @@ public sealed class BundlesController : ControllerBase
 
     private string? ResolveActor()
     {
-        var sub = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.Identity?.Name;
-        return string.IsNullOrEmpty(sub) ? null : sub;
+        return ActorSubjectResolver.Resolve(User);
     }
 
     /// <summary>

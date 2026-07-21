@@ -15,11 +15,10 @@ namespace Andy.Policies.Api.GrpcServices.Authorization;
 /// matches the rpc name.
 /// </para>
 /// <para>
-/// <b>Items service is intentionally absent.</b> It ships as template
-/// scaffolding and is not a governance surface — the
-/// <see cref="RbacServerInterceptor"/> bypasses it via the
-/// <see cref="IsEnforcedService"/> allowlist below. Every other
-/// service must have every rpc mapped here, which is asserted by a
+/// Items remains legacy template scaffolding, but it is still an
+/// authenticated mutation/read surface and therefore maps to the
+/// policy read/author permissions. Every service has every rpc mapped,
+/// which is asserted by a
 /// reflection-based coverage test in the integration project.
 /// </para>
 /// </remarks>
@@ -27,6 +26,13 @@ public sealed class GrpcMethodPermissionMap : IGrpcMethodPermissionMap
 {
     private static readonly IReadOnlyDictionary<string, string> Map = new Dictionary<string, string>
     {
+        // Legacy ItemsService — protect until the scaffold is removed.
+        ["/andy_policies.ItemsService/GetAll"]  = "andy-policies:policy:read",
+        ["/andy_policies.ItemsService/GetById"] = "andy-policies:policy:read",
+        ["/andy_policies.ItemsService/Create"]  = "andy-policies:policy:author",
+        ["/andy_policies.ItemsService/Update"]  = "andy-policies:policy:author",
+        ["/andy_policies.ItemsService/Delete"]  = "andy-policies:policy:author",
+
         // PolicyService — reads + drafting
         ["/andy_policies.PolicyService/ListPolicies"]      = "andy-policies:policy:read",
         ["/andy_policies.PolicyService/GetPolicy"]         = "andy-policies:policy:read",
@@ -84,10 +90,10 @@ public sealed class GrpcMethodPermissionMap : IGrpcMethodPermissionMap
         ["/andy_policies.BundleService/DiffBundles"]   = "andy-policies:bundle:read",
     };
 
-    /// <summary>Services not in this set are allowed to bypass RBAC.
-    /// Currently only the template-scaffolding ItemsService.</summary>
+    /// <summary>Services not in this set are allowed to bypass RBAC.</summary>
     private static readonly HashSet<string> EnforcedServices = new(StringComparer.Ordinal)
     {
+        "/andy_policies.ItemsService",
         "/andy_policies.PolicyService",
         "/andy_policies.LifecycleService",
         "/andy_policies.BindingService",
