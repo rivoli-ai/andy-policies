@@ -28,7 +28,8 @@ public class ScopeCycleRejectionTests
     private static (ScopeService scopes, AppDbContext db) NewServices()
     {
         var db = InMemoryDbFixture.Create();
-        return (new ScopeService(db, TimeProvider.System), db);
+        return (new ScopeService(
+            db, TimeProvider.System, TestAuditWriter.Instance, AllowAnyRationalePolicy.Instance), db);
     }
 
     [Fact]

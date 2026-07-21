@@ -42,17 +42,20 @@ public sealed class LifecycleTransitionService : ILifecycleTransitionService
     private readonly IRationalePolicy _rationale;
     private readonly IDomainEventDispatcher _events;
     private readonly TimeProvider _clock;
+    private readonly IAuditWriter? _audit;
 
     public LifecycleTransitionService(
         AppDbContext db,
         IRationalePolicy rationale,
         IDomainEventDispatcher events,
-        TimeProvider clock)
+        TimeProvider clock,
+        IAuditWriter? audit = null)
     {
         _db = db;
         _rationale = rationale;
         _events = events;
         _clock = clock;
+        _audit = audit;
     }
 
     public bool IsTransitionAllowed(LifecycleState from, LifecycleState to)
@@ -197,6 +200,28 @@ public sealed class LifecycleTransitionService : ILifecycleTransitionService
         try
         {
             await _db.SaveChangesAsync(ct).ConfigureAwait(false);
+            if (_audit is not null)
+            {
+                if (pendingSuperseded is not null)
+                {
+                    await _audit.AppendAsync(
+                        "policy.version.superseded",
+                        pendingSuperseded.PreviousVersionId,
+                        actorSubjectId,
+                        rationale,
+                        ct).ConfigureAwait(false);
+                }
+                var action = target switch
+                {
+                    LifecycleState.Active => "policy.version.published",
+                    LifecycleState.WindingDown => "policy.version.winding_down",
+                    LifecycleState.Retired => "policy.version.retired",
+                    _ => "policy.version.transitioned",
+                };
+                await _audit.AppendAsync(
+                    action, version.Id, actorSubjectId, rationale, ct)
+                    .ConfigureAwait(false);
+            }
             await transaction.CommitAsync(ct).ConfigureAwait(false);
         }
         catch (DbUpdateException ex) when (IsConcurrentPublishSignal(ex))

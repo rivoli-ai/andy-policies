@@ -15,15 +15,9 @@ namespace Andy.Policies.Application.Interfaces;
 /// pre-materialised <c>SnapshotJson</c> instead of live tables, so
 /// answers are reproducible across catalog mutations.
 /// </summary>
-/// <remarks>
-/// <para>
-/// <b>Override application is intentionally out of scope</b> for
-/// P8.3. The live <see cref="IBindingResolver"/> doesn't apply
-/// override effects either — that lives in P5's flow. Bundle-time
-/// override semantics will be pinned by ADR 0008 (P8.8) and wired
-/// in a follow-up.
-/// </para>
-/// </remarks>
+/// <remarks>Effective-scope resolution supports the same scope-node and
+/// Org/Tenant/Repo/Template bridge targets as the live resolver. Its context
+/// overload applies the Approved, unexpired overrides frozen into the snapshot.</remarks>
 public interface IBundleResolver
 {
     /// <summary>
@@ -62,7 +56,7 @@ public interface IBundleResolver
 
     /// <summary>
     /// Snapshot-backed equivalent of
-    /// <see cref="IBindingResolutionService.ResolveForScopeAsync"/>
+    /// <see cref="IBindingResolutionService.ResolveForScopeAsync(Guid, CancellationToken)"/>
     /// (P8.4, #84). Walks the bundle's scope tree from the target
     /// node up to its root and folds matching bindings with
     /// stricter-tightens-only semantics. Returns <c>null</c> when
@@ -71,18 +65,21 @@ public interface IBundleResolver
     /// <c>Policies</c> when the bundle exists but the scope node
     /// is absent from it.
     /// </summary>
-    /// <remarks>
-    /// <b>Scope of dispatch.</b> This method matches only
-    /// <c>TargetType=ScopeNode</c> bindings keyed by
-    /// <c>scope:{nodeId}</c>. The bridge logic from
-    /// <c>BindingResolutionService</c> (which also matches
-    /// <c>Repo</c> / <c>Tenant</c> / <c>Org</c> / <c>Template</c>
-    /// targets against the chain's external refs) is deferred to
-    /// a follow-up; consumers using bridge-typed bindings should
-    /// keep <c>bundleVersionPinning=false</c> until then.
-    /// </remarks>
+    /// <remarks>Matches explicit <c>ScopeNode</c> bindings plus
+    /// <c>Org</c>, <c>Tenant</c>, <c>Repo</c>, and <c>Template</c>
+    /// bridge bindings against external refs on the frozen chain.</remarks>
     Task<EffectivePolicySetDto?> ResolveEffectiveForScopeAsync(
         Guid bundleId, Guid scopeNodeId, CancellationToken ct = default);
+
+    /// <summary>Resolve a pinned effective set and apply only the active
+    /// overrides captured in that bundle snapshot which match the supplied
+    /// principal/cohort context.</summary>
+    Task<EffectivePolicySetDto?> ResolveEffectiveForScopeAsync(
+        Guid bundleId,
+        Guid scopeNodeId,
+        OverrideResolutionContext overrideContext,
+        CancellationToken ct = default)
+        => ResolveEffectiveForScopeAsync(bundleId, scopeNodeId, ct);
 
     /// <summary>
     /// P9 follow-up #204 (2026-05-07): denormalised contents tree for the

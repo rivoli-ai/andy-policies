@@ -96,9 +96,11 @@ public sealed class HttpTasksPlanClient : ITasksPlanClient
         EffectiveAgentId: !string.IsNullOrWhiteSpace(t.ExecutorId)
             ? t.ExecutorId
             : t.SuggestedAgentIds?.FirstOrDefault(),
-        ToolsAllowed: t.DelegationContract?.ToolsAllowed
-            ?? (IReadOnlyList<string>)Array.Empty<string>(),
-        TargetEnv: null /* not on TaskDto today */);
+        // Preserve null as "data unavailable". An explicit empty
+        // collection means the contract is present and permits no
+        // tools; collapsing the states would approve incomplete data.
+        ToolsAllowed: t.DelegationContract?.ToolsAllowed,
+        TargetEnv: t.TargetEnv);
 
     private async Task<T?> GetOrNullAsync<T>(string path, CancellationToken ct)
         where T : class
@@ -143,7 +145,8 @@ public sealed class HttpTasksPlanClient : ITasksPlanClient
         string? ExternalId,
         DelegationContractEnvelope? DelegationContract,
         IReadOnlyList<string>? SuggestedAgentIds,
-        string? ExecutorId);
+        string? ExecutorId,
+        string? TargetEnv);
 
     private sealed record DelegationContractEnvelope(
         string? Objective,

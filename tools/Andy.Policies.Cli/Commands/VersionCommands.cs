@@ -171,6 +171,9 @@ internal static class VersionCommands
         var scopesOpt = new Option<string[]>("--scopes", "Scope tags (repeat or comma-separate)") { AllowMultipleArgumentsPerToken = true };
         var rulesJsonOpt = new Option<string?>("--rules-json", "Inline rules JSON");
         var rulesFileOpt = new Option<FileInfo?>("--rules-file", "Path to a UTF-8 JSON file containing the rules document");
+        var rationaleOpt = new Option<string?>(
+            aliases: new[] { "--rationale", "-r" },
+            description: "Reason recorded in the audit chain; required when rationale enforcement is enabled.");
         command.AddOption(nameOpt);
         command.AddOption(descOpt);
         command.AddOption(summaryOpt);
@@ -179,6 +182,7 @@ internal static class VersionCommands
         command.AddOption(scopesOpt);
         command.AddOption(rulesJsonOpt);
         command.AddOption(rulesFileOpt);
+        command.AddOption(rationaleOpt);
 
         command.SetHandler(async ctx =>
         {
@@ -207,6 +211,7 @@ internal static class VersionCommands
                 severity = ctx.ParseResult.GetValueForOption(sevOpt),
                 scopes,
                 rulesJson,
+                rationale = ctx.ParseResult.GetValueForOption(rationaleOpt),
             };
 
             using var http = ClientFactory.Create(api, tok);
@@ -233,6 +238,9 @@ internal static class VersionCommands
         var scopesOpt = new Option<string[]>("--scopes", "Scope tags (repeat or comma-separate)") { AllowMultipleArgumentsPerToken = true };
         var rulesJsonOpt = new Option<string?>("--rules-json", "Inline rules JSON");
         var rulesFileOpt = new Option<FileInfo?>("--rules-file", "Path to a UTF-8 JSON file containing the rules document");
+        var rationaleOpt = new Option<string?>(
+            aliases: new[] { "--rationale", "-r" },
+            description: "Reason recorded in the audit chain; required when rationale enforcement is enabled.");
         command.AddArgument(policyArg);
         command.AddArgument(versionArg);
         command.AddOption(summaryOpt);
@@ -241,6 +249,7 @@ internal static class VersionCommands
         command.AddOption(scopesOpt);
         command.AddOption(rulesJsonOpt);
         command.AddOption(rulesFileOpt);
+        command.AddOption(rationaleOpt);
 
         command.SetHandler(async ctx =>
         {
@@ -276,6 +285,7 @@ internal static class VersionCommands
                 severity = ctx.ParseResult.GetValueForOption(sevOpt),
                 scopes,
                 rulesJson,
+                rationale = ctx.ParseResult.GetValueForOption(rationaleOpt),
             };
 
             var resp = await http.PutAsJsonAsync($"/api/policies/{policyId}/versions/{versionId}", payload, ct).ConfigureAwait(false);
@@ -295,8 +305,12 @@ internal static class VersionCommands
         var command = new Command("draft-bump", "Create a new draft version cloned from an existing version");
         var policyArg = new Argument<string>("policyIdOrName", "Policy id (GUID) or name slug");
         var sourceArg = new Argument<Guid>("sourceVersionId", "Source version id (GUID)");
+        var rationaleOpt = new Option<string?>(
+            aliases: new[] { "--rationale", "-r" },
+            description: "Reason recorded in the audit chain; required when rationale enforcement is enabled.");
         command.AddArgument(policyArg);
         command.AddArgument(sourceArg);
+        command.AddOption(rationaleOpt);
         command.SetHandler(async ctx =>
         {
             var api = ctx.ParseResult.GetValueForOption(apiUrl)!;
@@ -313,7 +327,10 @@ internal static class VersionCommands
                 return;
             }
 
-            var resp = await http.PostAsync($"/api/policies/{policyId}/versions/{sourceVersionId}/bump", content: null, ct).ConfigureAwait(false);
+            var resp = await http.PostAsJsonAsync(
+                $"/api/policies/{policyId}/versions/{sourceVersionId}/bump",
+                new { rationale = ctx.ParseResult.GetValueForOption(rationaleOpt) },
+                ct).ConfigureAwait(false);
             if (!resp.IsSuccessStatusCode)
             {
                 ctx.ExitCode = await ExitCodes.HandleAsync(resp, ct).ConfigureAwait(false);

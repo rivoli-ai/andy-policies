@@ -92,6 +92,17 @@ public class PlanPredicateTests
         r.Outcome.Should().Be(PredicateOutcome.Pass);
     }
 
+    [Fact]
+    public void AllTasksReadOnly_is_unevaluable_when_tools_contract_is_missing()
+    {
+        var task = new PlanEvaluationTaskView(Guid.NewGuid(), "coder", null, "dev");
+
+        var result = new AllTasksReadOnlyPredicate().Evaluate(View(tasks: new[] { task }));
+
+        result.Outcome.Should().Be(PredicateOutcome.Unevaluable);
+        result.Reason.Should().Contain("data unavailable");
+    }
+
     // ---- workspaceIsSandbox -----------------------------------------------
 
     [Theory]
@@ -131,10 +142,18 @@ public class PlanPredicateTests
         {
             Task(env: "dev"),
             Task(env: "staging"),
-            Task(env: null),
         });
 
         p.Evaluate(v).Outcome.Should().Be(PredicateOutcome.Pass);
+    }
+
+    [Fact]
+    public void NoProductionDeploy_is_unevaluable_when_any_target_environment_is_missing()
+    {
+        var p = new NoProductionDeployPredicate();
+        var v = View(tasks: new[] { Task(env: "dev"), Task(env: null) });
+
+        p.Evaluate(v).Outcome.Should().Be(PredicateOutcome.Unevaluable);
     }
 
     [Theory]

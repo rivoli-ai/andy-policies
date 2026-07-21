@@ -190,6 +190,15 @@ CHECK constraint `ck_overrides_effect_replacement` keeps
 `(Effect=Replace ↔ ReplacementPolicyVersionId IS NOT NULL)`
 true at the row level.
 
+Resolution applies effects after the tighten-only binding fold. Callers provide
+the principal subject plus zero or more cohort refs. A principal match has
+strict precedence over cohort matches; the most recently approved grant wins
+within a level, followed by stable scope/id tie-breakers. `Exempt` removes the
+baseline policy and `Replace` substitutes its referenced version. Both live and
+pinned responses expose the applied grant metadata. A bundle freezes only
+Approved, unexpired grants and embeds replacement content, so its decision is
+reproducible after the live grant expires or is revoked.
+
 ### 6. Storage shape
 
 ```sql

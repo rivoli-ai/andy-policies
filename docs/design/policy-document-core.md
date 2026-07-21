@@ -116,7 +116,7 @@ stateDiagram-v2
     note left of Retired : Tombstoned
 ```
 
-P1's resolution rule is "highest non-Draft version is active." P2 tightens to "exactly one row with `State == Active` per policy" via the partial unique index `ix_policy_versions_one_active_per_policy`.
+The canonical active-version rule is exactly `State == Active`; `Draft`, `WindingDown`, and `Retired` are never returned by active-version queries or captured as active bundle policies. The partial unique index `ix_policy_versions_one_active_per_policy` guarantees at most one such row per policy.
 
 ## Versioning invariants
 

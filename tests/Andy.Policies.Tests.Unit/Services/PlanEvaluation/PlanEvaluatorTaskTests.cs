@@ -194,7 +194,7 @@ public class PlanEvaluatorTaskTests
         // Two tasks: one read-only, one prod-deploy. A reject rule on
         // noProductionDeploy must only fire for the prod task — the
         // read-only task must come back clean.
-        var readOnly = ATask(tools: new[] { "read-file" }, env: null);
+        var readOnly = ATask(tools: new[] { "read-file" }, env: "dev");
         var prod = ATask(tools: new[] { "deploy" }, env: "prod");
         var view = AView(tasks: new[] { readOnly, prod }, tier: "sandbox");
 
@@ -272,7 +272,7 @@ public class PlanEvaluatorTaskTests
     public async Task Different_tasks_in_same_goal_are_cached_independently()
     {
         var t1 = ATask(env: "prod");
-        var t2 = ATask(tools: new[] { "read-file" });
+        var t2 = ATask(tools: new[] { "read-file" }, env: "dev");
         var view = AView(tasks: new[] { t1, t2 }, tier: "sandbox");
 
         var rules = """

@@ -64,7 +64,7 @@ public sealed class RbacAuthorizationHandler : AuthorizationHandler<RbacRequirem
             return;
         }
 
-        var subjectId = ResolveSubjectId(context.User);
+        var subjectId = ActorSubjectResolver.Resolve(context.User);
         if (string.IsNullOrWhiteSpace(subjectId))
         {
             // Authentication ran but no subject claim — let the
@@ -95,8 +95,4 @@ public sealed class RbacAuthorizationHandler : AuthorizationHandler<RbacRequirem
             subjectId, requirement.PermissionCode, resourceInstanceId ?? "(none)", decision.Reason);
     }
 
-    private static string? ResolveSubjectId(ClaimsPrincipal user)
-        => user.FindFirstValue(ClaimTypes.NameIdentifier)
-        ?? user.FindFirstValue("sub")
-        ?? user.Identity?.Name;
 }

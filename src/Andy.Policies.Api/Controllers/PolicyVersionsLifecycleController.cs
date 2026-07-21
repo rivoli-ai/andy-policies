@@ -1,7 +1,7 @@
 // Copyright (c) Rivoli AI 2026. All rights reserved.
 // Licensed under the Apache License, Version 2.0.
 
-using System.Security.Claims;
+using Andy.Policies.Api.Authorization;
 using Andy.Policies.Application.Dtos;
 using Andy.Policies.Application.Interfaces;
 using Andy.Policies.Domain.Enums;
@@ -108,12 +108,7 @@ public sealed class PolicyVersionsLifecycleController : ControllerBase
         [FromBody] LifecycleTransitionRequest? body,
         CancellationToken ct)
     {
-        var subjectId = User.FindFirstValue(ClaimTypes.NameIdentifier)
-            ?? User.Identity?.Name;
-        if (string.IsNullOrEmpty(subjectId))
-        {
-            return Unauthorized();
-        }
+        var subjectId = ActorSubjectResolver.Require(User);
 
         var dto = await _policies.ProposeDraftAsync(
             id, versionId, body?.Rationale, subjectId, ct);
@@ -139,12 +134,7 @@ public sealed class PolicyVersionsLifecycleController : ControllerBase
         [FromBody] LifecycleTransitionRequest body,
         CancellationToken ct)
     {
-        var subjectId = User.FindFirstValue(ClaimTypes.NameIdentifier)
-            ?? User.Identity?.Name;
-        if (string.IsNullOrEmpty(subjectId))
-        {
-            return Unauthorized();
-        }
+        var subjectId = ActorSubjectResolver.Require(User);
 
         var dto = await _policies.RejectDraftAsync(
             id, versionId, body?.Rationale ?? string.Empty, subjectId, ct);
@@ -159,12 +149,7 @@ public sealed class PolicyVersionsLifecycleController : ControllerBase
         // catalog. JwtBearer maps `sub` to NameIdentifier; TestAuthHandler sets
         // the Name claim. If neither is present, [Authorize] should already have
         // returned 401 — this is the belt to the framework's braces.
-        var subjectId = User.FindFirstValue(ClaimTypes.NameIdentifier)
-            ?? User.Identity?.Name;
-        if (string.IsNullOrEmpty(subjectId))
-        {
-            return Unauthorized();
-        }
+        var subjectId = ActorSubjectResolver.Require(User);
 
         var dto = await _transitions.TransitionAsync(
             id, versionId, target,

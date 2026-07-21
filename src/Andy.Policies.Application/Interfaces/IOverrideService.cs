@@ -42,6 +42,7 @@ public interface IOverrideService
     Task<OverrideDto> ApproveAsync(
         Guid id,
         string approverSubjectId,
+        string? rationale = null,
         CancellationToken ct = default);
 
     Task<OverrideDto> RevokeAsync(

@@ -1,7 +1,7 @@
 // Copyright (c) Rivoli AI 2026. All rights reserved.
 // Licensed under the Apache License, Version 2.0.
 
-using System.Security.Claims;
+using Andy.Policies.Api.Authorization;
 using Andy.Policies.Api.Filters;
 using Andy.Policies.Application.Dtos;
 using Andy.Policies.Application.Interfaces;
@@ -97,12 +97,15 @@ public sealed class OverridesController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    public async Task<ActionResult<OverrideDto>> Approve(Guid id, CancellationToken ct)
+    public async Task<ActionResult<OverrideDto>> Approve(
+        Guid id,
+        [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] ApproveOverrideRequest? request,
+        CancellationToken ct)
     {
         var subject = ResolveSubjectId();
         if (subject is null) return Unauthorized();
 
-        return Ok(await _service.ApproveAsync(id, subject, ct));
+        return Ok(await _service.ApproveAsync(id, subject, request?.Rationale, ct));
     }
 
     /// <summary>
@@ -220,8 +223,6 @@ public sealed class OverridesController : ControllerBase
         // `sub` to NameIdentifier; TestAuthHandler sets the Name claim.
         // [Authorize] should already have returned 401 before we get
         // here — this is the belt to the framework's braces.
-        var subject = User.FindFirstValue(ClaimTypes.NameIdentifier)
-                      ?? User.Identity?.Name;
-        return string.IsNullOrEmpty(subject) ? null : subject;
+        return ActorSubjectResolver.Resolve(User);
     }
 }

@@ -84,6 +84,12 @@ the plan-finalize path (`RuleFires`' "couldn't prove it passed" semantics), an
 violation with `"outcome": "unevaluable"` and `"reason": "data unavailable"`,
 and is scored identically to a `fail`. Missing data can never reduce risk.
 
+Task fields preserve wire-level nullability. Missing or explicit-null
+`delegationContract.toolsAllowed` makes `allTasksReadOnly` unevaluable; an
+explicit empty array is valid and means no tools are allowed. Missing, null, or
+blank `targetEnv` makes `noProductionDeploy` unevaluable. Values such as
+`dev`, `staging`, and `prod` are evaluated as supplied by andy-tasks.
+
 ## Failure modes
 
 | Status | When |

@@ -3,6 +3,7 @@
 
 using System.ComponentModel;
 using System.Security.Claims;
+using Andy.Policies.Api.Authorization;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -159,6 +160,7 @@ public static class OverrideTools
         IHttpContextAccessor httpContext,
         IRbacChecker rbac,
         [Description("Override id (GUID)")] string id,
+        [Description("Human-readable approval reason recorded in the audit chain")] string? rationale = null,
         CancellationToken ct = default)
     {
         if (!gate.IsEnabled)
@@ -188,7 +190,7 @@ public static class OverrideTools
 
         try
         {
-            var dto = await service.ApproveAsync(oid, actor, ct);
+            var dto = await service.ApproveAsync(oid, actor, rationale, ct);
             return JsonSerializer.Serialize(dto, DtoJsonOptions);
         }
         catch (SelfApprovalException ex)
@@ -276,14 +278,20 @@ public static class OverrideTools
         "Revoked|Expired), scopeKind (Principal|Cohort), scopeRef (exact " +
         "match), policyVersionId (GUID). Returns a JSON array of " +
         "OverrideDto records.")]
+    [RbacGuard("andy-policies:override:read")]
     public static async Task<string> List(
         IOverrideService service,
+        IHttpContextAccessor httpContext,
+        IRbacChecker rbac,
         [Description("Proposed | Approved | Revoked | Expired (case-insensitive)")] string? state = null,
         [Description("Principal | Cohort (case-insensitive)")] string? scopeKind = null,
         [Description("Exact-match scope ref")] string? scopeRef = null,
         [Description("Optional policy version id filter (GUID)")] string? policyVersionId = null,
         CancellationToken ct = default)
     {
+        var denial = await McpRbacGuard.GetDenialAsync(
+            rbac, httpContext, "andy-policies:override:read", "policy.override", scopeRef, ct);
+        if (denial is not null) return denial;
         OverrideState? stateFilter = null;
         if (!string.IsNullOrEmpty(state))
         {
@@ -321,11 +329,17 @@ public static class OverrideTools
         "Get a single override by id. Returns policy.override.not_found " +
         "if the row does not exist; visibility is not state-gated " +
         "(Expired/Revoked rows are still readable for audit).")]
+    [RbacGuard("andy-policies:override:read")]
     public static async Task<string> Get(
         IOverrideService service,
+        IHttpContextAccessor httpContext,
+        IRbacChecker rbac,
         [Description("Override id (GUID)")] string id,
         CancellationToken ct = default)
     {
+        var denial = await McpRbacGuard.GetDenialAsync(
+            rbac, httpContext, "andy-policies:override:read", "policy.override", id, ct);
+        if (denial is not null) return denial;
         if (!Guid.TryParse(id, out var oid))
         {
             return $"policy.override.invalid_argument: '{id}' is not a valid GUID.";
@@ -341,12 +355,18 @@ public static class OverrideTools
         "where State == Approved AND ExpiresAt > now. Used by Conductor " +
         "during admission and by P4.3 chain resolution. Bypasses the " +
         "experimental-overrides settings gate.")]
+    [RbacGuard("andy-policies:override:read")]
     public static async Task<string> Active(
         IOverrideService service,
+        IHttpContextAccessor httpContext,
+        IRbacChecker rbac,
         [Description("Principal | Cohort")] string scopeKind,
         [Description("Exact-match scope ref")] string scopeRef,
         CancellationToken ct = default)
     {
+        var denial = await McpRbacGuard.GetDenialAsync(
+            rbac, httpContext, "andy-policies:override:read", "policy.override", scopeRef, ct);
+        if (denial is not null) return denial;
         if (!Enum.TryParse<OverrideScopeKind>(scopeKind, ignoreCase: true, out var sk))
         {
             return $"policy.override.invalid_argument: scopeKind '{scopeKind}' must be Principal or Cohort.";
@@ -363,7 +383,6 @@ public static class OverrideTools
     {
         var user = accessor.HttpContext?.User;
         if (user is null) return null;
-        var sub = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? user.Identity?.Name;
-        return string.IsNullOrEmpty(sub) ? null : sub;
+        return ActorSubjectResolver.Resolve(user);
     }
 }

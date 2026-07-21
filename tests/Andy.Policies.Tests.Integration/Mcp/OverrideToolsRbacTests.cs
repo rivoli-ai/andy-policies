@@ -98,7 +98,9 @@ public class OverrideToolsRbacTests
         // this test class targets). Hand it an unconditional allow stub
         // so we isolate the *MCP* guard signal we're measuring.
         var serviceLayerAllow = new RecordingRbac();
-        var service = new OverrideService(db, serviceLayerAllow, new NoopDispatcher(), TimeProvider.System);
+        var service = new OverrideService(
+            db, serviceLayerAllow, new NoopDispatcher(), TimeProvider.System,
+            rationale: IntegrationAllowAnyRationalePolicy.Instance);
         return (service, db, new StubGate { IsEnabled = true });
     }
 

@@ -28,8 +28,17 @@ Schema lives at [`schemas/audit-event.schema.json`](schemas/audit-event.schema.j
 | `action` | string | yes | Dotted action code (`policy.version.publish`, `override.approve`, …). |
 | `entityType` | string | yes | Canonical type of the mutated entity (`Policy`, `Override`, `Binding`, …). |
 | `entityId` | string | yes | String form of the row's primary key — usually a GUID, occasionally a composite ref. |
-| `fieldDiff` | parsed JSON Patch (RFC 6902) | yes | Embedded as a JSON value, **not** as a JSON-encoded string. Defaults to `[]` for create/delete events. |
+| `fieldDiff` | parsed JSON Patch (RFC 6902) | yes | Embedded as a JSON value, **not** as a JSON-encoded string. Catalog mutation adapters always emit a populated patch; lower-level audit callers may use `[]` when no mutation diff exists. |
 | `rationale` | string \| null | yes | Free-text rationale; null permitted only when `andy.policies.rationaleRequired` is off (P6.4). |
+
+## Mutation atomicity
+
+Catalog services save their state change and append the audit envelope through
+the same scoped `AppDbContext` transaction. The chain joins an ambient
+transaction instead of opening a nested one. An audit failure therefore rolls
+back the policy, lifecycle, binding, scope, override, bundle, or item mutation;
+a state change without its expected audit row cannot commit. This contract is
+the same on SQLite and PostgreSQL (with provider-specific serialization locks).
 
 ## Canonical JSON rules (pinned by ADR 0006)
 

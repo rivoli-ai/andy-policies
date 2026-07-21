@@ -182,7 +182,11 @@ internal static class OverrideCommands
     {
         var command = new Command("approve", "Approve a proposed override (must differ from proposer).");
         var idArg = new Argument<Guid>("id", "Override id (GUID)");
+        var rationaleOpt = new Option<string?>(
+            aliases: new[] { "--rationale", "-r" },
+            description: "Approval reason recorded in the audit chain; required when rationale enforcement is enabled.");
         command.AddArgument(idArg);
+        command.AddOption(rationaleOpt);
 
         command.SetHandler(async ctx =>
         {
@@ -193,8 +197,10 @@ internal static class OverrideCommands
             var ct = ctx.GetCancellationToken();
 
             using var http = ClientFactory.Create(api, tok);
-            var resp = await http.PostAsync(
-                $"/api/overrides/{id}/approve", content: null, ct).ConfigureAwait(false);
+            var resp = await http.PostAsJsonAsync(
+                $"/api/overrides/{id}/approve",
+                new { rationale = ctx.ParseResult.GetValueForOption(rationaleOpt) },
+                ct).ConfigureAwait(false);
             if (!resp.IsSuccessStatusCode)
             {
                 ctx.ExitCode = await ExitCodes.HandleAsync(resp, ct).ConfigureAwait(false);

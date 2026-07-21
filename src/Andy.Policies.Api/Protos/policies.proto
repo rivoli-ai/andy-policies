@@ -119,6 +119,7 @@ message CreateDraftRequest {
   string severity = 5;
   repeated string scopes = 6;
   string rules_json = 7;
+  string rationale = 8;
 }
 
 message UpdateDraftRequest {
@@ -129,9 +130,11 @@ message UpdateDraftRequest {
   string severity = 5;
   repeated string scopes = 6;
   string rules_json = 7;
+  string rationale = 8;
 }
 
 message BumpDraftRequest {
   string policy_id = 1;
   string source_version_id = 2;
+  string rationale = 3;
 }

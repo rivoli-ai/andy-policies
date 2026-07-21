@@ -16,4 +16,5 @@ public sealed record CreateScopeNodeRequest(
     Guid? ParentId,
     ScopeType Type,
     string Ref,
-    string DisplayName);
+    string DisplayName,
+    string? Rationale = null);

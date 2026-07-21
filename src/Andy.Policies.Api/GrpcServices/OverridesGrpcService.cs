@@ -2,6 +2,7 @@
 // Licensed under the Apache License, Version 2.0.
 
 using System.Security.Claims;
+using Andy.Policies.Api.Authorization;
 using Andy.Policies.Api.Protos;
 using Andy.Policies.Application.Dtos;
 using Andy.Policies.Application.Exceptions;
@@ -133,7 +134,11 @@ public class OverridesGrpcService : Andy.Policies.Api.Protos.OverridesService.Ov
 
         try
         {
-            var dto = await _service.ApproveAsync(id, subject, context.CancellationToken)
+            var dto = await _service.ApproveAsync(
+                    id,
+                    subject,
+                    string.IsNullOrWhiteSpace(request.Rationale) ? null : request.Rationale,
+                    context.CancellationToken)
                 .ConfigureAwait(false);
             return ToMessage(dto);
         }
@@ -232,7 +237,7 @@ public class OverridesGrpcService : Andy.Policies.Api.Protos.OverridesService.Ov
     private string ResolveSubjectOrThrow()
     {
         var user = _http.HttpContext?.User;
-        var subject = user?.FindFirstValue(ClaimTypes.NameIdentifier) ?? user?.Identity?.Name;
+        var subject = ActorSubjectResolver.Resolve(user);
         if (string.IsNullOrEmpty(subject))
         {
             throw new RpcException(new Status(StatusCode.Unauthenticated,
@@ -339,4 +344,3 @@ public class OverridesGrpcService : Andy.Policies.Api.Protos.OverridesService.Ov
             $"Unmapped exception in OverridesGrpcService: {ex.GetType().Name}", ex),
     };
 }
-

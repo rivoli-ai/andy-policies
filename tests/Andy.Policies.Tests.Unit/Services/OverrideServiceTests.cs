@@ -39,7 +39,8 @@ public class OverrideServiceTests
         var events = new RecordingDispatcher();
         var rbac = new StubRbac { Allow = rbacAllow };
         var clock = new FakeTimeProvider(new DateTimeOffset(2026, 4, 27, 12, 0, 0, TimeSpan.Zero));
-        var service = new OverrideService(db, rbac, events, clock);
+        var service = new OverrideService(
+            db, rbac, events, clock, rationale: AllowAnyRationalePolicy.Instance);
         return (service, db, events, rbac, clock);
     }
 
@@ -406,7 +407,8 @@ public class OverrideServiceTests
         var allowingRbac = new StubRbac { Allow = true };
         var clock = new FakeTimeProvider(new DateTimeOffset(2026, 4, 27, 12, 0, 0, TimeSpan.Zero));
 
-        var allowingSvc = new OverrideService(db, allowingRbac, events, clock);
+        var allowingSvc = new OverrideService(
+            db, allowingRbac, events, clock, rationale: AllowAnyRationalePolicy.Instance);
         var (_, version) = await SeedActiveAsync(db, "p15");
         var proposed = await allowingSvc.ProposeAsync(
             ExemptRequest(version.Id, clock.GetUtcNow().AddDays(1)),
@@ -414,7 +416,8 @@ public class OverrideServiceTests
         await allowingSvc.ApproveAsync(proposed.Id, Approver);
 
         var denyingRbac = new StubRbac { Allow = false };
-        var denyingSvc = new OverrideService(db, denyingRbac, events, clock);
+        var denyingSvc = new OverrideService(
+            db, denyingRbac, events, clock, rationale: AllowAnyRationalePolicy.Instance);
 
         await FluentActions.Invoking(() => denyingSvc.RevokeAsync(
                 proposed.Id, new RevokeOverrideRequest("attempt"), "user:not-allowed"))
@@ -485,13 +488,17 @@ public class OverrideServiceTests
         var events = new RecordingDispatcher();
         var clock = new FakeTimeProvider(new DateTimeOffset(2026, 5, 7, 12, 0, 0, TimeSpan.Zero));
 
-        var allowingSvc = new OverrideService(db, new StubRbac { Allow = true }, events, clock);
+        var allowingSvc = new OverrideService(
+            db, new StubRbac { Allow = true }, events, clock,
+            rationale: AllowAnyRationalePolicy.Instance);
         var (_, version) = await SeedActiveAsync(db, "rj4");
         var proposed = await allowingSvc.ProposeAsync(
             ExemptRequest(version.Id, clock.GetUtcNow().AddDays(1)),
             Proposer);
 
-        var denyingSvc = new OverrideService(db, new StubRbac { Allow = false }, events, clock);
+        var denyingSvc = new OverrideService(
+            db, new StubRbac { Allow = false }, events, clock,
+            rationale: AllowAnyRationalePolicy.Instance);
 
         await FluentActions.Invoking(() => denyingSvc.RejectAsync(
                 proposed.Id, new RejectOverrideRequest("nope"), "user:not-allowed"))

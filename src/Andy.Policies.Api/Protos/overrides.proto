@@ -114,6 +114,7 @@ message ProposeOverrideRequest {
 
 message ApproveOverrideRequest {
   string id = 1;
+  string rationale = 2;
 }
 
 message RevokeOverrideRequest {

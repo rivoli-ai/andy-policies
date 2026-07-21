@@ -18,6 +18,8 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
+
+using static Andy.Policies.Tests.Integration.Fixtures.McpToolStubs;
 using ProtoBindStrength = Andy.Policies.Api.Protos.BindStrength;
 using DomainBindStrength = Andy.Policies.Domain.Enums.BindStrength;
 using RestResolveBindingsResponse = Andy.Policies.Application.Dtos.ResolveBindingsResponse;
@@ -165,7 +167,8 @@ public class BindingCrossSurfaceParityTests : IClassFixture<PoliciesApiFactory>,
         // we deserialize and compare structurally to the REST shape.
         using var scope = _factory.Services.CreateScope();
         var resolver = scope.ServiceProvider.GetRequiredService<IBindingResolver>();
-        var mcpJson = await BindingTools.Resolve(resolver, "Repo", target);
+        var mcpJson = await BindingTools.Resolve(
+            resolver, AccessorFor("test:user"), AllowAllRbac, "Repo", target);
         using var mcpDoc = JsonDocument.Parse(mcpJson);
 
         // Counts match.

@@ -9,4 +9,6 @@ namespace Andy.Policies.Application.Dtos;
 /// hierarchy fields (<c>ParentId</c>, <c>Type</c>, <c>Ref</c>) are
 /// immutable per ADR 0004 (re-parenting is out of scope for Epic P4).
 /// </summary>
-public sealed record UpdateScopeNodeRequest(string DisplayName);
+public sealed record UpdateScopeNodeRequest(
+    string DisplayName,
+    string? Rationale = null);

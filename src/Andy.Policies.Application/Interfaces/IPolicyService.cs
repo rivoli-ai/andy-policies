@@ -12,11 +12,9 @@ namespace Andy.Policies.Application.Interfaces;
 /// across surfaces per CLAUDE.md.
 /// </summary>
 /// <remarks>
-/// This service performs no enforcement, no token issuance, no role storage, and
-/// does not call andy-rbac. Edit-RBAC sits in the controller layer (Epic P7 —
-/// rivoli-ai/andy-policies#7). Audit chain emission is Epic P6 — this service
-/// may emit in-process domain events (out of scope for P1.4); audit rows are
-/// persisted by the P6 chain writer.
+/// This service performs no authorization, token issuance, or role storage;
+/// surface adapters enforce edit RBAC. It does enforce mutation rationale and
+/// appends through the P6 chain writer inside the mutation transaction.
 /// </remarks>
 public interface IPolicyService
 {
@@ -36,7 +34,12 @@ public interface IPolicyService
 
     Task<PolicyVersionDto> UpdateDraftAsync(Guid policyId, Guid versionId, UpdatePolicyVersionRequest request, string subjectId, CancellationToken ct = default);
 
-    Task<PolicyVersionDto> BumpDraftFromVersionAsync(Guid policyId, Guid sourceVersionId, string subjectId, CancellationToken ct = default);
+    Task<PolicyVersionDto> BumpDraftFromVersionAsync(
+        Guid policyId,
+        Guid sourceVersionId,
+        string subjectId,
+        string? rationale = null,
+        CancellationToken ct = default);
 
     /// <summary>
     /// Mark a Draft version as ready for an approver to review (#216).

@@ -70,7 +70,9 @@ public class BindingConcurrencyStressTests : IAsyncLifetime
             .Options);
 
     private static BindingService NewService(AppDbContext db) =>
-        new(db, new NoopAuditWriter(NullLogger<NoopAuditWriter>.Instance), TimeProvider.System);
+        new(db, new NoopAuditWriter(NullLogger<NoopAuditWriter>.Instance),
+            TimeProvider.System, tightenValidator: null,
+            IntegrationAllowAnyRationalePolicy.Instance);
 
     [SkippableFact]
     public async Task FiftyParallelCreates_AgainstSameTarget_AllSucceed_NoDeadlocks()

@@ -84,7 +84,9 @@ public class AuditToolsTests : IDisposable
     {
         await SeedAsync(3);
 
-        var output = await AuditTools.List(_query, NoRetention.Instance, TimeProvider.System);
+        var output = await AuditTools.List(
+            _query, NoRetention.Instance, TimeProvider.System,
+            AccessorFor("test:user"), AllowAllRbac);
 
         var page = JsonSerializer.Deserialize<AuditPageDto>(output, JsonOpts);
         page!.Items.Should().HaveCount(3);
@@ -95,7 +97,9 @@ public class AuditToolsTests : IDisposable
     [Fact]
     public async Task List_PageSizeOutOfRange_ReturnsInvalidArgument()
     {
-        var output = await AuditTools.List(_query, NoRetention.Instance, TimeProvider.System, pageSize: 501);
+        var output = await AuditTools.List(
+            _query, NoRetention.Instance, TimeProvider.System,
+            AccessorFor("test:user"), AllowAllRbac, pageSize: 501);
 
         output.Should().StartWith("policy.audit.invalid_argument:");
         output.Should().Contain("pageSize");
@@ -104,7 +108,9 @@ public class AuditToolsTests : IDisposable
     [Fact]
     public async Task List_BadFromTimestamp_ReturnsInvalidArgument()
     {
-        var output = await AuditTools.List(_query, NoRetention.Instance, TimeProvider.System, from: "not-a-date");
+        var output = await AuditTools.List(
+            _query, NoRetention.Instance, TimeProvider.System,
+            AccessorFor("test:user"), AllowAllRbac, from: "not-a-date");
 
         output.Should().StartWith("policy.audit.invalid_argument:");
     }
@@ -112,7 +118,9 @@ public class AuditToolsTests : IDisposable
     [Fact]
     public async Task List_FromGreaterThanTo_ReturnsInvalidArgument()
     {
-        var output = await AuditTools.List(_query, NoRetention.Instance, TimeProvider.System,
+        var output = await AuditTools.List(
+            _query, NoRetention.Instance, TimeProvider.System,
+            AccessorFor("test:user"), AllowAllRbac,
             from: "2026-12-31T00:00:00Z",
             to: "2026-01-01T00:00:00Z");
 
@@ -122,7 +130,9 @@ public class AuditToolsTests : IDisposable
     [Fact]
     public async Task List_MalformedCursor_ReturnsInvalidArgument()
     {
-        var output = await AuditTools.List(_query, NoRetention.Instance, TimeProvider.System, cursor: "not-base64-content!");
+        var output = await AuditTools.List(
+            _query, NoRetention.Instance, TimeProvider.System,
+            AccessorFor("test:user"), AllowAllRbac, cursor: "not-base64-content!");
 
         output.Should().StartWith("policy.audit.invalid_argument:");
     }
@@ -133,7 +143,9 @@ public class AuditToolsTests : IDisposable
         await SeedAsync(2, actor: "user:alice");
         await SeedAsync(3, actor: "user:bob");
 
-        var output = await AuditTools.List(_query, NoRetention.Instance, TimeProvider.System, actor: "user:alice");
+        var output = await AuditTools.List(
+            _query, NoRetention.Instance, TimeProvider.System,
+            AccessorFor("test:user"), AllowAllRbac, actor: "user:alice");
         var page = JsonSerializer.Deserialize<AuditPageDto>(output, JsonOpts);
 
         page!.Items.Should().HaveCount(2);
@@ -145,14 +157,16 @@ public class AuditToolsTests : IDisposable
     [Fact]
     public async Task Get_BadGuid_ReturnsInvalidArgument()
     {
-        var output = await AuditTools.Get(_query, "not-a-guid");
+        var output = await AuditTools.Get(
+            _query, AccessorFor("test:user"), AllowAllRbac, "not-a-guid");
         output.Should().StartWith("policy.audit.invalid_argument:");
     }
 
     [Fact]
     public async Task Get_UnknownId_ReturnsNotFound()
     {
-        var output = await AuditTools.Get(_query, Guid.NewGuid().ToString());
+        var output = await AuditTools.Get(
+            _query, AccessorFor("test:user"), AllowAllRbac, Guid.NewGuid().ToString());
         output.Should().StartWith("policy.audit.not_found:");
     }
 
@@ -161,10 +175,13 @@ public class AuditToolsTests : IDisposable
     {
         await SeedAsync(1);
         var page = JsonSerializer.Deserialize<AuditPageDto>(
-            await AuditTools.List(_query, NoRetention.Instance, TimeProvider.System), JsonOpts);
+            await AuditTools.List(
+                _query, NoRetention.Instance, TimeProvider.System,
+                AccessorFor("test:user"), AllowAllRbac), JsonOpts);
         var id = page!.Items[0].Id;
 
-        var output = await AuditTools.Get(_query, id.ToString());
+        var output = await AuditTools.Get(
+            _query, AccessorFor("test:user"), AllowAllRbac, id.ToString());
 
         var dto = JsonSerializer.Deserialize<AuditEventDto>(output, JsonOpts);
         dto!.Id.Should().Be(id);

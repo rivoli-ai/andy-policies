@@ -108,6 +108,7 @@ message CreateBindingRequest {
   TargetType target_type = 2;
   string target_ref = 3;
   BindStrength bind_strength = 4;
+  string rationale = 5;
 }
 
 message DeleteBindingRequest {

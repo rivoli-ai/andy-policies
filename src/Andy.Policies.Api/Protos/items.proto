@@ -28,16 +28,19 @@ message GetItemByIdRequest {
 message CreateItemGrpcRequest {
   string name = 1;
   string description = 2;
+  string rationale = 3;
 }
 
 message UpdateItemGrpcRequest {
   string id = 1;
   string name = 2;
   string description = 3;
+  string rationale = 4;
 }
 
 message DeleteItemRequest {
   string id = 1;
+  string rationale = 2;
 }
 
 message DeleteItemResponse {

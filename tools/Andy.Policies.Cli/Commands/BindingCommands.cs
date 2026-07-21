@@ -114,10 +114,14 @@ internal static class BindingCommands
             aliases: new[] { "--bind-strength" },
             getDefaultValue: () => "Recommended",
             description: "Mandatory or Recommended. Defaults to Recommended.");
+        var rationaleOpt = new Option<string?>(
+            aliases: new[] { "--rationale", "-r" },
+            description: "Reason recorded in the audit chain; required when rationale enforcement is enabled.");
         command.AddOption(policyVersionOpt);
         command.AddOption(targetTypeOpt);
         command.AddOption(targetRefOpt);
         command.AddOption(bindStrengthOpt);
+        command.AddOption(rationaleOpt);
 
         command.SetHandler(async ctx =>
         {
@@ -133,7 +137,14 @@ internal static class BindingCommands
             using var http = ClientFactory.Create(api, tok);
             var resp = await http.PostAsJsonAsync(
                 "/api/bindings",
-                new { policyVersionId = pv, targetType = tt, targetRef = tr, bindStrength = bs },
+                new
+                {
+                    policyVersionId = pv,
+                    targetType = tt,
+                    targetRef = tr,
+                    bindStrength = bs,
+                    rationale = ctx.ParseResult.GetValueForOption(rationaleOpt),
+                },
                 ct).ConfigureAwait(false);
             if (!resp.IsSuccessStatusCode)
             {

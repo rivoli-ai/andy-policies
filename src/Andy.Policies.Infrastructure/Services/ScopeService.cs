@@ -26,16 +26,33 @@ public sealed class ScopeService : IScopeService
 
     private readonly AppDbContext _db;
     private readonly TimeProvider _clock;
+    private readonly IAuditWriter _audit;
+    private readonly IRationalePolicy _rationale;
 
-    public ScopeService(AppDbContext db, TimeProvider clock)
+    public ScopeService(
+        AppDbContext db,
+        TimeProvider clock,
+        IAuditWriter audit,
+        IRationalePolicy? rationale = null)
     {
         _db = db;
         _clock = clock;
+        _audit = audit;
+        _rationale = rationale ?? new RequireNonEmptyRationalePolicy();
     }
 
-    public async Task<ScopeNodeDto> CreateAsync(CreateScopeNodeRequest request, CancellationToken ct = default)
+    public async Task<ScopeNodeDto> CreateAsync(
+        CreateScopeNodeRequest request,
+        string actorSubjectId,
+        CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(request);
+        ArgumentException.ThrowIfNullOrEmpty(actorSubjectId);
+        ValidateRationale(request.Rationale);
+
+        await using var transaction = _db.Database.IsRelational()
+            ? await _db.Database.BeginTransactionAsync(ct).ConfigureAwait(false)
+            : null;
 
         var refValue = (request.Ref ?? string.Empty).Trim();
         if (string.IsNullOrEmpty(refValue))
@@ -114,6 +131,14 @@ public sealed class ScopeService : IScopeService
             throw new ScopeRefConflictException(request.Type, refValue, ex);
         }
 
+        await _audit.AppendAsync(
+            "scope.created", node.Id, actorSubjectId, request.Rationale, ct)
+            .ConfigureAwait(false);
+        if (transaction is not null)
+        {
+            await transaction.CommitAsync(ct).ConfigureAwait(false);
+        }
+
         return ToDto(node);
     }
 
@@ -153,9 +178,18 @@ public sealed class ScopeService : IScopeService
             .ToList();
     }
 
-    public async Task<ScopeNodeDto> UpdateAsync(Guid id, UpdateScopeNodeRequest request, CancellationToken ct = default)
+    public async Task<ScopeNodeDto> UpdateAsync(
+        Guid id,
+        UpdateScopeNodeRequest request,
+        string actorSubjectId,
+        CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(request);
+        ArgumentException.ThrowIfNullOrEmpty(actorSubjectId);
+        ValidateRationale(request.Rationale);
+        await using var transaction = _db.Database.IsRelational()
+            ? await _db.Database.BeginTransactionAsync(ct).ConfigureAwait(false)
+            : null;
         var displayName = (request.DisplayName ?? string.Empty).Trim();
         if (string.IsNullOrEmpty(displayName))
         {
@@ -175,11 +209,27 @@ public sealed class ScopeService : IScopeService
         node.DisplayName = displayName;
         node.UpdatedAt = _clock.GetUtcNow();
         await _db.SaveChangesAsync(ct).ConfigureAwait(false);
+        await _audit.AppendAsync(
+            "scope.updated", node.Id, actorSubjectId, request.Rationale, ct)
+            .ConfigureAwait(false);
+        if (transaction is not null)
+        {
+            await transaction.CommitAsync(ct).ConfigureAwait(false);
+        }
         return ToDto(node);
     }
 
-    public async Task DeleteAsync(Guid id, CancellationToken ct = default)
+    public async Task DeleteAsync(
+        Guid id,
+        string actorSubjectId,
+        string? rationale,
+        CancellationToken ct = default)
     {
+        ArgumentException.ThrowIfNullOrEmpty(actorSubjectId);
+        ValidateRationale(rationale);
+        await using var transaction = _db.Database.IsRelational()
+            ? await _db.Database.BeginTransactionAsync(ct).ConfigureAwait(false)
+            : null;
         var node = await _db.ScopeNodes
             .FirstOrDefaultAsync(s => s.Id == id, ct)
             .ConfigureAwait(false)
@@ -195,6 +245,22 @@ public sealed class ScopeService : IScopeService
 
         _db.ScopeNodes.Remove(node);
         await _db.SaveChangesAsync(ct).ConfigureAwait(false);
+        await _audit.AppendAsync(
+            "scope.deleted", id, actorSubjectId, rationale, ct)
+            .ConfigureAwait(false);
+        if (transaction is not null)
+        {
+            await transaction.CommitAsync(ct).ConfigureAwait(false);
+        }
+    }
+
+    private void ValidateRationale(string? rationale)
+    {
+        var error = _rationale.ValidateRationale(rationale);
+        if (error is not null)
+        {
+            throw new RationaleRequiredException(error);
+        }
     }
 
     public async Task<IReadOnlyList<ScopeNodeDto>> GetAncestorsAsync(Guid id, CancellationToken ct = default)

@@ -6,9 +6,12 @@ using Andy.Policies.Application.Dtos;
 using Andy.Policies.Domain.Enums;
 using Andy.Policies.Infrastructure.Data;
 using Andy.Policies.Infrastructure.Services;
+using Andy.Policies.Tests.Integration.Fixtures;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Xunit;
+
+using static Andy.Policies.Tests.Integration.Fixtures.McpToolStubs;
 
 namespace Andy.Policies.Tests.Integration.Mcp;
 
@@ -45,9 +48,11 @@ public class PolicyToolsTests
     public async Task ListPolicies_NoMatches_ReturnsHelpfulEmptyMessage()
     {
         using var db = CreateInMemoryDb();
-        var service = new PolicyService(db);
+        var service = new PolicyService(
+            db, rationale: IntegrationAllowAnyRationalePolicy.Instance);
 
-        var output = await PolicyTools.ListPolicies(service, namePrefix: "no-such-");
+        var output = await PolicyTools.ListPolicies(
+            service, AccessorFor("test:user"), AllowAllRbac, namePrefix: "no-such-");
 
         Assert.Contains("No policies found", output);
     }
@@ -56,11 +61,12 @@ public class PolicyToolsTests
     public async Task ListPolicies_FormatsSummaryLine_PerPolicy()
     {
         using var db = CreateInMemoryDb();
-        var service = new PolicyService(db);
+        var service = new PolicyService(
+            db, rationale: IntegrationAllowAnyRationalePolicy.Instance);
         await service.CreateDraftAsync(MinimalCreate("first"), "sam");
         await service.CreateDraftAsync(MinimalCreate("second"), "sam");
 
-        var output = await PolicyTools.ListPolicies(service);
+        var output = await PolicyTools.ListPolicies(service, AccessorFor("test:user"), AllowAllRbac);
 
         Assert.Contains("2 policies:", output);
         Assert.Contains("first", output);
@@ -73,14 +79,16 @@ public class PolicyToolsTests
     public async Task ListPolicies_PassesFiltersThrough_ToService()
     {
         using var db = CreateInMemoryDb();
-        var service = new PolicyService(db);
+        var service = new PolicyService(
+            db, rationale: IntegrationAllowAnyRationalePolicy.Instance);
         var a = await service.CreateDraftAsync(MinimalCreate("filtered", scope: "prod"), "sam");
         await service.CreateDraftAsync(MinimalCreate("ignored", scope: "staging"), "sam");
         var entity = await db.PolicyVersions.FirstAsync(v => v.Id == a.Id);
         entity.State = LifecycleState.Active;
         await db.SaveChangesAsync();
 
-        var output = await PolicyTools.ListPolicies(service, scope: "prod");
+        var output = await PolicyTools.ListPolicies(
+            service, AccessorFor("test:user"), AllowAllRbac, scope: "prod");
 
         Assert.Contains("filtered", output);
         Assert.DoesNotContain("ignored", output);
@@ -90,9 +98,11 @@ public class PolicyToolsTests
     public async Task GetPolicy_InvalidGuid_ReturnsValidationMessage_WithoutCallingService()
     {
         using var db = CreateInMemoryDb();
-        var service = new PolicyService(db);
+        var service = new PolicyService(
+            db, rationale: IntegrationAllowAnyRationalePolicy.Instance);
 
-        var output = await PolicyTools.GetPolicy(service, policyId: "not-a-guid");
+        var output = await PolicyTools.GetPolicy(
+            service, AccessorFor("test:user"), AllowAllRbac, policyId: "not-a-guid");
 
         Assert.Contains("not a valid GUID", output);
     }
@@ -101,10 +111,12 @@ public class PolicyToolsTests
     public async Task GetPolicy_NotFound_ReturnsHelpfulMessage()
     {
         using var db = CreateInMemoryDb();
-        var service = new PolicyService(db);
+        var service = new PolicyService(
+            db, rationale: IntegrationAllowAnyRationalePolicy.Instance);
         var missing = Guid.NewGuid();
 
-        var output = await PolicyTools.GetPolicy(service, missing.ToString());
+        var output = await PolicyTools.GetPolicy(
+            service, AccessorFor("test:user"), AllowAllRbac, missing.ToString());
 
         Assert.Contains($"Policy {missing} not found", output);
     }
@@ -113,10 +125,12 @@ public class PolicyToolsTests
     public async Task GetPolicy_Found_FormatsDetail()
     {
         using var db = CreateInMemoryDb();
-        var service = new PolicyService(db);
+        var service = new PolicyService(
+            db, rationale: IntegrationAllowAnyRationalePolicy.Instance);
         var v = await service.CreateDraftAsync(MinimalCreate("detail-policy"), "sam");
 
-        var output = await PolicyTools.GetPolicy(service, v.PolicyId.ToString());
+        var output = await PolicyTools.GetPolicy(
+            service, AccessorFor("test:user"), AllowAllRbac, v.PolicyId.ToString());
 
         Assert.Contains("Policy: detail-policy", output);
         Assert.Contains("Versions: 1", output);
@@ -127,14 +141,16 @@ public class PolicyToolsTests
     public async Task ListVersions_ReturnsDescendingOrder_WithStateAndDimensions()
     {
         using var db = CreateInMemoryDb();
-        var service = new PolicyService(db);
+        var service = new PolicyService(
+            db, rationale: IntegrationAllowAnyRationalePolicy.Instance);
         var v1 = await service.CreateDraftAsync(MinimalCreate("multi-version"), "sam");
         var entity = await db.PolicyVersions.FirstAsync(x => x.Id == v1.Id);
         entity.State = LifecycleState.Active;
         await db.SaveChangesAsync();
         var v2 = await service.BumpDraftFromVersionAsync(v1.PolicyId, v1.Id, "alice");
 
-        var output = await PolicyTools.ListVersions(service, v1.PolicyId.ToString());
+        var output = await PolicyTools.ListVersions(
+            service, AccessorFor("test:user"), AllowAllRbac, v1.PolicyId.ToString());
 
         Assert.Contains("2 versions", output);
         // v2 (Draft) appears before v1 (Active) — descending order.
@@ -150,9 +166,11 @@ public class PolicyToolsTests
     public async Task ListVersions_NoSuchPolicy_ReturnsHelpfulEmptyMessage()
     {
         using var db = CreateInMemoryDb();
-        var service = new PolicyService(db);
+        var service = new PolicyService(
+            db, rationale: IntegrationAllowAnyRationalePolicy.Instance);
 
-        var output = await PolicyTools.ListVersions(service, Guid.NewGuid().ToString());
+        var output = await PolicyTools.ListVersions(
+            service, AccessorFor("test:user"), AllowAllRbac, Guid.NewGuid().ToString());
 
         Assert.Contains("No versions found", output);
     }
@@ -161,12 +179,15 @@ public class PolicyToolsTests
     public async Task GetVersion_Found_FormatsRulesJsonAndScopes()
     {
         using var db = CreateInMemoryDb();
-        var service = new PolicyService(db);
+        var service = new PolicyService(
+            db, rationale: IntegrationAllowAnyRationalePolicy.Instance);
         var v = await service.CreateDraftAsync(
             MinimalCreate("rich-version", scope: "prod") with { RulesJson = "{\"allow\":true}" },
             "sam");
 
-        var output = await PolicyTools.GetVersion(service, v.PolicyId.ToString(), v.Id.ToString());
+        var output = await PolicyTools.GetVersion(
+            service, AccessorFor("test:user"), AllowAllRbac,
+            v.PolicyId.ToString(), v.Id.ToString());
 
         Assert.Contains($"v{v.Version} of policy {v.PolicyId}", output);
         Assert.Contains("State: Draft", output);
@@ -180,12 +201,14 @@ public class PolicyToolsTests
     public async Task GetVersion_NotFound_ReturnsHelpfulMessage()
     {
         using var db = CreateInMemoryDb();
-        var service = new PolicyService(db);
+        var service = new PolicyService(
+            db, rationale: IntegrationAllowAnyRationalePolicy.Instance);
         var missingPolicy = Guid.NewGuid();
         var missingVersion = Guid.NewGuid();
 
         var output = await PolicyTools.GetVersion(
-            service, missingPolicy.ToString(), missingVersion.ToString());
+            service, AccessorFor("test:user"), AllowAllRbac,
+            missingPolicy.ToString(), missingVersion.ToString());
 
         Assert.Contains("not found", output);
     }
@@ -194,10 +217,12 @@ public class PolicyToolsTests
     public async Task GetActiveVersion_AllDraft_ReturnsHelpfulMessage()
     {
         using var db = CreateInMemoryDb();
-        var service = new PolicyService(db);
+        var service = new PolicyService(
+            db, rationale: IntegrationAllowAnyRationalePolicy.Instance);
         var v = await service.CreateDraftAsync(MinimalCreate("only-draft"), "sam");
 
-        var output = await PolicyTools.GetActiveVersion(service, v.PolicyId.ToString());
+        var output = await PolicyTools.GetActiveVersion(
+            service, AccessorFor("test:user"), AllowAllRbac, v.PolicyId.ToString());
 
         Assert.Contains("no active version", output);
     }
@@ -206,13 +231,15 @@ public class PolicyToolsTests
     public async Task GetActiveVersion_AfterTransition_ResolvesAndFormatsDetail()
     {
         using var db = CreateInMemoryDb();
-        var service = new PolicyService(db);
+        var service = new PolicyService(
+            db, rationale: IntegrationAllowAnyRationalePolicy.Instance);
         var v = await service.CreateDraftAsync(MinimalCreate("active-flow"), "sam");
         var entity = await db.PolicyVersions.FirstAsync(x => x.Id == v.Id);
         entity.State = LifecycleState.Active;
         await db.SaveChangesAsync();
 
-        var output = await PolicyTools.GetActiveVersion(service, v.PolicyId.ToString());
+        var output = await PolicyTools.GetActiveVersion(
+            service, AccessorFor("test:user"), AllowAllRbac, v.PolicyId.ToString());
 
         Assert.Contains($"v{v.Version} of policy {v.PolicyId}", output);
         Assert.Contains("State: Active", output);
@@ -222,17 +249,20 @@ public class PolicyToolsTests
     public async Task AllToolsTakingGuidArguments_RejectMalformedInput_BeforeServiceCall()
     {
         using var db = CreateInMemoryDb();
-        var service = new PolicyService(db);
+        var service = new PolicyService(
+            db, rationale: IntegrationAllowAnyRationalePolicy.Instance);
 
         Assert.Contains("not a valid GUID",
-            await PolicyTools.GetPolicy(service, "abc"));
+            await PolicyTools.GetPolicy(service, AccessorFor("test:user"), AllowAllRbac, "abc"));
         Assert.Contains("not a valid GUID",
-            await PolicyTools.ListVersions(service, "abc"));
+            await PolicyTools.ListVersions(service, AccessorFor("test:user"), AllowAllRbac, "abc"));
         Assert.Contains("not a valid GUID",
-            await PolicyTools.GetActiveVersion(service, "abc"));
+            await PolicyTools.GetActiveVersion(service, AccessorFor("test:user"), AllowAllRbac, "abc"));
         Assert.Contains("not a valid GUID",
-            await PolicyTools.GetVersion(service, "abc", Guid.NewGuid().ToString()));
+            await PolicyTools.GetVersion(
+                service, AccessorFor("test:user"), AllowAllRbac, "abc", Guid.NewGuid().ToString()));
         Assert.Contains("not a valid GUID",
-            await PolicyTools.GetVersion(service, Guid.NewGuid().ToString(), "abc"));
+            await PolicyTools.GetVersion(
+                service, AccessorFor("test:user"), AllowAllRbac, Guid.NewGuid().ToString(), "abc"));
     }
 }

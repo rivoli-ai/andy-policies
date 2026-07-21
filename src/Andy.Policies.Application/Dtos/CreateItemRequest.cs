@@ -7,4 +7,5 @@ namespace Andy.Policies.Application.Dtos;
 
 public record CreateItemRequest(
     [Required] string Name,
-    string? Description);
+    string? Description,
+    string? Rationale = null);

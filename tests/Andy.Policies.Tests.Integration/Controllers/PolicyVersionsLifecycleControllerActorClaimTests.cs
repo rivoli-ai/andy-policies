@@ -2,6 +2,7 @@
 // Licensed under the Apache License, Version 2.0.
 
 using System.Security.Claims;
+using Andy.Policies.Api.Authorization;
 using Andy.Policies.Api.Controllers;
 using Andy.Policies.Application.Dtos;
 using Andy.Policies.Application.Interfaces;
@@ -19,9 +20,9 @@ namespace Andy.Policies.Tests.Integration.Controllers;
 /// controller must never write a fallback subject id like <c>"anonymous"</c>
 /// into <c>ILifecycleTransitionService.TransitionAsync</c>; if neither
 /// <c>NameIdentifier</c> (production JWT <c>sub</c>) nor <c>Name</c> (test
-/// principal) is present it must short-circuit to 401 before the service
-/// runs. This test exercises the controller in-process with a fake principal —
-/// the HTTP integration tests cover the happy path through TestAuthHandler.
+/// principal) is present it must throw the canonical missing-actor exception
+/// before the service runs. The global exception handler maps that exception
+/// to HTTP 403; these tests exercise the controller directly.
 /// </summary>
 public class PolicyVersionsLifecycleControllerActorClaimTests
 {
@@ -44,15 +45,15 @@ public class PolicyVersionsLifecycleControllerActorClaimTests
     }
 
     [Fact]
-    public async Task Publish_WithNoSubjectClaims_Returns401_AndDoesNotCallService()
+    public async Task Publish_WithNoSubjectClaims_ThrowsAndDoesNotCallService()
     {
         var anonymous = new ClaimsPrincipal(new ClaimsIdentity());
         var (controller, stub) = Build(anonymous);
 
-        var result = await controller.Publish(
+        var act = () => controller.Publish(
             Guid.NewGuid(), Guid.NewGuid(), new LifecycleTransitionRequest("ship"), CancellationToken.None);
 
-        result.Result.Should().BeOfType<UnauthorizedResult>();
+        await act.Should().ThrowAsync<MissingActorSubjectException>();
         stub.Calls.Should().BeEmpty();
     }
 
@@ -91,28 +92,28 @@ public class PolicyVersionsLifecycleControllerActorClaimTests
     }
 
     [Fact]
-    public async Task Retire_WithNoSubjectClaims_Returns401()
+    public async Task Retire_WithNoSubjectClaims_Throws()
     {
         var anonymous = new ClaimsPrincipal(new ClaimsIdentity());
         var (controller, stub) = Build(anonymous);
 
-        var result = await controller.Retire(
+        var act = () => controller.Retire(
             Guid.NewGuid(), Guid.NewGuid(), new LifecycleTransitionRequest("tomb"), CancellationToken.None);
 
-        result.Result.Should().BeOfType<UnauthorizedResult>();
+        await act.Should().ThrowAsync<MissingActorSubjectException>();
         stub.Calls.Should().BeEmpty();
     }
 
     [Fact]
-    public async Task WindDown_WithNoSubjectClaims_Returns401()
+    public async Task WindDown_WithNoSubjectClaims_Throws()
     {
         var anonymous = new ClaimsPrincipal(new ClaimsIdentity());
         var (controller, stub) = Build(anonymous);
 
-        var result = await controller.WindDown(
+        var act = () => controller.WindDown(
             Guid.NewGuid(), Guid.NewGuid(), new LifecycleTransitionRequest("sunset"), CancellationToken.None);
 
-        result.Result.Should().BeOfType<UnauthorizedResult>();
+        await act.Should().ThrowAsync<MissingActorSubjectException>();
         stub.Calls.Should().BeEmpty();
     }
 

@@ -180,9 +180,9 @@ public class PlanEvaluatorTests
     [Fact]
     public async Task Surfaces_data_unavailable_on_predicates_with_missing_inputs()
     {
-        // No tier, no approved list, no budget — three predicates
-        // surface "data unavailable". The fourth and fifth still
-        // evaluate. The wire response must reflect this verbatim.
+        // No tier, approved list, budget, estimated cost, or target
+        // environment. Every predicate whose input is missing must
+        // surface "data unavailable" rather than silently passing.
         var view = AView(
             tasks: new[] { ATask(tools: new[] { "read-file" }) },
             tier: null,
@@ -204,9 +204,10 @@ public class PlanEvaluatorTests
         byName[PlanPredicateNames.RespectsCostBudget].Passed.Should().BeFalse();
         byName[PlanPredicateNames.RespectsCostBudget].Reason.Should().Be("data unavailable");
 
-        // The other two evaluate normally.
+        // Read-only still evaluates because its input is present.
         byName[PlanPredicateNames.AllTasksReadOnly].Passed.Should().BeTrue();
-        byName[PlanPredicateNames.NoProductionDeploy].Passed.Should().BeTrue();
+        byName[PlanPredicateNames.NoProductionDeploy].Passed.Should().BeFalse();
+        byName[PlanPredicateNames.NoProductionDeploy].Reason.Should().Be("data unavailable");
     }
 
     [Fact]

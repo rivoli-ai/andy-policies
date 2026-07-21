@@ -78,7 +78,9 @@ public class OverrideToolsTests
     private static (OverrideService service, AppDbContext db, StubGate gate) NewServices()
     {
         var db = NewDb();
-        var service = new OverrideService(db, new AllowRbac(), new NoopDispatcher(), TimeProvider.System);
+        var service = new OverrideService(
+            db, new AllowRbac(), new NoopDispatcher(), TimeProvider.System,
+            rationale: IntegrationAllowAnyRationalePolicy.Instance);
         return (service, db, new StubGate { IsEnabled = true });
     }
 
@@ -322,7 +324,8 @@ public class OverrideToolsTests
         await SeedProposedAsync(svc, db);
         gate.IsEnabled = false;
 
-        var output = await OverrideTools.List(svc);
+        var output = await OverrideTools.List(
+            svc, AccessorFor("test:user"), AllowRbacInstance);
 
         // Read tools don't take the gate; output is JSON array.
         output.TrimStart().Should().StartWith("[");
@@ -338,7 +341,8 @@ public class OverrideToolsTests
         await SeedProposedAsync(svc, db, scopeRef: "user:2");
         await svc.ApproveAsync(a.Id, "user:approver");
 
-        var output = await OverrideTools.List(svc, state: "Approved");
+        var output = await OverrideTools.List(
+            svc, AccessorFor("test:user"), AllowRbacInstance, state: "Approved");
         var rows = JsonSerializer.Deserialize<List<OverrideDto>>(output, JsonOptions);
 
         rows.Should().ContainSingle().Which.Id.Should().Be(a.Id);
@@ -349,7 +353,8 @@ public class OverrideToolsTests
     {
         var (svc, _, _) = NewServices();
 
-        var output = await OverrideTools.Get(svc, Guid.NewGuid().ToString());
+        var output = await OverrideTools.Get(
+            svc, AccessorFor("test:user"), AllowRbacInstance, Guid.NewGuid().ToString());
 
         output.Should().StartWith("policy.override.not_found:");
     }
@@ -363,7 +368,8 @@ public class OverrideToolsTests
         await SeedProposedAsync(svc, db, scopeRef: "user:42"); // proposed only — should NOT appear
 
         gate.IsEnabled = false;
-        var output = await OverrideTools.Active(svc, "Principal", "user:42");
+        var output = await OverrideTools.Active(
+            svc, AccessorFor("test:user"), AllowRbacInstance, "Principal", "user:42");
         gate.IsEnabled = true;
 
         var rows = JsonSerializer.Deserialize<List<OverrideDto>>(output, JsonOptions);
@@ -375,7 +381,8 @@ public class OverrideToolsTests
     {
         var (svc, _, _) = NewServices();
 
-        var output = await OverrideTools.Active(svc, "NotAScope", "user:42");
+        var output = await OverrideTools.Active(
+            svc, AccessorFor("test:user"), AllowRbacInstance, "NotAScope", "user:42");
 
         output.Should().StartWith("policy.override.invalid_argument:");
     }

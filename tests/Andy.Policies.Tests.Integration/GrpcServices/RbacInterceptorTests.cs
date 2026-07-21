@@ -218,11 +218,9 @@ public class RbacInterceptorTests
             "guarantee depends on running before");
     }
 
-    // The Items bypass is pinned at the unit level by
-    // GrpcPermissionMapCoverageTests.ItemsServiceIsBypassedNotMapped;
-    // a runtime version would require generating a client stub for items.proto
-    // (it ships GrpcServices="Server" — no client class), and the
-    // interceptor's bypass branch is a single IsEnforcedService check.
+    // Items is included in the reflected permission-map coverage. Its proto
+    // ships server stubs only, so the policy service calls below remain the
+    // representative runtime interceptor checks.
 
     [Fact]
     public async Task EnforcedRpc_AfterAllow_ResponsePassesThroughUnmodified()
@@ -244,6 +242,7 @@ public class RbacInterceptorTests
             Enforcement = "Must",
             Severity = "Critical",
             RulesJson = "{}",
+            Rationale = "verify allowed response",
         });
 
         created.Version.Version.Should().Be(1);

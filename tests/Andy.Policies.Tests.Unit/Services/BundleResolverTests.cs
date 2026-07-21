@@ -2,6 +2,7 @@
 // Licensed under the Apache License, Version 2.0.
 
 using System.Text;
+using Andy.Policies.Application.Dtos;
 using Andy.Policies.Application.Interfaces;
 using Andy.Policies.Domain.Entities;
 using Andy.Policies.Domain.Enums;
@@ -38,14 +39,16 @@ public class BundleResolverTests
 
     private static BundleSnapshot Snapshot(
         IEnumerable<BundlePolicyEntry>? policies = null,
-        IEnumerable<BundleBindingEntry>? bindings = null) => new(
+        IEnumerable<BundleBindingEntry>? bindings = null,
+        IEnumerable<BundleOverrideEntry>? overrides = null,
+        IEnumerable<BundleScopeEntry>? scopes = null) => new(
             SchemaVersion: "1",
             CapturedAt: CapturedAt,
             AuditTailHash: new string('0', 64),
             Policies: (policies ?? Array.Empty<BundlePolicyEntry>()).ToList(),
             Bindings: (bindings ?? Array.Empty<BundleBindingEntry>()).ToList(),
-            Overrides: Array.Empty<BundleOverrideEntry>(),
-            Scopes: Array.Empty<BundleScopeEntry>());
+            Overrides: (overrides ?? Array.Empty<BundleOverrideEntry>()).ToList(),
+            Scopes: (scopes ?? Array.Empty<BundleScopeEntry>()).ToList());
 
     private static async Task<Bundle> SeedBundleAsync(
         AppDbContext db,
@@ -296,5 +299,86 @@ public class BundleResolverTests
             "second-call answer must match the first byte-for-byte; a cache " +
             "hit that produced a different shape would mean the resolver is " +
             "mutating the cached snapshot in place");
+    }
+
+    [Fact]
+    public async Task EffectiveResolution_MatchesEveryBridgeTargetAcrossAncestorChain()
+    {
+        var (resolver, db, _) = NewResolver();
+        var org = new BundleScopeEntry(Guid.NewGuid(), null, "Org", "org:acme", "Acme");
+        var tenant = new BundleScopeEntry(Guid.NewGuid(), org.ScopeNodeId, "Tenant", "tenant:t1", "T1");
+        var team = new BundleScopeEntry(Guid.NewGuid(), tenant.ScopeNodeId, "Team", "team:red", "Red");
+        var repo = new BundleScopeEntry(Guid.NewGuid(), team.ScopeNodeId, "Repo", "repo:acme/svc", "Svc");
+        var template = new BundleScopeEntry(Guid.NewGuid(), repo.ScopeNodeId, "Template", "template:deploy", "Deploy");
+        var versions = Enumerable.Range(0, 5).Select(_ => Guid.NewGuid()).ToArray();
+        var policies = versions.Select((id, i) => Policy(id, $"p{i}")).ToArray();
+        var bindings = new[]
+        {
+            Binding(versions[0], "Org", org.Ref),
+            Binding(versions[1], "Tenant", tenant.Ref),
+            Binding(versions[2], "ScopeNode", $"scope:{team.ScopeNodeId}"),
+            Binding(versions[3], "Repo", repo.Ref),
+            Binding(versions[4], "Template", template.Ref),
+        };
+        var bundle = await SeedBundleAsync(db, Snapshot(
+            policies, bindings, scopes: new[] { org, tenant, team, repo, template }));
+
+        var result = await resolver.ResolveEffectiveForScopeAsync(bundle.Id, template.ScopeNodeId);
+
+        result!.Policies.Should().HaveCount(5);
+        result.Policies.Select(p => p.SourceBindingId).Should()
+            .BeEquivalentTo(bindings.Select(b => b.BindingId));
+        result.Policies.Single(p => p.PolicyVersionId == versions[0]).SourceScopeNodeId.Should().Be(org.ScopeNodeId);
+        result.Policies.Single(p => p.PolicyVersionId == versions[4]).SourceScopeNodeId.Should().Be(template.ScopeNodeId);
+    }
+
+    [Fact]
+    public async Task EffectiveResolution_AppliesPinnedPrincipalAndCohortOverridesWithExplanation()
+    {
+        var (resolver, db, _) = NewResolver();
+        var scope = new BundleScopeEntry(Guid.NewGuid(), null, "Repo", "repo:acme/svc", "Svc");
+        var baselineId = Guid.NewGuid();
+        var replacementId = Guid.NewGuid();
+        var baseline = Policy(baselineId, "baseline");
+        var replacement = Policy(replacementId, "replacement", 2);
+        var binding = Binding(baselineId, "Repo", scope.Ref, BindStrength.Mandatory);
+        var cohort = new BundleOverrideEntry(
+            Guid.NewGuid(), baselineId, "Cohort", "cohort:beta", "Replace",
+            replacementId, CapturedAt.AddDays(1), replacement, CapturedAt.AddMinutes(-2));
+        var principal = new BundleOverrideEntry(
+            Guid.NewGuid(), baselineId, "Principal", "user:42", "Exempt",
+            null, CapturedAt.AddDays(1), null, CapturedAt.AddMinutes(-1));
+        var bundle = await SeedBundleAsync(db, Snapshot(
+            new[] { baseline }, new[] { binding }, new[] { cohort, principal }, new[] { scope }));
+
+        var principalResult = await resolver.ResolveEffectiveForScopeAsync(
+            bundle.Id, scope.ScopeNodeId,
+            new OverrideResolutionContext("user:42", new[] { "cohort:beta" }));
+        var cohortResult = await resolver.ResolveEffectiveForScopeAsync(
+            bundle.Id, scope.ScopeNodeId,
+            new OverrideResolutionContext("user:7", new[] { "cohort:beta" }));
+
+        principalResult!.Policies.Should().BeEmpty("principal overrides take precedence over cohort matches");
+        principalResult.AppliedOverrides.Should().ContainSingle().Which.OverrideId.Should().Be(principal.OverrideId);
+        cohortResult!.Policies.Should().ContainSingle().Which.PolicyVersionId.Should().Be(replacementId);
+        cohortResult.AppliedOverrides.Should().ContainSingle().Which.OverrideId.Should().Be(cohort.OverrideId);
+    }
+
+    [Fact]
+    public async Task EffectiveResolution_OldSnapshotWithoutOverrides_PreservesBaseline()
+    {
+        var (resolver, db, _) = NewResolver();
+        var scope = new BundleScopeEntry(Guid.NewGuid(), null, "Repo", "repo:legacy", "Legacy");
+        var versionId = Guid.NewGuid();
+        var bundle = await SeedBundleAsync(db, Snapshot(
+            new[] { Policy(versionId) }, new[] { Binding(versionId, "Repo", scope.Ref) },
+            scopes: new[] { scope }));
+
+        var result = await resolver.ResolveEffectiveForScopeAsync(
+            bundle.Id, scope.ScopeNodeId,
+            new OverrideResolutionContext("user:42", new[] { "cohort:beta" }));
+
+        result!.Policies.Should().ContainSingle().Which.PolicyVersionId.Should().Be(versionId);
+        result.AppliedOverrides.Should().BeEmpty();
     }
 }

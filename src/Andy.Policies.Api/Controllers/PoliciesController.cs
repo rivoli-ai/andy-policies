@@ -1,12 +1,14 @@
 // Copyright (c) Rivoli AI 2026. All rights reserved.
 // Licensed under the Apache License, Version 2.0.
 
+using Andy.Policies.Api.Authorization;
 using Andy.Policies.Api.Filters;
 using Andy.Policies.Application.Dtos;
 using Andy.Policies.Application.Interfaces;
 using Andy.Policies.Application.Queries;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace Andy.Policies.Api.Controllers;
 
@@ -127,8 +129,8 @@ public class PoliciesController : ControllerBase
     }
 
     /// <summary>
-    /// Resolves the active version per ADR 0001 (highest <c>Version</c> with
-    /// <c>State != Draft</c> in P1; <c>State == Active</c> after P2 lands).
+    /// Resolves the active version per ADR 0001/P2: the highest
+    /// <c>Version</c> whose lifecycle <c>State == Active</c>.
     /// Route literal "active" sits before <c>{versionId:guid}</c> in match precedence,
     /// and the GUID constraint makes the two routes unambiguous regardless.
     /// </summary>
@@ -167,7 +169,7 @@ public class PoliciesController : ControllerBase
     public async Task<ActionResult<PolicyVersionDto>> Create(
         [FromBody] CreatePolicyRequest request, CancellationToken ct)
     {
-        var subjectId = User.Identity?.Name ?? "anonymous";
+        var subjectId = ActorSubjectResolver.Require(User);
         var version = await _policies.CreateDraftAsync(request, subjectId, ct);
         return CreatedAtAction(
             nameof(GetVersion),
@@ -183,7 +185,7 @@ public class PoliciesController : ControllerBase
         [FromBody] UpdatePolicyVersionRequest request,
         CancellationToken ct)
     {
-        var subjectId = User.Identity?.Name ?? "anonymous";
+        var subjectId = ActorSubjectResolver.Require(User);
         var updated = await _policies.UpdateDraftAsync(id, versionId, request, subjectId, ct);
         return Ok(updated);
     }
@@ -191,10 +193,14 @@ public class PoliciesController : ControllerBase
     [HttpPost("{id:guid}/versions/{sourceVersionId:guid}/bump")]
     [Authorize(Policy = "andy-policies:policy:author")]
     public async Task<ActionResult<PolicyVersionDto>> Bump(
-        Guid id, Guid sourceVersionId, CancellationToken ct)
+        Guid id,
+        Guid sourceVersionId,
+        [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] BumpPolicyVersionRequest? request,
+        CancellationToken ct)
     {
-        var subjectId = User.Identity?.Name ?? "anonymous";
-        var next = await _policies.BumpDraftFromVersionAsync(id, sourceVersionId, subjectId, ct);
+        var subjectId = ActorSubjectResolver.Require(User);
+        var next = await _policies.BumpDraftFromVersionAsync(
+            id, sourceVersionId, subjectId, request?.Rationale, ct);
         return CreatedAtAction(
             nameof(GetVersion),
             new { id = next.PolicyId, versionId = next.Id },

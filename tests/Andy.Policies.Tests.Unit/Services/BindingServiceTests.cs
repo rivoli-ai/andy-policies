@@ -39,7 +39,8 @@ public class BindingServiceTests
     {
         var db = InMemoryDbFixture.Create();
         var audit = new RecordingAuditWriter();
-        var service = new BindingService(db, audit, TimeProvider.System);
+        var service = new BindingService(
+            db, audit, TimeProvider.System, tightenValidator: null, AllowAnyRationalePolicy.Instance);
         return (service, db, audit);
     }
 

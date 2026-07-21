@@ -5,8 +5,8 @@ namespace Andy.Policies.Application.Queries;
 
 /// <summary>
 /// Filters + pagination for <c>IPolicyService.ListPoliciesAsync</c>. Filters match
-/// against the <i>active version</i> of each policy (per P1's "highest non-Draft"
-/// rule); policies with no active version are excluded from filtered results.
+/// against the version whose state is exactly <c>Active</c>; policies with no
+/// Active version are excluded from filtered results.
 /// </summary>
 /// <param name="NamePrefix">Optional case-sensitive prefix match on <c>Policy.Name</c>.</param>
 /// <param name="Scope">Optional membership test against the active version's scopes.</param>

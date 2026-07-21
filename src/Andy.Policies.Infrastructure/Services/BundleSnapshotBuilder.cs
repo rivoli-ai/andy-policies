@@ -122,20 +122,72 @@ public sealed class BundleSnapshotBuilder : IBundleSnapshotBuilder
                     o.Effect,
                     o.ReplacementPolicyVersionId,
                     o.ExpiresAt,
+                    o.ApprovedAt,
                 })
                 .ToListAsync(ct)
                 .ConfigureAwait(false);
+
+            // Replacement versions are not necessarily Active (the
+            // override contract also permits WindingDown versions), so
+            // embed their policy content directly on the override entry.
+            // This keeps pinned Replace semantics reproducible without
+            // polluting the snapshot's Active policy list.
+            var replacementIds = approvedRows
+                .Where(o => o.ExpiresAt > capturedAt)
+                .Select(o => o.ReplacementPolicyVersionId)
+                .OfType<Guid>()
+                .Distinct()
+                .ToList();
+            var replacementRows = await _db.PolicyVersions
+                .AsNoTracking()
+                .Where(v => replacementIds.Contains(v.Id))
+                .Select(v => new
+                {
+                    v.PolicyId,
+                    PolicyName = v.Policy!.Name,
+                    v.Id,
+                    v.Version,
+                    v.Enforcement,
+                    v.Severity,
+                    v.Scopes,
+                    v.RulesJson,
+                    v.Summary,
+                })
+                .ToListAsync(ct)
+                .ConfigureAwait(false);
+            var replacementById = replacementRows.ToDictionary(
+                r => r.Id,
+                r => new BundlePolicyEntry(
+                    r.PolicyId,
+                    r.PolicyName,
+                    r.Id,
+                    r.Version,
+                    r.Enforcement.ToString(),
+                    r.Severity.ToString(),
+                    r.Scopes.ToList(),
+                    r.RulesJson,
+                    r.Summary));
             overrides = approvedRows
                 .Where(o => o.ExpiresAt > capturedAt)
                 .OrderBy(o => o.Id)
-                .Select(o => new BundleOverrideEntry(
-                    o.Id,
-                    o.PolicyVersionId,
-                    o.ScopeKind.ToString(),
-                    o.ScopeRef,
-                    o.Effect.ToString(),
-                    o.ReplacementPolicyVersionId,
-                    o.ExpiresAt))
+                .Select(o =>
+                {
+                    BundlePolicyEntry? replacement = null;
+                    if (o.ReplacementPolicyVersionId is { } replacementId)
+                    {
+                        replacementById.TryGetValue(replacementId, out replacement);
+                    }
+                    return new BundleOverrideEntry(
+                        o.Id,
+                        o.PolicyVersionId,
+                        o.ScopeKind.ToString(),
+                        o.ScopeRef,
+                        o.Effect.ToString(),
+                        o.ReplacementPolicyVersionId,
+                        o.ExpiresAt,
+                        replacement,
+                        o.ApprovedAt);
+                })
                 .ToList();
         }
         else

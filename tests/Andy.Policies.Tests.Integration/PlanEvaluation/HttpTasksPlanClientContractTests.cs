@@ -87,6 +87,7 @@ public sealed class HttpTasksPlanClientContractTests : IDisposable
                     },
                     "suggestedAgentIds": ["coder", "reviewer"],
                     "executorId": null
+                    ,"targetEnv": "dev"
                   }
                 ]
                 """));
@@ -130,6 +131,39 @@ public sealed class HttpTasksPlanClientContractTests : IDisposable
         view.Tasks[0].EffectiveAgentId.Should().Be("coder",
             "with no executor pinned, the top suggested agent wins");
         view.Tasks[0].ToolsAllowed.Should().BeEquivalentTo("read-file", "search-code");
+        view.Tasks[0].TargetEnv.Should().Be("dev");
+    }
+
+    [Fact]
+    public async Task Preserves_missing_null_empty_and_populated_task_contract_fields()
+    {
+        var goalId = Guid.NewGuid();
+        var ids = Enumerable.Range(0, 4).Select(_ => Guid.NewGuid()).ToArray();
+        StubGoal(goalId, planVersion: "1");
+        _server
+            .Given(Request.Create().WithPath($"/api/goals/{goalId:D}/tasks").UsingGet())
+            .RespondWith(Response.Create().WithStatusCode(200)
+                .WithHeader("Content-Type", "application/json")
+                .WithBody($$"""
+                [
+                  { "id": "{{ids[0]}}" },
+                  { "id": "{{ids[1]}}", "delegationContract": { "toolsAllowed": null }, "targetEnv": null },
+                  { "id": "{{ids[2]}}", "delegationContract": { "toolsAllowed": [] }, "targetEnv": "" },
+                  { "id": "{{ids[3]}}", "delegationContract": { "toolsAllowed": ["read-file"] }, "targetEnv": "prod" }
+                ]
+                """));
+        StubEstimates(goalId, null);
+
+        var tasks = (await NewClient().FetchGoalViewAsync(goalId))!.Tasks;
+
+        tasks[0].ToolsAllowed.Should().BeNull();
+        tasks[0].TargetEnv.Should().BeNull();
+        tasks[1].ToolsAllowed.Should().BeNull();
+        tasks[1].TargetEnv.Should().BeNull();
+        tasks[2].ToolsAllowed.Should().BeEmpty();
+        tasks[2].TargetEnv.Should().BeEmpty();
+        tasks[3].ToolsAllowed.Should().Equal("read-file");
+        tasks[3].TargetEnv.Should().Be("prod");
     }
 
     [Fact]

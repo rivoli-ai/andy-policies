@@ -135,6 +135,18 @@ Implications:
 - Override storage is a flat table; the hierarchy walk is the
   scope chain. Overrides are not themselves hierarchical — there
   is no "parent override" or scope-walk for the override layer.
+- Effective-resolution callers supply a principal subject and zero or
+  more cohort refs. A matching principal override wins over every cohort
+  match. Within the same level, the latest `ApprovedAt` wins, with stable
+  scope/id ordering as the deterministic tie-breaker.
+- `Exempt` removes the baseline policy. `Replace` substitutes the referenced
+  Active or WindingDown version while preserving binding provenance. Responses
+  include `appliedOverrides`, so consumers can explain both decisions.
+- Pinned resolution uses only overrides captured in the bundle. Bundle creation
+  freezes Approved rows with `expiresAt > capturedAt`, including replacement
+  policy content and approval ordering; later approvals, revocations, or expiry
+  do not rewrite the snapshot. Older snapshots without override metadata retain
+  their baseline behavior.
 
 ## Firewalls (epic recap)
 

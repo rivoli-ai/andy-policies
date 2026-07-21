@@ -26,7 +26,7 @@ Governance policy catalog for the Andy ecosystem. A versioned registry of struct
 - **Bindings as metadata** — policy ↔ story template / repo / scope as structured data; no evaluation.
 - **Experimental scopes** — per-principal or per-cohort overrides with approver + expiry; a periodic reaper transitions approved overrides past their `expiresAt` into the `Expired` state automatically (P5.3, [#53](https://github.com/rivoli-ai/andy-policies/issues/53)). Write operations (propose / approve / revoke) are gated behind the andy-settings toggle `andy.policies.experimentalOverridesEnabled` (default `false`); reads remain available regardless so the resolution algorithm keeps working when the toggle is off (P5.4, [#56](https://github.com/rivoli-ai/andy-policies/issues/56)). See [Override concepts](docs/concepts/overrides.md), [ADR 0005 — Overrides](docs/adr/0005-overrides.md), and the [approver](docs/runbooks/override-approver.md) + [operator](docs/runbooks/override-operator.md) runbooks.
 - **Edit RBAC** — who may author, who must approve a publish. Subject→permission checks delegate to [Andy RBAC](https://github.com/rivoli-ai/andy-rbac); the edit matrix itself lives here.
-- **Catalog change audit** — every edit, publish, transition, binding, and override recorded with actor, timestamp, structured field-level diff, required rationale, and tamper-evident chain. Reads are not audited. See the [audit envelope spec](docs/audit-envelope.md), [ADR 0006 — Audit hash chain](docs/adr/0006-audit-hash-chain.md), and the [compliance officer runbook](docs/runbooks/audit-compliance.md).
+- **Catalog change audit** — every policy, lifecycle, binding, scope, override, bundle, and item mutation is committed atomically with actor, timestamp, structured diff, rationale, and a tamper-evident chain. Reads are not audited. See the [audit envelope spec](docs/audit-envelope.md), [ADR 0006 — Audit hash chain](docs/adr/0006-audit-hash-chain.md), and the [compliance officer runbook](docs/runbooks/audit-compliance.md).
 - **Bundle pinning** — consumers pin a bundle version for reproducibility. See [ADR 0008](docs/adr/0008-bundle-pinning.md) for the architectural commitments and the [consumer integration guide](docs/guides/consumer-integration-bundles.md) for the adoption recipe.
 
 ## What this service does NOT own
@@ -84,6 +84,12 @@ and rationale is empty, the API returns
 `400` with `type=/problems/rationale-required` and `errors.rationale`
 populated; the current toggle value is exported as the OpenTelemetry gauge
 `andy_policies_rationale_required_toggle_value` (1 = on, 0 = off).
+
+Rationale enforcement lives at the application-service boundary, so REST,
+gRPC, MCP, CLI, and direct service callers share it for every catalog
+mutation. Reads are exempt. Automatic override expiry uses its system reason;
+override rejection/revocation use their required reason fields as the
+rationale. When the toggle is disabled, mutation rationale may be omitted.
 
 The same lifecycle operations are exposed to LLM agents through the MCP
 endpoint at `/mcp` (P2.5,
@@ -227,7 +233,7 @@ endpoints sit on top of the `IScopeService` (P4.2,
 GET    /api/scopes?type=Tenant                       # list (optional type filter)
 GET    /api/scopes/tree                              # full forest, nested
 GET    /api/scopes/{id}                              # single node
-GET    /api/scopes/{id}/effective-policies            # tighten-only resolved set
+GET    /api/scopes/{id}/effective-policies?bundleId=&principalSubjectId=&cohort= # live/pinned resolved set
 POST   /api/scopes                                    # create (canonical ladder enforced)
 DELETE /api/scopes/{id}                               # leaf-only delete
 ```
@@ -245,6 +251,13 @@ validation (P4.4,
 commit a `Recommended` binding that would shadow an upstream
 `Mandatory`; the `409` response carries `offendingAncestorBindingId`
 and `offendingScopeNodeId` so admins can triage from the error.
+
+Effective resolution applies Approved, unexpired principal/cohort overrides
+after the tighten-only fold. Principal matches beat cohort matches; `Exempt`
+removes a policy and `Replace` substitutes its referenced version. The response
+includes `appliedOverrides` for explanation. Supplying `bundleId` runs the same
+scope-node and Org/Tenant/Repo/Template bridge walk entirely against the frozen
+snapshot, including its captured overrides.
 
 The same scope operations are exposed across MCP, gRPC, and CLI
 (P4.6, [#34](https://github.com/rivoli-ai/andy-policies/issues/34)),

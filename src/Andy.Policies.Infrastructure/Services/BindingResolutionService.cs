@@ -24,16 +24,36 @@ public sealed class BindingResolutionService : IBindingResolutionService
 {
     private readonly AppDbContext _db;
     private readonly IScopeService _scopes;
+    private readonly IOverrideService? _overrides;
 
-    public BindingResolutionService(AppDbContext db, IScopeService scopes)
+    public BindingResolutionService(
+        AppDbContext db,
+        IScopeService scopes,
+        IOverrideService? overrides = null)
     {
         _db = db;
         _scopes = scopes;
+        _overrides = overrides;
     }
 
     public async Task<EffectivePolicySetDto> ResolveForScopeAsync(
         Guid scopeNodeId,
         CancellationToken ct = default)
+        => await ResolveForScopeCoreAsync(scopeNodeId, null, ct).ConfigureAwait(false);
+
+    public async Task<EffectivePolicySetDto> ResolveForScopeAsync(
+        Guid scopeNodeId,
+        OverrideResolutionContext overrideContext,
+        CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(overrideContext);
+        return await ResolveForScopeCoreAsync(scopeNodeId, overrideContext, ct).ConfigureAwait(false);
+    }
+
+    private async Task<EffectivePolicySetDto> ResolveForScopeCoreAsync(
+        Guid scopeNodeId,
+        OverrideResolutionContext? overrideContext,
+        CancellationToken ct)
     {
         var leaf = await _db.ScopeNodes.AsNoTracking()
             .FirstOrDefaultAsync(s => s.Id == scopeNodeId, ct)
@@ -45,8 +65,124 @@ public sealed class BindingResolutionService : IBindingResolutionService
         chain.Add(new ChainNode(leaf.Id, leaf.Type, leaf.Ref, leaf.Depth));
 
         var policies = await ResolveAlongChainAsync(chain, ct).ConfigureAwait(false);
-        return new EffectivePolicySetDto(scopeNodeId, policies);
+        IReadOnlyList<AppliedOverrideDto> appliedOverrides = Array.Empty<AppliedOverrideDto>();
+        if (overrideContext is not null && _overrides is not null)
+        {
+            var applied = await ApplyOverridesAsync(policies, overrideContext, ct).ConfigureAwait(false);
+            policies = applied.Policies;
+            appliedOverrides = applied.AppliedOverrides;
+        }
+        return new EffectivePolicySetDto(scopeNodeId, policies)
+        {
+            AppliedOverrides = appliedOverrides,
+        };
     }
+
+    private async Task<(IReadOnlyList<EffectivePolicyDto> Policies,
+        IReadOnlyList<AppliedOverrideDto> AppliedOverrides)> ApplyOverridesAsync(
+        IReadOnlyList<EffectivePolicyDto> policies,
+        OverrideResolutionContext context,
+        CancellationToken ct)
+    {
+        var principal = string.IsNullOrWhiteSpace(context.PrincipalSubjectId)
+            ? Array.Empty<OverrideDto>()
+            : (await _overrides!.GetActiveAsync(
+                OverrideScopeKind.Principal,
+                context.PrincipalSubjectId.Trim(),
+                ct).ConfigureAwait(false)).ToArray();
+
+        var cohorts = new List<OverrideDto>();
+        foreach (var cohort in context.CohortRefs
+                     .Where(c => !string.IsNullOrWhiteSpace(c))
+                     .Select(c => c.Trim())
+                     .Distinct(StringComparer.Ordinal)
+                     .OrderBy(c => c, StringComparer.Ordinal))
+        {
+            cohorts.AddRange(await _overrides!.GetActiveAsync(
+                OverrideScopeKind.Cohort, cohort, ct).ConfigureAwait(false));
+        }
+
+        var result = new List<EffectivePolicyDto>(policies.Count);
+        var appliedOverrides = new List<AppliedOverrideDto>();
+        foreach (var policy in policies)
+        {
+            // Principal-specific grants are more specific than cohort
+            // grants. Within one specificity, latest approval wins.
+            var match = principal
+                .Where(o => o.PolicyVersionId == policy.PolicyVersionId)
+                .OrderBy(o => o.ApprovedAt)
+                .ThenBy(o => o.Id)
+                .LastOrDefault()
+                ?? cohorts
+                    .Where(o => o.PolicyVersionId == policy.PolicyVersionId)
+                    .OrderBy(o => o.ApprovedAt)
+                    .ThenBy(o => o.ScopeRef, StringComparer.Ordinal)
+                    .ThenBy(o => o.Id)
+                    .LastOrDefault();
+
+            if (match is null)
+            {
+                result.Add(policy);
+                continue;
+            }
+            if (match.Effect == OverrideEffect.Exempt)
+            {
+                appliedOverrides.Add(ToAppliedOverride(match));
+                continue;
+            }
+            if (match.ReplacementPolicyVersionId is not { } replacementId)
+            {
+                result.Add(policy);
+                continue;
+            }
+
+            var replacement = await _db.PolicyVersions.AsNoTracking()
+                .Where(v => v.Id == replacementId && v.State != LifecycleState.Retired)
+                .Select(v => new
+                {
+                    Version = v,
+                    PolicyId = v.PolicyId,
+                    PolicyName = v.Policy!.Name,
+                })
+                .FirstOrDefaultAsync(ct)
+                .ConfigureAwait(false);
+            if (replacement is null)
+            {
+                // A stale replacement cannot relax the baseline by
+                // making it disappear; retain the original policy.
+                result.Add(policy);
+                continue;
+            }
+
+            result.Add(policy with
+            {
+                PolicyId = replacement.PolicyId,
+                PolicyVersionId = replacement.Version.Id,
+                PolicyKey = replacement.PolicyName,
+                Version = replacement.Version.Version,
+            });
+            appliedOverrides.Add(ToAppliedOverride(match));
+        }
+
+        var effective = result
+            .GroupBy(p => p.PolicyId)
+            .Select(g => g.OrderBy(p => p.BindStrength).ThenByDescending(p => p.SourceDepth).First())
+            .OrderBy(p => p.BindStrength)
+            .ThenBy(p => p.PolicyKey, StringComparer.Ordinal)
+            .ToList();
+        return (effective, appliedOverrides
+            .OrderBy(o => o.OriginalPolicyVersionId)
+            .ThenBy(o => o.OverrideId)
+            .ToList());
+    }
+
+    private static AppliedOverrideDto ToAppliedOverride(OverrideDto value) => new(
+        value.Id,
+        value.Effect,
+        value.ScopeKind,
+        value.ScopeRef,
+        value.PolicyVersionId,
+        value.ReplacementPolicyVersionId);
 
     public async Task<EffectivePolicySetDto> ResolveForTargetAsync(
         BindingTargetType targetType,

@@ -131,6 +131,25 @@ public sealed class BundleResolver : IBundleResolver
 
     public async Task<EffectivePolicySetDto?> ResolveEffectiveForScopeAsync(
         Guid bundleId, Guid scopeNodeId, CancellationToken ct = default)
+        => await ResolveEffectiveForScopeCoreAsync(bundleId, scopeNodeId, null, ct)
+            .ConfigureAwait(false);
+
+    public async Task<EffectivePolicySetDto?> ResolveEffectiveForScopeAsync(
+        Guid bundleId,
+        Guid scopeNodeId,
+        OverrideResolutionContext overrideContext,
+        CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(overrideContext);
+        return await ResolveEffectiveForScopeCoreAsync(
+            bundleId, scopeNodeId, overrideContext, ct).ConfigureAwait(false);
+    }
+
+    private async Task<EffectivePolicySetDto?> ResolveEffectiveForScopeCoreAsync(
+        Guid bundleId,
+        Guid scopeNodeId,
+        OverrideResolutionContext? overrideContext,
+        CancellationToken ct)
     {
         var carrier = await LoadAsync(bundleId, ct).ConfigureAwait(false);
         if (carrier is null) return null;
@@ -153,30 +172,46 @@ public sealed class BundleResolver : IBundleResolver
         var chain = WalkAncestorChain(scopeById, scopeNodeId);
         var policiesByVersionId = carrier.Snapshot.Policies.ToDictionary(p => p.PolicyVersionId);
 
-        // Match bindings that target ScopeNode and reference a chain
-        // node via "scope:{nodeId}". Each candidate is tagged with its
-        // node's depth (its position in the root→leaf chain) so the
-        // tighten-only fold can prefer deeper Mandatory rows.
+        // Match explicit ScopeNode bindings and the Org/Tenant/Repo/
+        // Template bridge bindings supported by the live resolver.
+        // Each candidate is tagged with its node depth so the same
+        // tighten-only fold applies in pinned and live modes.
         var depthByNodeId = chain
             .Select((n, idx) => (n.ScopeNodeId, Depth: idx))
             .ToDictionary(p => p.ScopeNodeId, p => p.Depth);
         var candidates = new List<EffectiveCandidate>();
         foreach (var b in carrier.Snapshot.Bindings)
         {
-            if (!string.Equals(b.TargetType, BindingTargetType.ScopeNode.ToString(), StringComparison.Ordinal))
+            BundleScopeEntry? node;
+            int depth;
+            if (string.Equals(b.TargetType, BindingTargetType.ScopeNode.ToString(), StringComparison.Ordinal))
             {
-                continue;
+                if (!b.TargetRef.StartsWith("scope:", StringComparison.Ordinal)
+                    || !Guid.TryParse(b.TargetRef.AsSpan("scope:".Length), out var nodeId)
+                    || !depthByNodeId.TryGetValue(nodeId, out depth))
+                {
+                    continue;
+                }
+                node = scopeById[nodeId];
             }
-            if (!b.TargetRef.StartsWith("scope:", StringComparison.Ordinal)
-                || !Guid.TryParse(b.TargetRef.AsSpan("scope:".Length), out var nodeId))
+            else
             {
-                continue;
+                var bridgeMatch = chain
+                    .Select((entry, idx) => new { Entry = entry, Depth = idx })
+                    .Where(x => string.Equals(
+                                    TryMapToBindingTargetType(ParseScopeType(x.Entry.Type))?.ToString(),
+                                    b.TargetType,
+                                    StringComparison.Ordinal)
+                                && string.Equals(x.Entry.Ref, b.TargetRef, StringComparison.Ordinal))
+                    .OrderByDescending(x => x.Depth)
+                    .FirstOrDefault();
+                if (bridgeMatch is null) continue;
+                node = bridgeMatch.Entry;
+                depth = bridgeMatch.Depth;
             }
-            if (!depthByNodeId.TryGetValue(nodeId, out var depth)) continue;
             if (!policiesByVersionId.TryGetValue(b.PolicyVersionId, out var policy)) continue;
-            var node = scopeById[nodeId];
             candidates.Add(new EffectiveCandidate(
-                b, policy, depth, nodeId, ParseScopeType(node.Type)));
+                b, policy, depth, node.ScopeNodeId, ParseScopeType(node.Type)));
         }
 
         var folded = candidates
@@ -204,8 +239,99 @@ public sealed class BundleResolver : IBundleResolver
             .ThenBy(p => p.PolicyKey, StringComparer.Ordinal)
             .ToList();
 
-        return new EffectivePolicySetDto(scopeNodeId, folded);
+        var applied = overrideContext is null
+            ? (Policies: (IReadOnlyList<EffectivePolicyDto>)folded,
+               AppliedOverrides: (IReadOnlyList<AppliedOverrideDto>)Array.Empty<AppliedOverrideDto>())
+            : ApplySnapshotOverrides(folded, carrier.Snapshot.Overrides, overrideContext);
+        return new EffectivePolicySetDto(scopeNodeId, applied.Policies)
+        {
+            AppliedOverrides = applied.AppliedOverrides,
+        };
     }
+
+    private static (IReadOnlyList<EffectivePolicyDto> Policies,
+        IReadOnlyList<AppliedOverrideDto> AppliedOverrides) ApplySnapshotOverrides(
+        IReadOnlyList<EffectivePolicyDto> policies,
+        IReadOnlyList<BundleOverrideEntry> overrides,
+        OverrideResolutionContext context)
+    {
+        var principalRef = context.PrincipalSubjectId?.Trim();
+        var cohortRefs = context.CohortRefs
+            .Where(c => !string.IsNullOrWhiteSpace(c))
+            .Select(c => c.Trim())
+            .ToHashSet(StringComparer.Ordinal);
+
+        var result = new List<EffectivePolicyDto>(policies.Count);
+        var appliedOverrides = new List<AppliedOverrideDto>();
+        foreach (var policy in policies)
+        {
+            var principalMatch = string.IsNullOrWhiteSpace(principalRef)
+                ? null
+                : overrides
+                    .Where(o => o.PolicyVersionId == policy.PolicyVersionId
+                                && string.Equals(o.ScopeKind, OverrideScopeKind.Principal.ToString(), StringComparison.Ordinal)
+                                && string.Equals(o.ScopeRef, principalRef, StringComparison.Ordinal))
+                    .OrderBy(o => o.ApprovedAt)
+                    .ThenBy(o => o.OverrideId)
+                    .LastOrDefault();
+            var match = principalMatch ?? overrides
+                .Where(o => o.PolicyVersionId == policy.PolicyVersionId
+                            && string.Equals(o.ScopeKind, OverrideScopeKind.Cohort.ToString(), StringComparison.Ordinal)
+                            && cohortRefs.Contains(o.ScopeRef))
+                .OrderBy(o => o.ApprovedAt)
+                .ThenBy(o => o.ScopeRef, StringComparer.Ordinal)
+                .ThenBy(o => o.OverrideId)
+                .LastOrDefault();
+
+            if (match is null)
+            {
+                result.Add(policy);
+                continue;
+            }
+            if (string.Equals(match.Effect, OverrideEffect.Exempt.ToString(), StringComparison.Ordinal))
+            {
+                appliedOverrides.Add(ToAppliedOverride(match, OverrideEffect.Exempt));
+                continue;
+            }
+            if (!string.Equals(match.Effect, OverrideEffect.Replace.ToString(), StringComparison.Ordinal)
+                || match.ReplacementPolicy is not { } replacement)
+            {
+                // Old snapshots do not carry replacement content. Keep
+                // the baseline policy rather than failing open.
+                result.Add(policy);
+                continue;
+            }
+
+            result.Add(policy with
+            {
+                PolicyId = replacement.PolicyId,
+                PolicyVersionId = replacement.PolicyVersionId,
+                PolicyKey = replacement.Name,
+                Version = replacement.Version,
+            });
+            appliedOverrides.Add(ToAppliedOverride(match, OverrideEffect.Replace));
+        }
+
+        var effective = result
+            .GroupBy(p => p.PolicyId)
+            .Select(g => g.OrderBy(p => p.BindStrength).ThenByDescending(p => p.SourceDepth).First())
+            .OrderBy(p => p.BindStrength)
+            .ThenBy(p => p.PolicyKey, StringComparer.Ordinal)
+            .ToList();
+        return (effective, appliedOverrides
+            .OrderBy(o => o.OriginalPolicyVersionId)
+            .ThenBy(o => o.OverrideId)
+            .ToList());
+    }
+
+    private static AppliedOverrideDto ToAppliedOverride(
+        BundleOverrideEntry value, OverrideEffect effect) => new(
+        value.OverrideId,
+        effect,
+        Enum.Parse<OverrideScopeKind>(value.ScopeKind),
+        value.ScopeRef,
+        value.PolicyVersionId,
+        value.ReplacementPolicyVersionId);
 
     /// <summary>Root-to-leaf chain of scope nodes. The leaf is at the
     /// end of the list; depth increases with index. Stops at the
@@ -233,6 +359,15 @@ public sealed class BundleResolver : IBundleResolver
 
     private static ScopeType ParseScopeType(string wire)
         => Enum.TryParse<ScopeType>(wire, ignoreCase: true, out var st) ? st : default;
+
+    private static BindingTargetType? TryMapToBindingTargetType(ScopeType type) => type switch
+    {
+        ScopeType.Org => BindingTargetType.Org,
+        ScopeType.Tenant => BindingTargetType.Tenant,
+        ScopeType.Repo => BindingTargetType.Repo,
+        ScopeType.Template => BindingTargetType.Template,
+        _ => null,
+    };
 
     private sealed record EffectiveCandidate(
         BundleBindingEntry Binding,

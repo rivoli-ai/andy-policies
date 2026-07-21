@@ -1,7 +1,7 @@
 // Copyright (c) Rivoli AI 2026. All rights reserved.
 // Licensed under the Apache License, Version 2.0.
 
-using System.Security.Claims;
+using Andy.Policies.Api.Authorization;
 using Andy.Policies.Api.Filters;
 using Andy.Policies.Application.Dtos;
 using Andy.Policies.Application.Interfaces;
@@ -235,7 +235,6 @@ public sealed class BindingsController : ControllerBase
         // maps `sub` to NameIdentifier; TestAuthHandler sets the Name
         // claim. If neither is present, [Authorize] should already have
         // returned 401 — this is the belt to the framework's braces.
-        var sub = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.Identity?.Name;
-        return string.IsNullOrEmpty(sub) ? null : sub;
+        return ActorSubjectResolver.Resolve(User);
     }
 }

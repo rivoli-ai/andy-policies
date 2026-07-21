@@ -156,16 +156,14 @@ builder.Services.AddScoped<Andy.Policies.Application.Interfaces.IBindingResoluti
 // Injected into BindingService so CreateAsync refuses Recommended
 // proposals that would shadow a Mandatory ancestor binding.
 builder.Services.AddScoped<Andy.Policies.Application.Interfaces.ITightenOnlyValidator, Andy.Policies.Infrastructure.Services.TightenOnlyValidator>();
-// P3.2 (#20): Binding mutations call IAuditWriter — Epic P6
-// (rivoli-ai/andy-policies#6) replaces the no-op with the real
-// hash-chained writer. Singleton because the P6 implementation will own a
-// content-addressed sequence pointer.
-builder.Services.AddSingleton<Andy.Policies.Application.Interfaces.IAuditWriter, Andy.Policies.Infrastructure.Services.NoopAuditWriter>();
 // P6.2 (#42): tamper-evident catalog audit chain. Scoped because
 // AuditChain depends on the scoped AppDbContext; downstream callers
 // invoke AppendAsync inside their own DbContext transaction so
 // state-change + audit-row commit atomically.
 builder.Services.AddScoped<Andy.Policies.Application.Interfaces.IAuditChain, Andy.Policies.Infrastructure.Audit.AuditChain>();
+// #249: every mutation hook writes to the real chain using the same
+// scoped AppDbContext/transaction as the catalog state change.
+builder.Services.AddScoped<Andy.Policies.Application.Interfaces.IAuditWriter, Andy.Policies.Infrastructure.Services.AuditWriter>();
 // P6.6 (#46): cursor-paginated query over audit_events. Scoped
 // because AuditQuery depends on the scoped AppDbContext; the
 // service is read-only (no transactions, no advisory locks).

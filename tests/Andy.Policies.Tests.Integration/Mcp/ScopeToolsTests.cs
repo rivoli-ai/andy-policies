@@ -4,6 +4,7 @@
 using System.Text.Json;
 using Andy.Policies.Api.Mcp;
 using Andy.Policies.Application.Dtos;
+using Andy.Policies.Application.Interfaces;
 using Andy.Policies.Domain.Enums;
 using Andy.Policies.Infrastructure.Data;
 using Andy.Policies.Infrastructure.Services;
@@ -41,7 +42,9 @@ public class ScopeToolsTests
     private static (ScopeService scopes, BindingResolutionService resolver, AppDbContext db) NewServices()
     {
         var db = NewDb();
-        var scopes = new ScopeService(db, TimeProvider.System);
+        var scopes = new ScopeService(
+            db, TimeProvider.System, IntegrationTestAuditWriter.Instance,
+            IntegrationAllowAnyRationalePolicy.Instance);
         var resolver = new BindingResolutionService(db, scopes);
         return (scopes, resolver, db);
     }
@@ -51,7 +54,7 @@ public class ScopeToolsTests
     {
         var (scopes, _, _) = NewServices();
 
-        var output = await ScopeTools.List(scopes);
+        var output = await ScopeTools.List(scopes, AccessorFor("test:user"), AllowAllRbac);
 
         output.Should().Contain("No scope nodes");
     }
@@ -62,7 +65,8 @@ public class ScopeToolsTests
         var (scopes, _, _) = NewServices();
         await scopes.CreateAsync(new CreateScopeNodeRequest(null, ScopeType.Org, "org:t-list", "T"));
 
-        var output = await ScopeTools.List(scopes, type: "Org");
+        var output = await ScopeTools.List(
+            scopes, AccessorFor("test:user"), AllowAllRbac, type: "Org");
 
         output.Should().Contain("1 scope node:");
         output.Should().Contain("[Org@0]");
@@ -74,7 +78,8 @@ public class ScopeToolsTests
     {
         var (scopes, _, _) = NewServices();
 
-        var output = await ScopeTools.List(scopes, type: "Unicorn");
+        var output = await ScopeTools.List(
+            scopes, AccessorFor("test:user"), AllowAllRbac, type: "Unicorn");
 
         output.Should().StartWith("policy.scope.invalid_input:");
     }
@@ -85,8 +90,10 @@ public class ScopeToolsTests
         var (scopes, _, _) = NewServices();
         var dto = await scopes.CreateAsync(new CreateScopeNodeRequest(null, ScopeType.Org, "org:t-get", "T"));
 
-        var hit = await ScopeTools.Get(scopes, dto.Id.ToString());
-        var miss = await ScopeTools.Get(scopes, Guid.NewGuid().ToString());
+        var hit = await ScopeTools.Get(
+            scopes, AccessorFor("test:user"), AllowAllRbac, dto.Id.ToString());
+        var miss = await ScopeTools.Get(
+            scopes, AccessorFor("test:user"), AllowAllRbac, Guid.NewGuid().ToString());
 
         hit.Should().Contain($"ScopeNode {dto.Id}");
         miss.Should().StartWith("policy.scope.not_found:");
@@ -97,7 +104,8 @@ public class ScopeToolsTests
     {
         var (scopes, _, _) = NewServices();
 
-        var output = await ScopeTools.Get(scopes, "not-a-guid");
+        var output = await ScopeTools.Get(
+            scopes, AccessorFor("test:user"), AllowAllRbac, "not-a-guid");
 
         output.Should().StartWith("policy.scope.invalid_input:");
     }
@@ -109,7 +117,7 @@ public class ScopeToolsTests
         var org = await scopes.CreateAsync(new CreateScopeNodeRequest(null, ScopeType.Org, "org:t-tree", "T"));
         await scopes.CreateAsync(new CreateScopeNodeRequest(org.Id, ScopeType.Tenant, "tenant:t-tree", "Tn"));
 
-        var output = await ScopeTools.Tree(scopes);
+        var output = await ScopeTools.Tree(scopes, AccessorFor("test:user"), AllowAllRbac);
 
         using var doc = JsonDocument.Parse(output);
         doc.RootElement.GetArrayLength().Should().Be(1);
@@ -207,7 +215,8 @@ public class ScopeToolsTests
         var (scopes, resolver, _) = NewServices();
         var dto = await scopes.CreateAsync(new CreateScopeNodeRequest(null, ScopeType.Org, "org:t-eff", "Eff"));
 
-        var output = await ScopeTools.Effective(resolver, dto.Id.ToString());
+        var output = await ScopeTools.Effective(
+            resolver, AccessorFor("test:user"), AllowAllRbac, dto.Id.ToString());
 
         using var doc = JsonDocument.Parse(output);
         doc.RootElement.GetProperty("scopeNodeId").GetString().Should().Be(dto.Id.ToString());
@@ -219,7 +228,8 @@ public class ScopeToolsTests
     {
         var (_, resolver, _) = NewServices();
 
-        var output = await ScopeTools.Effective(resolver, Guid.NewGuid().ToString());
+        var output = await ScopeTools.Effective(
+            resolver, AccessorFor("test:user"), AllowAllRbac, Guid.NewGuid().ToString());
 
         output.Should().StartWith("policy.scope.not_found:");
     }

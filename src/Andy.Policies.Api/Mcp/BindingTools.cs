@@ -3,6 +3,7 @@
 
 using System.ComponentModel;
 using System.Security.Claims;
+using Andy.Policies.Api.Authorization;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -51,12 +52,18 @@ public static class BindingTools
         "List bindings attached to a specific policy version. Each line shows " +
         "id, target type/ref, bind strength, created-by, and (when included) " +
         "the deletion tombstone.")]
+    [RbacGuard("andy-policies:binding:read")]
     public static async Task<string> List(
         IBindingService service,
+        IHttpContextAccessor httpContext,
+        IRbacChecker rbac,
         [Description("Policy version id (GUID)")] string policyVersionId,
         [Description("Include soft-deleted (tombstoned) bindings")] bool includeDeleted = false,
         CancellationToken ct = default)
     {
+        var denial = await McpRbacGuard.GetDenialAsync(
+            rbac, httpContext, "andy-policies:binding:read", "policy.binding", policyVersionId, ct);
+        if (denial is not null) return denial;
         if (!Guid.TryParse(policyVersionId, out var vid))
         {
             return $"Invalid policy version id: '{policyVersionId}' is not a valid GUID.";
@@ -80,6 +87,7 @@ public static class BindingTools
         [Description("One of: Template, Repo, ScopeNode, Tenant, Org")] string targetType,
         [Description("Target reference (e.g. 'template:abc', 'repo:org/name')")] string targetRef,
         [Description("Mandatory or Recommended (default Recommended)")] string bindStrength = "Recommended",
+        [Description("Human-readable reason recorded in the audit chain")] string? rationale = null,
         CancellationToken ct = default)
     {
         if (!Guid.TryParse(policyVersionId, out var vid))
@@ -114,7 +122,7 @@ public static class BindingTools
         try
         {
             var dto = await service.CreateAsync(
-                new CreateBindingRequest(vid, tt, targetRef, bs), actor, ct);
+                new CreateBindingRequest(vid, tt, targetRef, bs, rationale), actor, ct);
             return FormatBindingDetail(dto);
         }
         catch (BindingRetiredVersionException ex)
@@ -184,12 +192,18 @@ public static class BindingTools
         "bind strength). Retired versions are filtered; same-target/same-" +
         "version duplicates dedup with Mandatory > Recommended. Exact-match " +
         "only — no hierarchy walk; that's P4.")]
+    [RbacGuard("andy-policies:binding:read")]
     public static async Task<string> Resolve(
         IBindingResolver resolver,
+        IHttpContextAccessor httpContext,
+        IRbacChecker rbac,
         [Description("One of: Template, Repo, ScopeNode, Tenant, Org")] string targetType,
         [Description("Target reference (e.g. 'template:abc')")] string targetRef,
         CancellationToken ct = default)
     {
+        var denial = await McpRbacGuard.GetDenialAsync(
+            rbac, httpContext, "andy-policies:binding:read", "policy.binding", targetRef, ct);
+        if (denial is not null) return denial;
         if (!Enum.TryParse<BindingTargetType>(targetType, ignoreCase: true, out var tt))
         {
             return $"policy.binding.invalid_target: targetType '{targetType}' is not valid. Use Template, Repo, ScopeNode, Tenant, or Org.";
@@ -209,8 +223,7 @@ public static class BindingTools
     {
         var user = accessor.HttpContext?.User;
         if (user is null) return null;
-        var sub = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? user.Identity?.Name;
-        return string.IsNullOrEmpty(sub) ? null : sub;
+        return ActorSubjectResolver.Resolve(user);
     }
 
     private static string FormatBindingList(IReadOnlyList<BindingDto> rows, string header)

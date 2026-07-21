@@ -1,6 +1,7 @@
 // Copyright (c) Rivoli AI 2026. All rights reserved.
 // Licensed under the Apache License, Version 2.0.
 
+using Andy.Policies.Api.Authorization;
 using Andy.Policies.Api.Protos;
 using Andy.Policies.Application.Dtos;
 using Andy.Policies.Application.Exceptions;
@@ -90,7 +91,13 @@ public class ScopesGrpcService : Andy.Policies.Api.Protos.ScopesService.ScopesSe
         try
         {
             var dto = await _scopes.CreateAsync(
-                new CreateScopeNodeRequest(parentId, scopeType, request.TargetRef, request.DisplayName),
+                new CreateScopeNodeRequest(
+                    parentId,
+                    scopeType,
+                    request.TargetRef,
+                    request.DisplayName,
+                    string.IsNullOrWhiteSpace(request.Rationale) ? null : request.Rationale),
+                RequireSubject(context),
                 context.CancellationToken).ConfigureAwait(false);
             return new ScopeNodeResponse { Node = ToMessage(dto) };
         }
@@ -103,7 +110,11 @@ public class ScopesGrpcService : Andy.Policies.Api.Protos.ScopesService.ScopesSe
         var id = ParseGuidOrThrow(request.Id, "id");
         try
         {
-            await _scopes.DeleteAsync(id, context.CancellationToken).ConfigureAwait(false);
+            await _scopes.DeleteAsync(
+                id,
+                RequireSubject(context),
+                string.IsNullOrWhiteSpace(request.Rationale) ? null : request.Rationale,
+                context.CancellationToken).ConfigureAwait(false);
             return new DeleteScopeResponse();
         }
         catch (Exception ex) { throw MapToRpcException(ex); }
@@ -115,7 +126,13 @@ public class ScopesGrpcService : Andy.Policies.Api.Protos.ScopesService.ScopesSe
         var id = ParseGuidOrThrow(request.Id, "id");
         try
         {
-            var result = await _resolver.ResolveForScopeAsync(id, context.CancellationToken)
+            var principal = string.IsNullOrWhiteSpace(request.PrincipalSubjectId)
+                ? RequireSubject(context)
+                : request.PrincipalSubjectId.Trim();
+            var result = await _resolver.ResolveForScopeAsync(
+                id,
+                new OverrideResolutionContext(principal, request.CohortRefs.ToList()),
+                context.CancellationToken)
                 .ConfigureAwait(false);
             var response = new EffectivePolicySetResponse
             {
@@ -128,6 +145,12 @@ public class ScopesGrpcService : Andy.Policies.Api.Protos.ScopesService.ScopesSe
     }
 
     // -- helpers --------------------------------------------------------------
+
+    private static string RequireSubject(ServerCallContext context) =>
+        ActorSubjectResolver.Resolve(context.GetHttpContext().User)
+        ?? throw new RpcException(new Status(
+            StatusCode.Unauthenticated,
+            "Authentication required: no subject id present on the caller's claims principal."));
 
     private static Guid ParseGuidOrThrow(string raw, string field)
     {

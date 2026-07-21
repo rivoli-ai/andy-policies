@@ -15,13 +15,16 @@ namespace Andy.Policies.Tests.Unit.Services;
 /// P1.10 (#80): coverage backfill for <c>IPolicyService.ListPoliciesAsync</c>'s
 /// non-scope filter axes. Existing <c>PolicyServiceTests</c> covered the scope
 /// path; namePrefix, enforcement, and severity filters were untested. Each
-/// filter applies against the *active version* (highest non-Draft) per P1's
-/// resolution rule, so the arrange phase mirrors the existing scope test:
+/// filter applies only against the version whose lifecycle state is exactly
+/// <c>Active</c>, so the arrange phase mirrors the existing scope test:
 /// create a draft, then flip <c>State</c> directly on the tracked entity to
 /// simulate publishing without depending on the Epic P2 transition service.
 /// </summary>
 public class PolicyServiceListFilterTests
 {
+    private static PolicyService NewService(Andy.Policies.Infrastructure.Data.AppDbContext db) =>
+        new(db, rationale: AllowAnyRationalePolicy.Instance);
+
     private static async Task PublishAllAsync(Andy.Policies.Infrastructure.Data.AppDbContext db)
     {
         await foreach (var v in db.PolicyVersions.AsAsyncEnumerable())
@@ -35,7 +38,7 @@ public class PolicyServiceListFilterTests
     public async Task ListPoliciesAsync_FiltersByNamePrefix()
     {
         using var db = InMemoryDbFixture.Create();
-        var service = new PolicyService(db);
+        var service = NewService(db);
         await service.CreateDraftAsync(PolicyBuilders.AMinimalCreateRequest("alpha-1"), "sam");
         await service.CreateDraftAsync(PolicyBuilders.AMinimalCreateRequest("alpha-2"), "sam");
         await service.CreateDraftAsync(PolicyBuilders.AMinimalCreateRequest("beta-1"), "sam");
@@ -50,7 +53,7 @@ public class PolicyServiceListFilterTests
     public async Task ListPoliciesAsync_FiltersByEnforcement()
     {
         using var db = InMemoryDbFixture.Create();
-        var service = new PolicyService(db);
+        var service = NewService(db);
         await service.CreateDraftAsync(
             PolicyBuilders.AMinimalCreateRequest("must-policy", enforcement: "Must"), "sam");
         await service.CreateDraftAsync(
@@ -68,7 +71,7 @@ public class PolicyServiceListFilterTests
     public async Task ListPoliciesAsync_FiltersBySeverity()
     {
         using var db = InMemoryDbFixture.Create();
-        var service = new PolicyService(db);
+        var service = NewService(db);
         await service.CreateDraftAsync(
             PolicyBuilders.AMinimalCreateRequest("info", severity: "Info"), "sam");
         await service.CreateDraftAsync(
@@ -86,7 +89,7 @@ public class PolicyServiceListFilterTests
     public async Task ListPoliciesAsync_CombinesFilters_ConjunctiveAnd()
     {
         using var db = InMemoryDbFixture.Create();
-        var service = new PolicyService(db);
+        var service = NewService(db);
         await service.CreateDraftAsync(
             PolicyBuilders.AMinimalCreateRequest("hot-1", enforcement: "Must", severity: "Critical"), "sam");
         await service.CreateDraftAsync(
@@ -110,7 +113,7 @@ public class PolicyServiceListFilterTests
     public async Task ListPoliciesAsync_EnforcementFilter_IsCaseInsensitive(string enforcementFilter)
     {
         using var db = InMemoryDbFixture.Create();
-        var service = new PolicyService(db);
+        var service = NewService(db);
         await service.CreateDraftAsync(
             PolicyBuilders.AMinimalCreateRequest("locked", enforcement: "Must"), "sam");
         await PublishAllAsync(db);
@@ -126,7 +129,7 @@ public class PolicyServiceListFilterTests
         // Distinct from the other filter axes: namePrefix matches against the
         // stable Policy.Name and applies even when there's no active version.
         using var db = InMemoryDbFixture.Create();
-        var service = new PolicyService(db);
+        var service = NewService(db);
         await service.CreateDraftAsync(PolicyBuilders.AMinimalCreateRequest("draft-stays-draft"), "sam");
 
         var results = await service.ListPoliciesAsync(new ListPoliciesQuery(NamePrefix: "draft-"));

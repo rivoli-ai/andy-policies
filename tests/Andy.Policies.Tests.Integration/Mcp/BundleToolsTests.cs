@@ -204,7 +204,7 @@ public class BundleToolsTests : IDisposable
         await BundleTools.Delete(svc, AccessorFor("user:op"), AllowAllRbac,
             bundleId: doomedId.ToString(), rationale: "tombstone");
 
-        var output = await BundleTools.List(svc);
+        var output = await BundleTools.List(svc, AccessorFor("test:user"), AllowAllRbac);
 
         var doc = JsonDocument.Parse(output);
         var names = doc.RootElement.EnumerateArray()
@@ -229,7 +229,8 @@ public class BundleToolsTests : IDisposable
         await BundleTools.Delete(svc, AccessorFor("user:op"), AllowAllRbac,
             bundleId: doomedId.ToString(), rationale: "tombstone");
 
-        var output = await BundleTools.List(svc, includeDeleted: true);
+        var output = await BundleTools.List(
+            svc, AccessorFor("test:user"), AllowAllRbac, includeDeleted: true);
 
         var doc = JsonDocument.Parse(output);
         var names = doc.RootElement.EnumerateArray()
@@ -254,7 +255,8 @@ public class BundleToolsTests : IDisposable
         // is the explicit upper bound; without it, an evolving
         // service that raised its MaxPageSize would silently let
         // memory grow.
-        var output = await BundleTools.List(svc, take: 999);
+        var output = await BundleTools.List(
+            svc, AccessorFor("test:user"), AllowAllRbac, take: 999);
 
         output.Should().StartWith("[");
     }
@@ -272,7 +274,8 @@ public class BundleToolsTests : IDisposable
             name: "snap-get", rationale: "x"));
         var bundleId = created.RootElement.GetProperty("id").GetGuid();
 
-        var output = await BundleTools.Get(svc, bundleId.ToString());
+        var output = await BundleTools.Get(
+            svc, AccessorFor("test:user"), AllowAllRbac, bundleId.ToString());
 
         var doc = JsonDocument.Parse(output);
         doc.RootElement.GetProperty("id").GetGuid().Should().Be(bundleId);
@@ -284,7 +287,8 @@ public class BundleToolsTests : IDisposable
         await using var db = await InitDbAsync();
         var svc = NewBundleService(db);
 
-        var output = await BundleTools.Get(svc, Guid.NewGuid().ToString());
+        var output = await BundleTools.Get(
+            svc, AccessorFor("test:user"), AllowAllRbac, Guid.NewGuid().ToString());
 
         output.Should().StartWith("policy.bundle.not_found:");
     }
@@ -295,7 +299,8 @@ public class BundleToolsTests : IDisposable
         await using var db = await InitDbAsync();
         var svc = NewBundleService(db);
 
-        var output = await BundleTools.Get(svc, "not-a-guid");
+        var output = await BundleTools.Get(
+            svc, AccessorFor("test:user"), AllowAllRbac, "not-a-guid");
 
         output.Should().StartWith("policy.bundle.invalid_argument:");
     }
@@ -315,7 +320,8 @@ public class BundleToolsTests : IDisposable
         var bundleId = created.RootElement.GetProperty("id").GetGuid();
 
         var output = await BundleTools.Resolve(
-            resolver, bundleId.ToString(), "Repo", "repo:rivoli-ai/x");
+            resolver, AccessorFor("test:user"), AllowAllRbac,
+            bundleId.ToString(), "Repo", "repo:rivoli-ai/x");
 
         var doc = JsonDocument.Parse(output);
         doc.RootElement.GetProperty("bundleId").GetGuid().Should().Be(bundleId);
@@ -330,7 +336,8 @@ public class BundleToolsTests : IDisposable
         var resolver = NewResolver(db);
 
         var output = await BundleTools.Resolve(
-            resolver, Guid.NewGuid().ToString(), "Repo", "repo:any");
+            resolver, AccessorFor("test:user"), AllowAllRbac,
+            Guid.NewGuid().ToString(), "Repo", "repo:any");
 
         output.Should().StartWith("policy.bundle.not_found:");
     }
@@ -342,7 +349,8 @@ public class BundleToolsTests : IDisposable
         var resolver = NewResolver(db);
 
         var output = await BundleTools.Resolve(
-            resolver, Guid.NewGuid().ToString(), "Unicorn", "ref");
+            resolver, AccessorFor("test:user"), AllowAllRbac,
+            Guid.NewGuid().ToString(), "Unicorn", "ref");
 
         output.Should().StartWith("policy.bundle.invalid_argument:");
     }
@@ -354,7 +362,8 @@ public class BundleToolsTests : IDisposable
         var resolver = NewResolver(db);
 
         var output = await BundleTools.Resolve(
-            resolver, Guid.NewGuid().ToString(), "Repo", "  ");
+            resolver, AccessorFor("test:user"), AllowAllRbac,
+            Guid.NewGuid().ToString(), "Repo", "  ");
 
         output.Should().StartWith("policy.bundle.invalid_argument:");
     }

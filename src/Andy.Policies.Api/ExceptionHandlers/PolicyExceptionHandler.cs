@@ -3,6 +3,7 @@
 
 using Andy.Policies.Application.Exceptions;
 using Andy.Policies.Application.Interfaces;
+using Andy.Policies.Api.Authorization;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -27,6 +28,21 @@ public sealed class PolicyExceptionHandler : IExceptionHandler
         Exception exception,
         CancellationToken cancellationToken)
     {
+        if (exception is MissingActorSubjectException)
+        {
+            var problem403 = new ProblemDetails
+            {
+                Status = StatusCodes.Status403Forbidden,
+                Title = "Authenticated subject required",
+                Detail = exception.Message,
+                Type = "/problems/missing-actor-subject",
+                Instance = httpContext.Request.Path,
+            };
+            httpContext.Response.StatusCode = StatusCodes.Status403Forbidden;
+            await httpContext.Response.WriteAsJsonAsync(problem403, cancellationToken);
+            return true;
+        }
+
         // Special-case RationaleRequiredException so the response carries the
         // typed ProblemDetails contract from P2.4 (#14): `type` points at the
         // rationale-required problem class, and `errors.rationale` is populated

@@ -137,7 +137,7 @@ Two invocations on the same `(fromId, toId)` pair produce byte-identical patch J
 
 - **Storage grows linearly with deliberate bundle count.** Each row carries the full snapshot bytes — typical 100-policy catalog ≈ 30–60 KB; 1000-policy catalog ≈ 300–600 KB. Cold-storage tiering is a future ADR.
 - **No bundle-against-live diff.** The diff RPC compares two stored bundles; consumers wanting "bundle vs. now" must create a fresh bundle and diff against it. Adding a live-diff RPC would tempt consumers to use the service as a drift detector, which is Conductor's job.
-- **Bridge-binding hierarchy walk deferred on snapshot effective-policies.** `IBundleResolver.ResolveEffectiveForScopeAsync` matches only `TargetType=ScopeNode` bindings keyed by `scope:{nodeId}`; `Repo` / `Tenant` / etc. bridges to scope-node refs are deferred. Consumers using bridge-typed bindings should keep `bundleVersionPinning=false` until the follow-up lands.
+- **Snapshot schema remains intentionally denormalized.** Scope entries carry parent ids, types, and external refs, allowing pinned resolution to match explicit `ScopeNode` bindings and `Org` / `Tenant` / `Repo` / `Template` bridge bindings without consulting live tables.
 
 ## Considered alternatives
 
@@ -153,7 +153,6 @@ Two invocations on the same `(fromId, toId)` pair produce byte-identical patch J
 ## Future work
 
 - **Cold-storage tiering** for very-old bundles. Same row id; bytes move out-of-band. Filed as a follow-up; no ETA.
-- **Snapshot-backed effective-policies bridge resolution.** P8.4's deferred case — handle `Repo` / `Tenant` / `Org` / `Template` target types against the snapshot scope chain, mirroring the live `BindingResolutionService` more completely.
 - **1000-policy nightly perf sweep** against a Postgres testcontainer enforcing the strict epic SLOs (500 ms create-p95, 50 ms resolve-p99). The 100-policy budgets in `BundlePerfTests` (P8.7) catch large regressions; the strict budgets need a dedicated runner.
 
 ---
