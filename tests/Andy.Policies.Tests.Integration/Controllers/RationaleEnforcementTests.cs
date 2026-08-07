@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Andy.Policies.Infrastructure.Data;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
@@ -77,7 +78,22 @@ public class RationaleEnforcementTests
                 var ctxDescriptor = services.SingleOrDefault(d =>
                     d.ServiceType == typeof(DbContextOptions<AppDbContext>));
                 if (ctxDescriptor is not null) services.Remove(ctxDescriptor);
-                services.AddDbContext<AppDbContext>(opts => opts.UseSqlite(_connection));
+                // EF Core 9+ registers several descriptors per context; leaving the Npgsql
+                // ones in place makes EF 10 refuse two providers in one container.
+                var dbDescriptors = services
+                    .Where(d => (d.ServiceType.IsGenericType
+                                 && d.ServiceType.GetGenericArguments().Contains(typeof(AppDbContext)))
+                             || d.ServiceType == typeof(DbContextOptions)
+                             || d.ServiceType == typeof(AppDbContext))
+                    .ToList();
+
+                foreach (var descriptor in dbDescriptors)
+                {
+                    services.Remove(descriptor);
+                }
+
+                services.AddDbContext<AppDbContext>(opts => opts.UseSqlite(_connection)
+                        .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning)));
 
                 // Replace the snapshot registered by AddAndySettingsClient with our
                 // controllable stub. The rationale policy injects ISettingsSnapshot

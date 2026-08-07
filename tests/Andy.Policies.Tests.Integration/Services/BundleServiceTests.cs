@@ -13,6 +13,7 @@ using Andy.Policies.Infrastructure.Services;
 using FluentAssertions;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Xunit;
 
 namespace Andy.Policies.Tests.Integration.Services;
@@ -37,6 +38,7 @@ public class BundleServiceTests : IDisposable
 
     private DbContextOptions<AppDbContext> Options() => new DbContextOptionsBuilder<AppDbContext>()
         .UseSqlite(_connection)
+                        .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning))
         .Options;
 
     private async Task<AppDbContext> InitDbAsync()

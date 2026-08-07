@@ -11,6 +11,7 @@ using Andy.Policies.Infrastructure.Services;
 using FluentAssertions;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Caching.Memory;
 using Xunit;
 
@@ -77,6 +78,7 @@ public class BundlePerfTests : IDisposable
 
     private DbContextOptions<AppDbContext> Options() => new DbContextOptionsBuilder<AppDbContext>()
         .UseSqlite(_connection)
+                        .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning))
         .Options;
 
     private async Task<AppDbContext> InitDbAsync()

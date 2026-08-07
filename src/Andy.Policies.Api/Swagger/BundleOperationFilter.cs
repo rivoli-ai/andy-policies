@@ -2,8 +2,8 @@
 // Licensed under the Apache License, Version 2.0.
 
 using Andy.Policies.Api.Filters;
-using Microsoft.OpenApi.Any;
-using Microsoft.OpenApi.Models;
+using System.Text.Json.Nodes;
+using Microsoft.OpenApi;
 using Swashbuckle.AspNetCore.SwaggerGen;
 
 namespace Andy.Policies.Api.Swagger;
@@ -55,11 +55,11 @@ public sealed class BundleOperationFilter : IOperationFilter
         // Decorate the existing bundleId parameter (Swashbuckle has
         // already discovered it from the action signature) so the
         // human-readable description names the gate.
-        var bundleParam = operation.Parameters
+        var bundleParam = operation.Parameters?
             .FirstOrDefault(p => string.Equals(p.Name, "bundleId", StringComparison.OrdinalIgnoreCase));
-        if (bundleParam is not null)
+        if (bundleParam is OpenApiParameter concreteParam)
         {
-            bundleParam.Description =
+            concreteParam.Description =
                 "Bundle id to pin the read against. Required when " +
                 "andy.policies.bundleVersionPinning is true (the manifest default); " +
                 "absence yields a 400 ProblemDetails with type " +
@@ -67,6 +67,7 @@ public sealed class BundleOperationFilter : IOperationFilter
         }
 
         // Add or augment the 400 response with the Problem Details type URI.
+        operation.Responses ??= new OpenApiResponses();
         if (!operation.Responses.TryGetValue("400", out var badRequest))
         {
             badRequest = new OpenApiResponse
@@ -85,9 +86,16 @@ public sealed class BundleOperationFilter : IOperationFilter
         }
         // Append the gate's stable type URI as an example so spec
         // consumers can match on it programmatically.
-        if (!badRequest.Extensions.ContainsKey("x-andy-pinning-gate-type"))
+        // v2 exposes responses as the read-only IOpenApiResponse; mutate the
+        // concrete type Swashbuckle actually constructs.
+        if (badRequest is OpenApiResponse concreteBadRequest)
         {
-            badRequest.Extensions["x-andy-pinning-gate-type"] = new OpenApiString(BundlePinningFilter.ProblemTypeUri);
+            concreteBadRequest.Extensions ??= new Dictionary<string, IOpenApiExtension>();
+            if (!concreteBadRequest.Extensions.ContainsKey("x-andy-pinning-gate-type"))
+            {
+                concreteBadRequest.Extensions["x-andy-pinning-gate-type"] =
+                    new JsonNodeExtension(JsonValue.Create(BundlePinningFilter.ProblemTypeUri)!);
+            }
         }
     }
 
@@ -102,20 +110,22 @@ public sealed class BundleOperationFilter : IOperationFilter
         var declaringType = context.MethodInfo.DeclaringType?.Name;
         if (declaringType != "BundlesController") return;
 
-        if (operation.Responses.TryGetValue("200", out var ok))
+        if (operation.Responses is not null && operation.Responses.TryGetValue("200", out var ok)
+            && ok is OpenApiResponse concreteOk)
         {
-            ok.Headers["ETag"] = new OpenApiHeader
+            concreteOk.Headers ??= new Dictionary<string, IOpenApiHeader>();
+            concreteOk.Headers["ETag"] = new OpenApiHeader
             {
                 Description = "Strong validator: \"<snapshotHash>\" (64 hex chars). " +
                               "Bundles are immutable post-insert (P8.1), so the ETag " +
                               "is stable for the lifetime of the bundle id.",
-                Schema = new OpenApiSchema { Type = "string" },
+                Schema = new OpenApiSchema { Type = JsonSchemaType.String },
             };
-            ok.Headers["Cache-Control"] = new OpenApiHeader
+            concreteOk.Headers["Cache-Control"] = new OpenApiHeader
             {
                 Description = "public, max-age=31536000, immutable — the response body " +
                               "for a given (bundleId, snapshotHash) never changes.",
-                Schema = new OpenApiSchema { Type = "string" },
+                Schema = new OpenApiSchema { Type = JsonSchemaType.String },
             };
         }
     }

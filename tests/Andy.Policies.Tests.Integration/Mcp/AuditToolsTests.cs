@@ -12,6 +12,7 @@ using Andy.Policies.Tests.Integration.Fixtures;
 using FluentAssertions;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Xunit;
 
 using static Andy.Policies.Tests.Integration.Fixtures.McpToolStubs;
@@ -40,7 +41,8 @@ public class AuditToolsTests : IDisposable
     {
         _connection = new SqliteConnection("DataSource=:memory:");
         _connection.Open();
-        var options = new DbContextOptionsBuilder<AppDbContext>().UseSqlite(_connection).Options;
+        var options = new DbContextOptionsBuilder<AppDbContext>().UseSqlite(_connection)
+                        .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning)).Options;
         _db = new AppDbContext(options);
         _db.Database.Migrate();
         _chain = new AuditChain(_db, TimeProvider.System);

@@ -7,6 +7,7 @@ using Andy.Policies.Infrastructure.Data;
 using FluentAssertions;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Testcontainers.PostgreSql;
 using Xunit;
 
@@ -78,6 +79,7 @@ public class BundleMigrationTests : IAsyncLifetime, IDisposable
     private DbContextOptions<AppDbContext> NewSqliteOptions() =>
         new DbContextOptionsBuilder<AppDbContext>()
             .UseSqlite(_sqliteConnection)
+                        .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning))
             .Options;
 
     private DbContextOptions<AppDbContext> NewPostgresOptions() =>

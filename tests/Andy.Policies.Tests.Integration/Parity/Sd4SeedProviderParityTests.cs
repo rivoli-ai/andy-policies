@@ -7,6 +7,7 @@ using Andy.Policies.Infrastructure.Data;
 using FluentAssertions;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Testcontainers.PostgreSql;
 using Xunit;
 
@@ -91,7 +92,8 @@ public class Sd4SeedProviderParityTests : IAsyncLifetime
     {
         var conn = new SqliteConnection("DataSource=:memory:");
         await conn.OpenAsync();
-        var opts = new DbContextOptionsBuilder<AppDbContext>().UseSqlite(conn).Options;
+        var opts = new DbContextOptionsBuilder<AppDbContext>().UseSqlite(conn)
+                        .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning)).Options;
         var db = new AppDbContext(opts);
         await db.Database.MigrateAsync();
         return (conn, db);

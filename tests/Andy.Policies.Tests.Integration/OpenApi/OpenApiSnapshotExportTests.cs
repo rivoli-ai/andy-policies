@@ -3,7 +3,7 @@
 
 using Andy.Policies.Tests.Integration.Controllers;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.OpenApi.Writers;
+using Microsoft.OpenApi;
 using Swashbuckle.AspNetCore.Swagger;
 using Xunit;
 
@@ -35,8 +35,10 @@ public sealed class OpenApiSnapshotExportTests : IClassFixture<PoliciesApiFactor
         var repoRoot = FindRepoRoot();
         var output = Path.Combine(repoRoot, "docs", "openapi", "andy-policies-v1.yaml");
         await using var stream = File.CreateText(output);
+        // Microsoft.OpenApi v2 moved the writers into the root namespace and
+        // replaced SerializeAsV3 with a version-parameterised Serialize.
         var writer = new OpenApiYamlWriter(stream);
-        document.SerializeAsV3(writer);
+        document.SerializeAs(OpenApiSpecVersion.OpenApi3_0, writer);
         await stream.FlushAsync();
     }
 

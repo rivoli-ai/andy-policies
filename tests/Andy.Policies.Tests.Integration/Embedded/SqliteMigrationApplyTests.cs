@@ -5,6 +5,7 @@ using Andy.Policies.Infrastructure.Data;
 using FluentAssertions;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Xunit;
 
@@ -29,6 +30,7 @@ public class SqliteMigrationApplyTests
         await connection.OpenAsync();
         var options = new DbContextOptionsBuilder<AppDbContext>()
             .UseSqlite(connection)
+                        .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning))
             .Options;
         await using var db = new AppDbContext(options);
 
@@ -52,6 +54,7 @@ public class SqliteMigrationApplyTests
         await connection.OpenAsync();
         var options = new DbContextOptionsBuilder<AppDbContext>()
             .UseSqlite(connection)
+                        .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning))
             .Options;
         await using var db = new AppDbContext(options);
 
@@ -80,6 +83,7 @@ public class SqliteMigrationApplyTests
         await connection.OpenAsync();
         var options = new DbContextOptionsBuilder<AppDbContext>()
             .UseSqlite(connection)
+                        .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning))
             .Options;
         await using var db = new AppDbContext(options);
 

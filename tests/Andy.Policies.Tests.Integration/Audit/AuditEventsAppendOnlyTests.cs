@@ -5,6 +5,7 @@ using Andy.Policies.Infrastructure.Data;
 using FluentAssertions;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Npgsql;
 using Testcontainers.PostgreSql;
@@ -68,6 +69,7 @@ public class AuditEventsAppendOnlyTests : IAsyncLifetime
     private static DbContextOptions<AppDbContext> SqliteOptions(SqliteConnection conn) =>
         new DbContextOptionsBuilder<AppDbContext>()
             .UseSqlite(conn)
+                        .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning))
             .Options;
 
     [SkippableFact]
