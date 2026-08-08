@@ -1,4 +1,4 @@
-openapi: 3.0.1
+openapi: 3.0.4
 info:
   title: Andy Policies API
   description: 'Governance policy catalog — structured, versioned policy documents with lifecycle and audit trail, consumed by Conductor for story admission, verification, and compliance reporting (content only; enforcement lives in consumers).'
@@ -22,30 +22,30 @@ paths:
     get:
       tags:
         - Audit
-      summary: "Verifies the catalog audit hash chain, optionally bounded\r\nto a `[fromSeq, toSeq]` range. Divergence is\r\nreported as `{ valid: false, firstDivergenceSeq: N }`\r\nin the body (HTTP 200) — divergence is a legitimate\r\nqueryable state, not an HTTP error."
+      summary: "Verifies the catalog audit hash chain, optionally bounded\nto a `[fromSeq, toSeq]` range. Divergence is\nreported as `{ valid: false, firstDivergenceSeq: N }`\nin the body (HTTP 200) — divergence is a legitimate\nqueryable state, not an HTTP error."
       operationId: Audit_Verify
       parameters:
         - name: fromSeq
           in: query
-          description: "Inclusive lower bound. Defaults to\r\n            1 when omitted."
+          description: "Inclusive lower bound. Defaults to\n            1 when omitted."
           schema:
             type: integer
             format: int64
         - name: toSeq
           in: query
-          description: "Inclusive upper bound. Defaults to\r\n            MAX(seq) when omitted."
+          description: "Inclusive upper bound. Defaults to\n            MAX(seq) when omitted."
           schema:
             type: integer
             format: int64
       responses:
         '200':
-          description: "Verification result. `valid`\r\n            may be true or false; `firstDivergenceSeq` is\r\n            non-null only when `valid` is false."
+          description: "Verification result. `valid`\n            may be true or false; `firstDivergenceSeq` is\n            non-null only when `valid` is false."
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ChainVerificationDto'
         '400':
-          description: "When `fromSeq` >\r\n            `toSeq`, or either is < 1."
+          description: "When `fromSeq` >\n            `toSeq`, or either is < 1."
           content:
             application/json:
               schema:
@@ -57,7 +57,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '403':
-          description: "Caller lacks the\r\n            `andy-policies:audit:verify` permission (P7.2)."
+          description: "Caller lacks the\n            `andy-policies:audit:verify` permission (P7.2)."
           content:
             application/json:
               schema:
@@ -66,12 +66,12 @@ paths:
     get:
       tags:
         - Audit
-      summary: "Cursor-paginated query over the catalog audit chain\r\n(P6.6, story rivoli-ai/andy-policies#46). All filter\r\nparameters are AND'd; `cursor` is opaque base64 from\r\na previous page's `nextCursor`."
+      summary: "Cursor-paginated query over the catalog audit chain\n(P6.6, story rivoli-ai/andy-policies#46). All filter\nparameters are AND'd; `cursor` is opaque base64 from\na previous page's `nextCursor`."
       operationId: Audit_List
       parameters:
         - name: actor
           in: query
-          description: "Exact-match\r\n            `ActorSubjectId`."
+          description: "Exact-match\n            `ActorSubjectId`."
           schema:
             type: string
         - name: from
@@ -88,7 +88,7 @@ paths:
             format: date-time
         - name: entityType
           in: query
-          description: "Exact-match entity type (e.g.\r\n            `Policy`)."
+          description: "Exact-match entity type (e.g.\n            `Policy`)."
           schema:
             type: string
         - name: entityId
@@ -103,12 +103,12 @@ paths:
             type: string
         - name: cursor
           in: query
-          description: "Opaque cursor from a previous\r\n            page's `nextCursor`."
+          description: "Opaque cursor from a previous\n            page's `nextCursor`."
           schema:
             type: string
         - name: pageSize
           in: query
-          description: "Rows per page; default 50, max\r\n            500."
+          description: "Rows per page; default 50, max\n            500."
           schema:
             type: integer
             format: int32
@@ -141,7 +141,7 @@ paths:
     get:
       tags:
         - Auth
-      summary: "Return the permission codes the current authenticated subject is\r\nallowed to exercise on this service. Result is cached for 60s\r\nkeyed on the subject id; flagged off the manifest's permission\r\ncatalog so a new permission shows up in the response the moment\r\nit's added to `config/registration.json`."
+      summary: "Return the permission codes the current authenticated subject is\nallowed to exercise on this service. Result is cached for 60s\nkeyed on the subject id; flagged off the manifest's permission\ncatalog so a new permission shows up in the response the moment\nit's added to `config/registration.json`."
       operationId: Auth_Permissions
       responses:
         '200':
@@ -162,7 +162,7 @@ paths:
     post:
       tags:
         - Bindings
-      summary: "Create a new binding. Body: Andy.Policies.Application.Dtos.CreateBindingRequest.\r\nReturns 201 with a `Location` header pointing at the new\r\nresource. Refuses bindings to Retired versions with 409 Conflict;\r\nmissing target version returns 404; oversized/empty\r\n`targetRef` returns 400."
+      summary: "Create a new binding. Body: Andy.Policies.Application.Dtos.CreateBindingRequest.\nReturns 201 with a `Location` header pointing at the new\nresource. Refuses bindings to Retired versions with 409 Conflict;\nmissing target version returns 404; oversized/empty\n`targetRef` returns 400."
       operationId: Bindings_Create
       requestBody:
         content:
@@ -209,7 +209,7 @@ paths:
     get:
       tags:
         - Bindings
-      summary: "List active bindings for a target — exact-equality match on\r\n`(targetType, targetRef)`, no prefix or case-folding (P3.2\r\nservice contract). Tombstoned bindings are excluded; a separate\r\nversion-rooted endpoint is available for inspection of deleted\r\nrows."
+      summary: "List active bindings for a target — exact-equality match on\n`(targetType, targetRef)`, no prefix or case-folding (P3.2\nservice contract). Tombstoned bindings are excluded; a separate\nversion-rooted endpoint is available for inspection of deleted\nrows."
       operationId: Bindings_Query
       parameters:
         - name: targetType
@@ -239,7 +239,7 @@ paths:
     get:
       tags:
         - Bindings
-      summary: "Get a single binding by id. Returns 404 if the binding does not\r\nexist; tombstoned bindings are still visible here so audit\r\ninvestigators can inspect their `DeletedAt` stamp."
+      summary: "Get a single binding by id. Returns 404 if the binding does not\nexist; tombstoned bindings are still visible here so audit\ninvestigators can inspect their `DeletedAt` stamp."
       operationId: Bindings_Get
       parameters:
         - name: id
@@ -264,7 +264,7 @@ paths:
     delete:
       tags:
         - Bindings
-      summary: "Soft-delete a binding. Returns 204 on success; calling delete on an\r\nalready-tombstoned binding returns 404 (the row is treated as\r\nnot-found). Accepts optional `?rationale=...` propagated to\r\nthe audit record."
+      summary: "Soft-delete a binding. Returns 204 on success; calling delete on an\nalready-tombstoned binding returns 404 (the row is treated as\nnot-found). Accepts optional `?rationale=...` propagated to\nthe audit record."
       operationId: Bindings_Delete
       parameters:
         - name: id
@@ -307,8 +307,8 @@ paths:
     get:
       tags:
         - Bindings
-      summary: "P9 follow-up #198 (2026-05-07) — autocomplete source for the\r\n`targetRef` input on the bindings UI. Returns up to\r\ntake distinct, non-deleted target refs that\r\nstart with search for the requested\r\ntargetType, ordered alphabetically."
-      description: "Source-of-truth is the existing `Bindings` table — refs\r\nalready bound are the most useful candidates. Future iterations\r\ncan extend this with provider-side discovery without changing\r\nthe wire shape."
+      summary: "P9 follow-up #198 (2026-05-07) — autocomplete source for the\n`targetRef` input on the bindings UI. Returns up to\ntake distinct, non-deleted target refs that\nstart with search for the requested\ntargetType, ordered alphabetically."
+      description: "Source-of-truth is the existing `Bindings` table — refs\nalready bound are the most useful candidates. Future iterations\ncan extend this with provider-side discovery without changing\nthe wire shape."
       operationId: Bindings_SearchTargetRefs
       parameters:
         - name: targetType
@@ -343,7 +343,7 @@ paths:
     get:
       tags:
         - Bindings
-      summary: "Resolve bindings for a target (P3.4, story\r\nrivoli-ai/andy-policies#22). Distinct from M:Andy.Policies.Api.Controllers.BindingsController.Query(Andy.Policies.Domain.Enums.BindingTargetType,System.String,System.Threading.CancellationToken):\r\njoins each row to its `Policy` and `PolicyVersion` so\r\ncallers get policy name, version state, enforcement, severity, and\r\nscopes without a second round-trip; filters out bindings whose\r\ntarget version is Retired; dedups same-target/same-version pairs\r\npreferring `Mandatory` over `Recommended`; orders the\r\nresult deterministically (policy name ASC, then version number\r\nDESC). Exact-match only — no hierarchy walk; that's P4. An\r\nunknown target returns 200 with `count = 0`, never 404."
+      summary: "Resolve bindings for a target (P3.4, story\nrivoli-ai/andy-policies#22). Distinct from M:Andy.Policies.Api.Controllers.BindingsController.Query(Andy.Policies.Domain.Enums.BindingTargetType,System.String,System.Threading.CancellationToken):\njoins each row to its `Policy` and `PolicyVersion` so\ncallers get policy name, version state, enforcement, severity, and\nscopes without a second round-trip; filters out bindings whose\ntarget version is Retired; dedups same-target/same-version pairs\npreferring `Mandatory` over `Recommended`; orders the\nresult deterministically (policy name ASC, then version number\nDESC). Exact-match only — no hierarchy walk; that's P4. An\nunknown target returns 200 with `count = 0`, never 404."
       operationId: Bindings_Resolve
       parameters:
         - name: targetType
@@ -384,7 +384,7 @@ paths:
     post:
       tags:
         - Bundles
-      summary: "Create a new bundle (frozen snapshot of the live catalog).\r\nReturns 201 with the Andy.Policies.Application.Interfaces.BundleDto + `Location`\r\nheader pointing at `GET /api/bundles/{id}`.\r\nMaps Andy.Policies.Application.Exceptions.ValidationException → 400 and\r\nAndy.Policies.Application.Exceptions.ConflictException → 409 (duplicate active name).\r\nP8.6 (#86) — the CLI from this story is the first REST consumer."
+      summary: "Create a new bundle (frozen snapshot of the live catalog).\nReturns 201 with the Andy.Policies.Application.Interfaces.BundleDto + `Location`\nheader pointing at `GET /api/bundles/{id}`.\nMaps Andy.Policies.Application.Exceptions.ValidationException → 400 and\nAndy.Policies.Application.Exceptions.ConflictException → 409 (duplicate active name).\nP8.6 (#86) — the CLI from this story is the first REST consumer."
       operationId: Bundles_Create
       requestBody:
         content:
@@ -431,7 +431,7 @@ paths:
     get:
       tags:
         - Bundles
-      summary: "List bundles. `?includeDeleted=true` includes soft-deleted\r\nrows; `take` is clamped server-side. P8.6 (#86)."
+      summary: "List bundles. `?includeDeleted=true` includes soft-deleted\nrows; `take` is clamped server-side. P8.6 (#86)."
       operationId: Bundles_List
       parameters:
         - name: includeDeleted
@@ -476,7 +476,7 @@ paths:
     get:
       tags:
         - Bundles
-      summary: "Get a bundle by id. Returns 200 with Andy.Policies.Application.Interfaces.BundleDto or\r\n404 when the bundle is missing. Soft-deleted bundles are\r\naddressable here (the row remains for audit-chain integrity);\r\npass `?includeDeleted=true` on `GET /api/bundles` to\r\nlist them. P8.6 (#86)."
+      summary: "Get a bundle by id. Returns 200 with Andy.Policies.Application.Interfaces.BundleDto or\n404 when the bundle is missing. Soft-deleted bundles are\naddressable here (the row remains for audit-chain integrity);\npass `?includeDeleted=true` on `GET /api/bundles` to\nlist them. P8.6 (#86)."
       operationId: Bundles_Get
       parameters:
         - name: id
@@ -513,7 +513,7 @@ paths:
     delete:
       tags:
         - Bundles
-      summary: "Soft-delete a bundle. State flips to\r\nAndy.Policies.Domain.Enums.BundleState.Deleted; the row remains in the table\r\nfor audit-chain integrity. Idempotent: a second delete on the\r\nsame id returns 404. P8.6 (#86)."
+      summary: "Soft-delete a bundle. State flips to\nAndy.Policies.Domain.Enums.BundleState.Deleted; the row remains in the table\nfor audit-chain integrity. Idempotent: a second delete on the\nsame id returns 404. P8.6 (#86)."
       operationId: Bundles_Delete
       parameters:
         - name: id
@@ -557,7 +557,7 @@ paths:
     get:
       tags:
         - Bundles
-      summary: "Resolve bindings for a `(targetType, targetRef)` pair\r\nagainst a frozen bundle. Exact-match only (mirrors the live\r\n`GET /api/bindings/resolve`); no hierarchy walk.\r\nReturns 200 with a Andy.Policies.Application.Interfaces.BundleResolveResult; 404\r\nwhen the bundle does not exist or is soft-deleted; 400 when\r\ntargetRef is empty."
+      summary: "Resolve bindings for a `(targetType, targetRef)` pair\nagainst a frozen bundle. Exact-match only (mirrors the live\n`GET /api/bindings/resolve`); no hierarchy walk.\nReturns 200 with a Andy.Policies.Application.Interfaces.BundleResolveResult; 404\nwhen the bundle does not exist or is soft-deleted; 400 when\ntargetRef is empty."
       operationId: Bundles_Resolve
       parameters:
         - name: id
@@ -620,7 +620,7 @@ paths:
     get:
       tags:
         - Bundles
-      summary: "Look up a single pinned policy by id. Returns 200 with a\r\nAndy.Policies.Application.Interfaces.BundlePinnedPolicyDto, or 404 when the bundle\r\ndoes not exist / is soft-deleted, or the policy id is not in\r\nthe snapshot."
+      summary: "Look up a single pinned policy by id. Returns 200 with a\nAndy.Policies.Application.Interfaces.BundlePinnedPolicyDto, or 404 when the bundle\ndoes not exist / is soft-deleted, or the policy id is not in\nthe snapshot."
       operationId: Bundles_GetPinnedPolicy
       parameters:
         - name: id
@@ -675,7 +675,7 @@ paths:
     get:
       tags:
         - Bundles
-      summary: "P9 follow-up #204 (2026-05-07) — bulk contents tree for the\r\nfrozen-tree view in the bundle detail page. Returns every\r\npolicy in the snapshot with its bindings nested underneath,\r\nplus a flat list of overrides. Same ETag / Cache-Control\r\nposture as the other snapshot-backed reads (immutable, max-age\r\n= 1y) since the response body is bound to a specific snapshot\r\nhash. Returns 404 when the bundle is missing / soft-deleted."
+      summary: "P9 follow-up #204 (2026-05-07) — bulk contents tree for the\nfrozen-tree view in the bundle detail page. Returns every\npolicy in the snapshot with its bindings nested underneath,\nplus a flat list of overrides. Same ETag / Cache-Control\nposture as the other snapshot-backed reads (immutable, max-age\n= 1y) since the response body is bound to a specific snapshot\nhash. Returns 404 when the bundle is missing / soft-deleted."
       operationId: Bundles_Contents
       parameters:
         - name: id
@@ -715,7 +715,7 @@ paths:
     get:
       tags:
         - Bundles
-      summary: "Emit an RFC-6902 JSON Patch between two bundles' frozen\r\nsnapshots (P8.6, story rivoli-ai/andy-policies#86). Returns\r\n200 with a Andy.Policies.Application.Interfaces.BundleDiffResult; 404 when either\r\nbundle is missing or soft-deleted; 400 when the same id is\r\npassed for both id and `to` (the\r\ntrivial empty-patch case is allowed via two distinct ids\r\nthat happen to resolve to identical canonical bytes — the\r\ndiff returns `[]`; same-id is rejected as a likely\r\ncaller mistake)."
+      summary: "Emit an RFC-6902 JSON Patch between two bundles' frozen\nsnapshots (P8.6, story rivoli-ai/andy-policies#86). Returns\n200 with a Andy.Policies.Application.Interfaces.BundleDiffResult; 404 when either\nbundle is missing or soft-deleted; 400 when the same id is\npassed for both id and `to` (the\ntrivial empty-patch case is allowed via two distinct ids\nthat happen to resolve to identical canonical bytes — the\ndiff returns `[]`; same-id is rejected as a likely\ncaller mistake)."
       operationId: Bundles_Diff
       parameters:
         - name: id
@@ -764,7 +764,7 @@ paths:
     post:
       tags:
         - EvaluatePlan
-      summary: "Evaluate the plan for request.GoalId against\r\nthe workspace's policies. Returns:\r\n<list type=\"bullet\"><item>`200` with the decision + predicate trace when the\r\n    goal resolves and the evaluator reaches a verdict.</item><item>`400` when the request body is missing or\r\n    `GoalId` is the empty GUID.</item><item>`404` when andy-tasks doesn't recognise the goal.</item></list>\r\nIdempotent for 5 minutes per `(goalId, planVersion)` — a\r\nsecond call within the window returns the cached response\r\nverbatim, including the same predicate trace; a replanned goal\r\n(new `planVersion`) bypasses the cache."
+      summary: "Evaluate the plan for request.GoalId against\nthe workspace's policies. Returns:\n<list type=\"bullet\"><item>`200` with the decision + predicate trace when the\n    goal resolves and the evaluator reaches a verdict.</item><item>`400` when the request body is missing or\n    `GoalId` is the empty GUID.</item><item>`404` when andy-tasks doesn't recognise the goal.</item></list>\nIdempotent for 5 minutes per `(goalId, planVersion)` — a\nsecond call within the window returns the cached response\nverbatim, including the same predicate trace; a replanned goal\n(new `planVersion`) bypasses the cache."
       operationId: EvaluatePlan_EvaluatePlan
       requestBody:
         content:
@@ -818,7 +818,7 @@ paths:
     post:
       tags:
         - EvaluateTask
-      summary: "Evaluate the task identified by request against\r\nthe workspace's policies. Returns:\r\n<list type=\"bullet\"><item>`200` with the structured compliance assessment when\r\n    the goal + task resolve and the evaluator reaches a verdict.</item><item>`400` when the request body is missing or either id is\r\n    the empty GUID.</item><item>`404` when andy-tasks doesn't recognise the goal, or\r\n    the goal does not contain the task.</item></list>\r\nIdempotent for 5 minutes per `(goalId, taskId, planVersion)` —\r\na replanned goal (new `planVersion`) bypasses the cache."
+      summary: "Evaluate the task identified by request against\nthe workspace's policies. Returns:\n<list type=\"bullet\"><item>`200` with the structured compliance assessment when\n    the goal + task resolve and the evaluator reaches a verdict.</item><item>`400` when the request body is missing or either id is\n    the empty GUID.</item><item>`404` when andy-tasks doesn't recognise the goal, or\n    the goal does not contain the task.</item></list>\nIdempotent for 5 minutes per `(goalId, taskId, planVersion)` —\na replanned goal (new `planVersion`) bypasses the cache."
       operationId: EvaluateTask_EvaluateTask
       requestBody:
         content:
@@ -897,7 +897,7 @@ paths:
     get:
       tags:
         - Help
-      summary: "Get a single help topic by slug (filename without extension).\r\nReturns title, markdown body, and metadata."
+      summary: "Get a single help topic by slug (filename without extension).\nReturns title, markdown body, and metadata."
       operationId: Help_GetTopic
       parameters:
         - name: slug
@@ -1089,7 +1089,7 @@ paths:
     post:
       tags:
         - Overrides
-      summary: "Propose a new override. Inserts in `Proposed` state; the\r\napprover (a different subject) drives the next transition via\r\n`POST /api/overrides/{id}/approve`."
+      summary: "Propose a new override. Inserts in `Proposed` state; the\napprover (a different subject) drives the next transition via\n`POST /api/overrides/{id}/approve`."
       operationId: Overrides_Propose
       requestBody:
         content:
@@ -1143,7 +1143,7 @@ paths:
     get:
       tags:
         - Overrides
-      summary: "List overrides matching the optional filter. Returns rows in\r\nany state; use `state=Approved` for the live set or\r\n`GET /api/overrides/active` for the\r\nscope-narrowed-and-non-expired projection."
+      summary: "List overrides matching the optional filter. Returns rows in\nany state; use `state=Approved` for the live set or\n`GET /api/overrides/active` for the\nscope-narrowed-and-non-expired projection."
       operationId: Overrides_List
       parameters:
         - name: state
@@ -1195,7 +1195,7 @@ paths:
     post:
       tags:
         - Overrides
-      summary: "Approve a `Proposed` override. Returns 403 with errorCode\r\n`override.self_approval_forbidden` when the approver is\r\nalso the proposer; 409 if the row is already past\r\n`Proposed`."
+      summary: "Approve a `Proposed` override. Returns 403 with errorCode\n`override.self_approval_forbidden` when the approver is\nalso the proposer; 409 if the row is already past\n`Proposed`."
       operationId: Overrides_Approve
       parameters:
         - name: id
@@ -1257,7 +1257,7 @@ paths:
     post:
       tags:
         - Overrides
-      summary: "Revoke a `Proposed` or `Approved` override. Requires\r\na non-empty `RevocationReason`; the reaper-driven\r\n`Expired` path goes through P5.3 instead."
+      summary: "Revoke a `Proposed` or `Approved` override. Requires\na non-empty `RevocationReason`; the reaper-driven\n`Expired` path goes through P5.3 instead."
       operationId: Overrides_Revoke
       parameters:
         - name: id
@@ -1325,7 +1325,7 @@ paths:
     post:
       tags:
         - Overrides
-      summary: "Reject a `Proposed` override (P9 follow-up #201,\r\n2026-05-07). Terminates a proposal before it ever takes effect;\r\ndistinct from `revoke` which is the operator-initiated\r\nterminal path for already-approved rows. Returns 409 if the\r\nrow is past `Proposed`; 404 on unknown id."
+      summary: "Reject a `Proposed` override (P9 follow-up #201,\n2026-05-07). Terminates a proposal before it ever takes effect;\ndistinct from `revoke` which is the operator-initiated\nterminal path for already-approved rows. Returns 409 if the\nrow is past `Proposed`; 404 on unknown id."
       operationId: Overrides_Reject
       parameters:
         - name: id
@@ -1393,7 +1393,7 @@ paths:
     get:
       tags:
         - Overrides
-      summary: "Fetch a single override by id. Returns 404 if the row does not\r\nexist; visibility is not state-gated (an Expired or Revoked\r\nrow is still readable for audit)."
+      summary: "Fetch a single override by id. Returns 404 if the row does not\nexist; visibility is not state-gated (an Expired or Revoked\nrow is still readable for audit)."
       operationId: Overrides_Get
       parameters:
         - name: id
@@ -1432,7 +1432,7 @@ paths:
     get:
       tags:
         - Overrides
-      summary: "Currently-effective overrides for the given (scopeKind, scopeRef)\r\npair. Returns only rows where `State == Approved` AND\r\n`ExpiresAt > now` — expired rows are excluded even if\r\nthe reaper has not yet ticked. Consumed by P4.3 chain\r\nresolution and by Conductor at admission time."
+      summary: "Currently-effective overrides for the given (scopeKind, scopeRef)\npair. Returns only rows where `State == Approved` AND\n`ExpiresAt > now` — expired rows are excluded even if\nthe reaper has not yet ticked. Consumed by P4.3 chain\nresolution and by Conductor at admission time."
       operationId: Overrides_Active
       parameters:
         - name: scopeKind
@@ -1567,7 +1567,7 @@ paths:
     get:
       tags:
         - Policies
-      summary: "#216 — approver inbox feed: Draft versions where\r\n`ReadyForReview = true`, ordered most-recently-created\r\nfirst. Authz on `:publish` rather than `:read` because\r\nonly an approver should see this list; viewers stick to the\r\nregular per-policy version listing."
+      summary: "#216 — approver inbox feed: Draft versions where\n`ReadyForReview = true`, ordered most-recently-created\nfirst. Authz on `:publish` rather than `:read` because\nonly an approver should see this list; viewers stick to the\nregular per-policy version listing."
       operationId: Policies_ListPendingApproval
       parameters:
         - name: skip
@@ -1740,7 +1740,7 @@ paths:
     get:
       tags:
         - Policies
-      summary: "Resolves the active version per ADR 0001/P2: the highest\r\n`Version` whose lifecycle `State == Active`.\r\nRoute literal \"active\" sits before `{versionId:guid}` in match precedence,\r\nand the GUID constraint makes the two routes unambiguous regardless."
+      summary: "Resolves the active version per ADR 0001/P2: the highest\n`Version` whose lifecycle `State == Active`.\nRoute literal \"active\" sits before `{versionId:guid}` in match precedence,\nand the GUID constraint makes the two routes unambiguous regardless."
       operationId: Policies_GetActiveVersion
       parameters:
         - name: id
@@ -1902,7 +1902,7 @@ paths:
     get:
       tags:
         - PolicyVersionBindings
-      summary: "List bindings against the given `PolicyVersion`, ordered by\r\nmost-recently-created first. `?includeDeleted=true` includes\r\ntombstoned rows; default `false` hides them."
+      summary: "List bindings against the given `PolicyVersion`, ordered by\nmost-recently-created first. `?includeDeleted=true` includes\ntombstoned rows; default `false` hides them."
       operationId: PolicyVersionBindings_List
       parameters:
         - name: policyId
@@ -1934,7 +1934,7 @@ paths:
     post:
       tags:
         - PolicyVersionsLifecycle
-      summary: "Promote a Draft to Active. Auto-supersedes the existing Active version\r\n(if any) within the same DB transaction."
+      summary: "Promote a Draft to Active. Auto-supersedes the existing Active version\n(if any) within the same DB transaction."
       operationId: PolicyVersionsLifecycle_Publish
       parameters:
         - name: id
@@ -1995,7 +1995,7 @@ paths:
     post:
       tags:
         - PolicyVersionsLifecycle
-      summary: "Mark an Active version as winding down. Reads against the previous\r\nActive continue to resolve until the version is retired."
+      summary: "Mark an Active version as winding down. Reads against the previous\nActive continue to resolve until the version is retired."
       operationId: PolicyVersionsLifecycle_WindDown
       parameters:
         - name: id
@@ -2056,7 +2056,7 @@ paths:
     post:
       tags:
         - PolicyVersionsLifecycle
-      summary: "Tombstone a version. Stamps `RetiredAt`; subsequent transitions are\r\nrejected by the matrix."
+      summary: "Tombstone a version. Stamps `RetiredAt`; subsequent transitions are\nrejected by the matrix."
       operationId: PolicyVersionsLifecycle_Retire
       parameters:
         - name: id
@@ -2117,7 +2117,7 @@ paths:
     post:
       tags:
         - PolicyVersionsLifecycle
-      summary: "#216 — author marks a Draft as ready for an approver to review.\r\nSets `ReadyForReview = true`; idempotent on already-proposed\r\ndrafts. Returns 409 if the version is past Draft."
+      summary: "#216 — author marks a Draft as ready for an approver to review.\nSets `ReadyForReview = true`; idempotent on already-proposed\ndrafts. Returns 409 if the version is past Draft."
       operationId: PolicyVersionsLifecycle_Propose
       parameters:
         - name: id
@@ -2178,7 +2178,7 @@ paths:
     post:
       tags:
         - PolicyVersionsLifecycle
-      summary: "#216 — approver bounces a Proposed draft back to plain Draft. Per\r\noption (a) of the design fork: revert-to-draft, not terminal-state.\r\nClears `ReadyForReview` and records the rejection rationale\r\nin the audit chain. Returns 400 on empty rationale; 409 if the\r\nversion is past Draft."
+      summary: "#216 — approver bounces a Proposed draft back to plain Draft. Per\noption (a) of the design fork: revert-to-draft, not terminal-state.\nClears `ReadyForReview` and records the rejection rationale\nin the audit chain. Returns 400 on empty rationale; 409 if the\nversion is past Draft."
       operationId: PolicyVersionsLifecycle_Reject
       parameters:
         - name: id
@@ -2250,7 +2250,7 @@ paths:
     get:
       tags:
         - Scopes
-      summary: "List scope nodes. Optional `?type=` filter narrows to a\r\nsingle ScopeType (Org/Tenant/Team/Repo/Template/Run); without\r\nthe filter the entire catalogue is returned ordered by\r\n(Depth, Ref)."
+      summary: "List scope nodes. Optional `?type=` filter narrows to a\nsingle ScopeType (Org/Tenant/Team/Repo/Template/Run); without\nthe filter the entire catalogue is returned ordered by\n(Depth, Ref)."
       operationId: Scopes_List
       parameters:
         - name: type
@@ -2269,7 +2269,7 @@ paths:
     post:
       tags:
         - Scopes
-      summary: "Create a new scope node. Andy.Policies.Application.Dtos.CreateScopeNodeRequest.ParentId\r\nis null for a root Andy.Policies.Domain.Enums.ScopeType.Org node and\r\nrequired otherwise. The service enforces the canonical\r\nOrg→Tenant→Team→Repo→Template→Run ladder; mismatched type\r\nreturns 400."
+      summary: "Create a new scope node. Andy.Policies.Application.Dtos.CreateScopeNodeRequest.ParentId\nis null for a root Andy.Policies.Domain.Enums.ScopeType.Org node and\nrequired otherwise. The service enforces the canonical\nOrg→Tenant→Team→Repo→Template→Run ladder; mismatched type\nreturns 400."
       operationId: Scopes_Create
       requestBody:
         content:
@@ -2317,7 +2317,7 @@ paths:
     get:
       tags:
         - Scopes
-      summary: "Return the full forest as nested Andy.Policies.Application.Dtos.ScopeTreeDtos.\r\nOne entry per root node; an empty catalogue returns an empty\r\nlist. Order is (Ref ASC) at every level for deterministic\r\nsnapshotting."
+      summary: "Return the full forest as nested Andy.Policies.Application.Dtos.ScopeTreeDtos.\nOne entry per root node; an empty catalogue returns an empty\nlist. Order is (Ref ASC) at every level for deterministic\nsnapshotting."
       operationId: Scopes_Tree
       responses:
         '200':
@@ -2357,7 +2357,7 @@ paths:
     delete:
       tags:
         - Scopes
-      summary: "Delete a leaf scope node. Refuses with 409 if the node still\r\nhas children; consumers must walk the subtree and delete\r\nleaves first."
+      summary: "Delete a leaf scope node. Refuses with 409 if the node still\nhas children; consumers must walk the subtree and delete\nleaves first."
       operationId: Scopes_Delete
       parameters:
         - name: id
@@ -2402,7 +2402,7 @@ paths:
     get:
       tags:
         - Scopes
-      summary: "Resolve the effective policy set for a scope node using the\r\nstricter-tightens-only fold (P4.3). Returns 404 if the node\r\ndoesn't exist."
+      summary: "Resolve the effective policy set for a scope node using the\nstricter-tightens-only fold (P4.3). Returns 404 if the node\ndoesn't exist."
       operationId: Scopes_Effective
       parameters:
         - name: id
@@ -2487,15 +2487,15 @@ components:
           format: uuid
         seq:
           type: integer
-          description: "DB-assigned monotonic sequence number; chain\r\n            verification walks rows ordered by this column."
+          description: "DB-assigned monotonic sequence number; chain\n            verification walks rows ordered by this column."
           format: int64
         prevHashHex:
           type: string
-          description: "Lowercase hex of the previous row's\r\n            `Hash`; 64 zero chars for the genesis row."
+          description: "Lowercase hex of the previous row's\n            `Hash`; 64 zero chars for the genesis row."
           nullable: true
         hashHex:
           type: string
-          description: "Lowercase hex of\r\n            `SHA-256(prevHash || canonicalJson(payload))`."
+          description: "Lowercase hex of\n            `SHA-256(prevHash || canonicalJson(payload))`."
           nullable: true
         timestamp:
           type: string
@@ -2513,7 +2513,7 @@ components:
           nullable: true
         action:
           type: string
-          description: "Dotted action code (e.g.\r\n            `policy.version.publish`)."
+          description: "Dotted action code (e.g.\n            `policy.version.publish`)."
           nullable: true
         entityType:
           type: string
@@ -2521,16 +2521,16 @@ components:
           nullable: true
         entityId:
           type: string
-          description: "String form of the mutated entity's\r\n            primary key."
+          description: "String form of the mutated entity's\n            primary key."
           nullable: true
         fieldDiff:
-          description: "Parsed RFC 6902 JSON Patch document.\r\n            Travels on the wire as a JSON array (P6.6, story\r\n            rivoli-ai/andy-policies#46) — not as a JSON-encoded string —\r\n            so consumers can `jq '.fieldDiff[0].op'` directly without\r\n            a second parse. Defaults to `[]` for create / delete\r\n            events whose diff is implicit."
+          description: "Parsed RFC 6902 JSON Patch document.\n            Travels on the wire as a JSON array (P6.6, story\n            rivoli-ai/andy-policies#46) — not as a JSON-encoded string —\n            so consumers can `jq '.fieldDiff[0].op'` directly without\n            a second parse. Defaults to `[]` for create / delete\n            events whose diff is implicit."
         rationale:
           type: string
-          description: "Free-text rationale supplied by the\r\n            actor; nullable when the rationale-required filter is off."
+          description: "Free-text rationale supplied by the\n            actor; nullable when the rationale-required filter is off."
           nullable: true
       additionalProperties: false
-      description: "Wire-format projection of `Andy.Policies.Domain.Entities.AuditEvent`\r\n(P6.2, story rivoli-ai/andy-policies#42). Hashes travel as\r\nlowercase hex strings so REST/MCP/gRPC consumers don't have to\r\nagree on a binary encoding; the binary form stays in the\r\ndatabase column."
+      description: "Wire-format projection of `Andy.Policies.Domain.Entities.AuditEvent`\n(P6.2, story rivoli-ai/andy-policies#42). Hashes travel as\nlowercase hex strings so REST/MCP/gRPC consumers don't have to\nagree on a binary encoding; the binary form stays in the\ndatabase column."
     AuditPageDto:
       type: object
       properties:
@@ -2538,18 +2538,18 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/AuditEventDto'
-          description: "Audit events for this page, ordered by\r\n            `Seq` ascending."
+          description: "Audit events for this page, ordered by\n            `Seq` ascending."
           nullable: true
         nextCursor:
           type: string
-          description: "Opaque base64-URL encoded boundary\r\n            for the next page. Null when no more rows match the\r\n            filter."
+          description: "Opaque base64-URL encoded boundary\n            for the next page. Null when no more rows match the\n            filter."
           nullable: true
         pageSize:
           type: integer
-          description: "Echo of the requested page size.\r\n            Useful for clients that paginate based on the server's\r\n            honoured value (e.g. when the request omits the parameter\r\n            and gets the default)."
+          description: "Echo of the requested page size.\n            Useful for clients that paginate based on the server's\n            honoured value (e.g. when the request omits the parameter\n            and gets the default)."
           format: int32
       additionalProperties: false
-      description: "Cursor-paginated response from `GET /api/audit` (P6.6,\r\nstory rivoli-ai/andy-policies#46). Cursor pagination is\r\nchosen over offset because the audit table grows\r\nmonotonically — offset windows would shift under concurrent\r\ninserts, and skipping the head of a million-row table is a\r\nscan, not a seek."
+      description: "Cursor-paginated response from `GET /api/audit` (P6.6,\nstory rivoli-ai/andy-policies#46). Cursor pagination is\nchosen over offset because the audit table grows\nmonotonically — offset windows would shift under concurrent\ninserts, and skipping the head of a million-row table is a\nscan, not a seek."
     BindStrength:
       enum:
         - Mandatory
@@ -2585,7 +2585,7 @@ components:
           type: string
           nullable: true
       additionalProperties: false
-      description: "Wire-format projection of a `Binding` (P3.2, story\r\nrivoli-ai/andy-policies#20). Surface controllers (REST, MCP, gRPC, CLI)\r\nemit this shape directly so wire behavior stays uniform.\r\nAndy.Policies.Application.Dtos.BindingDto.DeletedAt is non-null when the binding has been\r\nsoft-deleted; service-layer reads filter tombstoned rows by default."
+      description: "Wire-format projection of a `Binding` (P3.2, story\nrivoli-ai/andy-policies#20). Surface controllers (REST, MCP, gRPC, CLI)\nemit this shape directly so wire behavior stays uniform.\nAndy.Policies.Application.Dtos.BindingDto.DeletedAt is non-null when the binding has been\nsoft-deleted; service-layer reads filter tombstoned rows by default."
     BindingTargetType:
       enum:
         - Template
@@ -2645,7 +2645,7 @@ components:
             $ref: '#/components/schemas/BundleContentsOverrideDto'
           nullable: true
       additionalProperties: false
-      description: "Denormalised contents view of a frozen bundle (P9 follow-up #204,\r\n2026-05-07). Consumers (the bundle detail page) render this as a\r\ntree: policies grouped by name, each expandable to its bindings,\r\nplus a flat list of overrides. `SnapshotHash` is the same\r\nstrong validator the resolution endpoints emit so callers can\r\nshare an HTTP cache between this endpoint and `/resolve`."
+      description: "Denormalised contents view of a frozen bundle (P9 follow-up #204,\n2026-05-07). Consumers (the bundle detail page) render this as a\ntree: policies grouped by name, each expandable to its bindings,\nplus a flat list of overrides. `SnapshotHash` is the same\nstrong validator the resolution endpoints emit so callers can\nshare an HTTP cache between this endpoint and `/resolve`."
     BundleContentsOverrideDto:
       type: object
       properties:
@@ -2775,7 +2775,7 @@ components:
           type: string
           nullable: true
       additionalProperties: false
-      description: "Wire shape returned by Andy.Policies.Application.Interfaces.IBundleService. Excludes the\r\n(potentially large) `SnapshotJson` payload — surfaces fetch\r\nthat separately on demand via `BundlesController` in P8.3."
+      description: "Wire shape returned by Andy.Policies.Application.Interfaces.IBundleService. Excludes the\n(potentially large) `SnapshotJson` payload — surfaces fetch\nthat separately on demand via `BundlesController` in P8.3."
     BundlePinnedPolicyDto:
       type: object
       properties:
@@ -2829,7 +2829,7 @@ components:
           type: string
           nullable: true
       additionalProperties: false
-      description: "Single-policy projection from a bundle snapshot. Returned by\r\nM:Andy.Policies.Application.Interfaces.IBundleResolver.GetPinnedPolicyAsync(System.Guid,System.Guid,System.Threading.CancellationToken); carries the\r\nsnapshot coordinates so callers can stamp ETags / cache keys."
+      description: "Single-policy projection from a bundle snapshot. Returned by\nM:Andy.Policies.Application.Interfaces.IBundleResolver.GetPinnedPolicyAsync(System.Guid,System.Guid,System.Threading.CancellationToken); carries the\nsnapshot coordinates so callers can stamp ETags / cache keys."
     BundleResolveResult:
       type: object
       properties:
@@ -2859,7 +2859,7 @@ components:
           type: integer
           format: int32
       additionalProperties: false
-      description: "Envelope for M:Andy.Policies.Application.Interfaces.IBundleResolver.ResolveAsync(System.Guid,Andy.Policies.Domain.Enums.BindingTargetType,System.String,System.Threading.CancellationToken). Carries\r\nthe bundle identity + snapshot coordinate (Andy.Policies.Application.Interfaces.BundleResolveResult.SnapshotHash,\r\nAndy.Policies.Application.Interfaces.BundleResolveResult.CapturedAt) so callers caching the response have\r\neverything they need to validate it against a re-fetched bundle."
+      description: "Envelope for M:Andy.Policies.Application.Interfaces.IBundleResolver.ResolveAsync(System.Guid,Andy.Policies.Domain.Enums.BindingTargetType,System.String,System.Threading.CancellationToken). Carries\nthe bundle identity + snapshot coordinate (Andy.Policies.Application.Interfaces.BundleResolveResult.SnapshotHash,\nAndy.Policies.Application.Interfaces.BundleResolveResult.CapturedAt) so callers caching the response have\neverything they need to validate it against a re-fetched bundle."
     BundleResolvedBindingDto:
       type: object
       properties:
@@ -2900,40 +2900,40 @@ components:
         bindStrength:
           $ref: '#/components/schemas/BindStrength'
       additionalProperties: false
-      description: "Per-binding row in Andy.Policies.Application.Interfaces.BundleResolveResult.Bindings.\r\nMirrors Andy.Policies.Application.Dtos.ResolvedBindingDto\r\nfrom P3.4: same wire-format casing, same fields. The only\r\ndifference is the data source (frozen snapshot vs. live tables)."
+      description: "Per-binding row in Andy.Policies.Application.Interfaces.BundleResolveResult.Bindings.\nMirrors Andy.Policies.Application.Dtos.ResolvedBindingDto\nfrom P3.4: same wire-format casing, same fields. The only\ndifference is the data source (frozen snapshot vs. live tables)."
     ChainVerificationDto:
       type: object
       properties:
         valid:
           type: boolean
-          description: "True when the inspected range is\r\n            internally consistent — every row's `PrevHash` matches\r\n            the previous row's computed hash, and every row's `Hash`\r\n            matches the recomputed SHA-256."
+          description: "True when the inspected range is\n            internally consistent — every row's `PrevHash` matches\n            the previous row's computed hash, and every row's `Hash`\n            matches the recomputed SHA-256."
         firstDivergenceSeq:
           type: integer
-          description: "When Andy.Policies.Application.Dtos.ChainVerificationDto.Valid is\r\n            false, the `Seq` of the first row whose hashes don't\r\n            line up. Null on a valid chain."
+          description: "When Andy.Policies.Application.Dtos.ChainVerificationDto.Valid is\n            false, the `Seq` of the first row whose hashes don't\n            line up. Null on a valid chain."
           format: int64
           nullable: true
         inspectedCount:
           type: integer
-          description: "Number of rows the verifier\r\n            walked."
+          description: "Number of rows the verifier\n            walked."
           format: int64
         lastSeq:
           type: integer
-          description: "Largest `Seq` observed by the\r\n            verifier (i.e. the right end of the inspected range, or 0\r\n            when the chain is empty)."
+          description: "Largest `Seq` observed by the\n            verifier (i.e. the right end of the inspected range, or 0\n            when the chain is empty)."
           format: int64
       additionalProperties: false
-      description: "Wire-format projection of\r\nAndy.Policies.Application.Interfaces.ChainVerificationResult (P6.5, story\r\nrivoli-ai/andy-policies#45). Returned by\r\n`GET /api/audit/verify` and the corresponding MCP /\r\ngRPC surfaces."
+      description: "Wire-format projection of\nAndy.Policies.Application.Interfaces.ChainVerificationResult (P6.5, story\nrivoli-ai/andy-policies#45). Returned by\n`GET /api/audit/verify` and the corresponding MCP /\ngRPC surfaces."
     ComplianceAssessment:
       type: object
       properties:
         decision:
           type: string
-          description: "Back-compat lowercase verdict `approve` / `manual` /\r\n`reject` derived from the firing decision rules."
+          description: "Back-compat lowercase verdict `approve` / `manual` /\n`reject` derived from the firing decision rules."
           nullable: true
         riskTier:
           $ref: '#/components/schemas/RiskTier'
         riskScore:
           type: integer
-          description: "Deterministic numeric risk score — the fold of violation weights.\r\n0 when there are no violations."
+          description: "Deterministic numeric risk score — the fold of violation weights.\n0 when there are no violations."
           format: int32
         violations:
           type: array
@@ -2945,39 +2945,39 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/PredicateResultDto'
-          description: "The full predicate trace (every predicate evaluated against the\r\nscoped view), identical in shape to the plan-finalize trace."
+          description: "The full predicate trace (every predicate evaluated against the\nscoped view), identical in shape to the plan-finalize trace."
           nullable: true
         evaluatedAt:
           type: string
           description: ISO-8601 timestamp of evaluation.
           format: date-time
       additionalProperties: false
-      description: "Structured compliance assessment for a single task / agent run\r\n(rivoli-ai/conductor#1944 — TX F7.1). Richer than the binary\r\nAndy.Policies.Application.Dtos.EvaluatePlanResponse.Decision string: it carries the\r\nindividual Andy.Policies.Application.Dtos.ComplianceAssessment.Violations plus an aggregate\r\nAndy.Policies.Application.Dtos.ComplianceAssessment.RiskTier and a numeric Andy.Policies.Application.Dtos.ComplianceAssessment.RiskScore."
+      description: "Structured compliance assessment for a single task / agent run\n(rivoli-ai/conductor#1944 — TX F7.1). Richer than the binary\nAndy.Policies.Application.Dtos.EvaluatePlanResponse.Decision string: it carries the\nindividual Andy.Policies.Application.Dtos.ComplianceAssessment.Violations plus an aggregate\nAndy.Policies.Application.Dtos.ComplianceAssessment.RiskTier and a numeric Andy.Policies.Application.Dtos.ComplianceAssessment.RiskScore."
     ComplianceViolation:
       type: object
       properties:
         policyKey:
           type: string
-          description: "Wire-stable string identifier of the policy that fired this violation\r\n(the policy slug, e.g. `no-prod-deploy`) — never the internal\r\nGUID. Matches what callers see in catalog listings and audit trails."
+          description: "Wire-stable string identifier of the policy that fired this violation\n(the policy slug, e.g. `no-prod-deploy`) — never the internal\nGUID. Matches what callers see in catalog listings and audit trails."
           nullable: true
         predicate:
           type: string
-          description: "The camelCase predicate name (e.g. `noProductionDeploy`) that the\r\nfiring rule required but which did not pass."
+          description: "The camelCase predicate name (e.g. `noProductionDeploy`) that the\nfiring rule required but which did not pass."
           nullable: true
         outcome:
           type: string
-          description: "The predicate's outcome on the wire: `fail` or `unevaluable`\r\n(a `pass` is never a violation)."
+          description: "The predicate's outcome on the wire: `fail` or `unevaluable`\n(a `pass` is never a violation)."
           nullable: true
         decision:
           type: string
-          description: "The decision the firing rule emits — `reject` or `manual`.\r\nA `reject`-grade violation outranks a `manual`-grade one in\r\nscoring."
+          description: "The decision the firing rule emits — `reject` or `manual`.\nA `reject`-grade violation outranks a `manual`-grade one in\nscoring."
           nullable: true
         reason:
           type: string
-          description: "Human-readable explanation produced by the predicate evaluation\r\n(e.g. `\"data unavailable\"` for an unevaluable predicate)."
+          description: "Human-readable explanation produced by the predicate evaluation\n(e.g. `\"data unavailable\"` for an unevaluable predicate)."
           nullable: true
       additionalProperties: false
-      description: "One typed compliance violation surfaced by a per-task / per-run\r\nevaluation (rivoli-ai/conductor#1944). A violation is recorded for\r\neach predicate that a firing decision rule depended on but which did\r\nnot `Pass` — i.e. an Andy.Policies.Application.Dtos.ComplianceViolation.Outcome of\r\n`fail` or `unevaluable`. `unevaluable` (\"couldn't prove\r\nit passed\") is surfaced as a violation exactly like `fail`, never\r\nas a silent pass — mirroring the conservative `RuleFires`\r\nsemantics on the plan-finalize path."
+      description: "One typed compliance violation surfaced by a per-task / per-run\nevaluation (rivoli-ai/conductor#1944). A violation is recorded for\neach predicate that a firing decision rule depended on but which did\nnot `Pass` — i.e. an Andy.Policies.Application.Dtos.ComplianceViolation.Outcome of\n`fail` or `unevaluable`. `unevaluable` (\"couldn't prove\nit passed\") is surfaced as a violation exactly like `fail`, never\nas a silent pass — mirroring the conservative `RuleFires`\nsemantics on the plan-finalize path."
     CreateBindingRequest:
       type: object
       properties:
@@ -2995,13 +2995,13 @@ components:
           type: string
           nullable: true
       additionalProperties: false
-      description: "Request payload for `IBindingService.CreateAsync` (P3.2, story\r\nrivoli-ai/andy-policies#20). The target version must exist and not be in\r\n`LifecycleState.Retired`; the service throws\r\n`BindingRetiredVersionException` on a retired target.\r\n\n`Rationale` is forwarded to `IAuditWriter.AppendAsync` on the\r\n`binding.created` event. Nullable for backward compatibility — when\r\nthe `andy.policies.rationaleRequired` gate is on, the\r\n`RationaleRequiredFilter` rejects requests with an empty rationale\r\n(P9 follow-up #197).\r\n"
+      description: "Request payload for `IBindingService.CreateAsync` (P3.2, story\nrivoli-ai/andy-policies#20). The target version must exist and not be in\n`LifecycleState.Retired`; the service throws\n`BindingRetiredVersionException` on a retired target.\n\n`Rationale` is forwarded to `IAuditWriter.AppendAsync` on the\n`binding.created` event. Nullable for backward compatibility — when\nthe `andy.policies.rationaleRequired` gate is on, the\n`RationaleRequiredFilter` rejects requests with an empty rationale\n(P9 follow-up #197)."
     CreateBundleRequest:
       type: object
       properties:
         name:
           type: string
-          description: "Slug shape: `^[a-z0-9][a-z0-9-]{0,62}$`.\r\n            Active bundles are unique by name; soft-deleted bundles release\r\n            the slug for reuse."
+          description: "Slug shape: `^[a-z0-9][a-z0-9-]{0,62}$`.\n            Active bundles are unique by name; soft-deleted bundles release\n            the slug for reuse."
           nullable: true
         description:
           type: string
@@ -3009,11 +3009,11 @@ components:
           nullable: true
         rationale:
           type: string
-          description: "Required non-empty rationale recorded\r\n            against the audit event."
+          description: "Required non-empty rationale recorded\n            against the audit event."
           nullable: true
         includeOverrides:
           type: boolean
-          description: "When true (P9 follow-up #205,\r\n            2026-05-07), the snapshot also captures the current set of\r\n            Approved, non-expired overrides. Default `true` preserves the\r\n            pre-#205 behaviour where overrides were always included; pass\r\n            `false` for compliance / immutability bundles where overrides\r\n            are intentionally excluded."
+          description: "When true (P9 follow-up #205,\n            2026-05-07), the snapshot also captures the current set of\n            Approved, non-expired overrides. Default `true` preserves the\n            pre-#205 behaviour where overrides were always included; pass\n            `false` for compliance / immutability bundles where overrides\n            are intentionally excluded."
       additionalProperties: false
       description: 'Inputs to M:Andy.Policies.Application.Interfaces.IBundleService.CreateAsync(Andy.Policies.Application.Interfaces.CreateBundleRequest,System.String,System.Threading.CancellationToken).'
     CreateItemRequest:
@@ -3067,7 +3067,7 @@ components:
           type: string
           nullable: true
       additionalProperties: false
-      description: "Request payload for `IPolicyService.CreateDraftAsync`. Creates both the\r\nstable `Policy` row and its first `PolicyVersion` (version 1, Draft).\r\nEnum fields accept any casing on input (parsed case-insensitively by the service).\r\n\n`Rationale` is captured into the audit chain (P6.2) when supplied; the\r\n`RationaleRequiredFilter` (P2.4) rejects empty values when the\r\n`andy.policies.rationaleRequired` setting is on. Nullable for\r\nbackward compatibility — clients that pre-date the field continue to work\r\nwhen the gate is off (P9 follow-up #193, 2026-05-07).\r\n"
+      description: "Request payload for `IPolicyService.CreateDraftAsync`. Creates both the\nstable `Policy` row and its first `PolicyVersion` (version 1, Draft).\nEnum fields accept any casing on input (parsed case-insensitively by the service).\n\n`Rationale` is captured into the audit chain (P6.2) when supplied; the\n`RationaleRequiredFilter` (P2.4) rejects empty values when the\n`andy.policies.rationaleRequired` setting is on. Nullable for\nbackward compatibility — clients that pre-date the field continue to work\nwhen the gate is off (P9 follow-up #193, 2026-05-07)."
     CreateScopeNodeRequest:
       type: object
       properties:
@@ -3087,7 +3087,7 @@ components:
           type: string
           nullable: true
       additionalProperties: false
-      description: "Request payload for `IScopeService.CreateAsync` (P4.2, story\r\nrivoli-ai/andy-policies#29). Andy.Policies.Application.Dtos.CreateScopeNodeRequest.ParentId is null for a\r\nroot Andy.Policies.Domain.Enums.ScopeType.Org node; non-null for any other type.\r\nThe service enforces the canonical Org→Tenant→Team→Repo→Template→Run\r\nladder."
+      description: "Request payload for `IScopeService.CreateAsync` (P4.2, story\nrivoli-ai/andy-policies#29). Andy.Policies.Application.Dtos.CreateScopeNodeRequest.ParentId is null for a\nroot Andy.Policies.Domain.Enums.ScopeType.Org node; non-null for any other type.\nThe service enforces the canonical Org→Tenant→Team→Repo→Template→Run\nladder."
     DeleteBindingBody:
       type: object
       properties:
@@ -3095,7 +3095,7 @@ components:
           type: string
           nullable: true
       additionalProperties: false
-      description: "Optional body for `DELETE /api/bindings/{id}`. New canonical\r\nshape — the existing `?rationale=` query parameter still\r\nworks (P9.5 follow-up #197)."
+      description: "Optional body for `DELETE /api/bindings/{id}`. New canonical\nshape — the existing `?rationale=` query parameter still\nworks (P9.5 follow-up #197)."
     DeleteItemMutationRequest:
       type: object
       properties:
@@ -3141,7 +3141,7 @@ components:
           type: integer
           format: int32
       additionalProperties: false
-      description: "One entry in an effective-policy set (P4.3, story\r\nrivoli-ai/andy-policies#30). The result of stricter-tightens-only\r\nresolution: each Andy.Policies.Application.Dtos.EffectivePolicyDto.PolicyId appears at most once,\r\ncarrying the strictest Andy.Policies.Application.Dtos.EffectivePolicyDto.BindStrength seen anywhere in\r\nthe scope chain plus a pointer back to the binding (and the scope\r\nnode that bound it) that won the resolution."
+      description: "One entry in an effective-policy set (P4.3, story\nrivoli-ai/andy-policies#30). The result of stricter-tightens-only\nresolution: each Andy.Policies.Application.Dtos.EffectivePolicyDto.PolicyId appears at most once,\ncarrying the strictest Andy.Policies.Application.Dtos.EffectivePolicyDto.BindStrength seen anywhere in\nthe scope chain plus a pointer back to the binding (and the scope\nnode that bound it) that won the resolution."
     EffectivePolicySetDto:
       type: object
       properties:
@@ -3158,10 +3158,10 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/AppliedOverrideDto'
-          description: "Deterministic explanation of every override that changed\r\n            the baseline set, including Exempt entries whose policy is absent\r\n            from Andy.Policies.Application.Dtos.EffectivePolicySetDto.Policies."
+          description: "Deterministic explanation of every override that changed\n            the baseline set, including Exempt entries whose policy is absent\n            from Andy.Policies.Application.Dtos.EffectivePolicySetDto.Policies."
           nullable: true
       additionalProperties: false
-      description: "Envelope for `IBindingResolutionService` results (P4.3, story\r\nrivoli-ai/andy-policies#30). Andy.Policies.Application.Dtos.EffectivePolicySetDto.ScopeNodeId is null when\r\nthe resolver was called with a target that does not map to a known\r\n`ScopeNode` — the service then degrades to P3 exact-match\r\nsemantics rather than returning 404."
+      description: "Envelope for `IBindingResolutionService` results (P4.3, story\nrivoli-ai/andy-policies#30). Andy.Policies.Application.Dtos.EffectivePolicySetDto.ScopeNodeId is null when\nthe resolver was called with a target that does not map to a known\n`ScopeNode` — the service then degrades to P3 exact-match\nsemantics rather than returning 404."
     EvaluatePlanRequest:
       type: object
       properties:
@@ -3169,7 +3169,7 @@ components:
           type: string
           format: uuid
       additionalProperties: false
-      description: "Inbound request for `POST /api/policies/evaluate-plan`\r\n(rivoli-ai/andy-policies#232, companion to rivoli-ai/conductor#1633\r\nSP.4.2). andy-tasks calls this on plan finalize. The service fetches\r\nthe goal + tasks back from andy-tasks via M2M, projects them into a\r\n`PlanEvaluationGoalView`, runs the workspace's policies over\r\nthe registered plan-aware predicates, and returns a single\r\napprove/manual/reject decision plus the predicate trace."
+      description: "Inbound request for `POST /api/policies/evaluate-plan`\n(rivoli-ai/andy-policies#232, companion to rivoli-ai/conductor#1633\nSP.4.2). andy-tasks calls this on plan finalize. The service fetches\nthe goal + tasks back from andy-tasks via M2M, projects them into a\n`PlanEvaluationGoalView`, runs the workspace's policies over\nthe registered plan-aware predicates, and returns a single\napprove/manual/reject decision plus the predicate trace."
     EvaluatePlanResponse:
       type: object
       properties:
@@ -3185,7 +3185,7 @@ components:
             $ref: '#/components/schemas/PredicateResultDto'
           nullable: true
       additionalProperties: false
-      description: "Result of evaluating a plan against the workspace's policies.\r\nAndy.Policies.Application.Dtos.EvaluatePlanResponse.Decision is the wire-stable lowercase string\r\n`approve` / `manual` / `reject`; Andy.Policies.Application.Dtos.EvaluatePlanResponse.PolicyId\r\nis the policy that fired the approve/reject decision (null when the\r\ndecision degraded to the default `manual`); Andy.Policies.Application.Dtos.EvaluatePlanResponse.Predicates\r\nis the full evaluation trace — every predicate evaluated against\r\nthe plan, regardless of which policy used it."
+      description: "Result of evaluating a plan against the workspace's policies.\nAndy.Policies.Application.Dtos.EvaluatePlanResponse.Decision is the wire-stable lowercase string\n`approve` / `manual` / `reject`; Andy.Policies.Application.Dtos.EvaluatePlanResponse.PolicyId\nis the policy that fired the approve/reject decision (null when the\ndecision degraded to the default `manual`); Andy.Policies.Application.Dtos.EvaluatePlanResponse.Predicates\nis the full evaluation trace — every predicate evaluated against\nthe plan, regardless of which policy used it."
     EvaluateTaskRequest:
       type: object
       properties:
@@ -3198,7 +3198,7 @@ components:
           description: The task to scope the evaluation to.
           format: uuid
       additionalProperties: false
-      description: "Inbound request for `POST /api/policies/evaluate-task`\r\n(rivoli-ai/conductor#1944 — TX F7.1). The cockpit (via andy-tasks'\r\n`PlanExecutor`) calls this per task / per agent run during\r\nexecution — governance during execution, not just at plan finalize.\r\nThe service fetches the goal view from andy-tasks, scopes the\r\npredicate inputs down to the single Andy.Policies.Application.Dtos.EvaluateTaskRequest.TaskId, resolves the\r\nsame effective policy set the plan got, and returns a structured\r\nAndy.Policies.Application.Dtos.ComplianceAssessment."
+      description: "Inbound request for `POST /api/policies/evaluate-task`\n(rivoli-ai/conductor#1944 — TX F7.1). The cockpit (via andy-tasks'\n`PlanExecutor`) calls this per task / per agent run during\nexecution — governance during execution, not just at plan finalize.\nThe service fetches the goal view from andy-tasks, scopes the\npredicate inputs down to the single Andy.Policies.Application.Dtos.EvaluateTaskRequest.TaskId, resolves the\nsame effective policy set the plan got, and returns a structured\nAndy.Policies.Application.Dtos.ComplianceAssessment."
     EvaluateTaskResponse:
       type: object
       properties:
@@ -3213,7 +3213,7 @@ components:
         assessment:
           $ref: '#/components/schemas/ComplianceAssessment'
       additionalProperties: false
-      description: "Result of a per-task evaluation: a structured\r\nAndy.Policies.Application.Dtos.ComplianceAssessment plus the identifiers it was scoped\r\nto. The assessment embeds the back-compat decision string so\r\nplan-finalize-style callers can read a verdict, while #1945/#1946 read\r\nthe violations + risk tier/score."
+      description: "Result of a per-task evaluation: a structured\nAndy.Policies.Application.Dtos.ComplianceAssessment plus the identifiers it was scoped\nto. The assessment embeds the back-compat decision string so\nplan-finalize-style callers can read a verdict, while #1945/#1946 read\nthe violations + risk tier/score."
     HelpTopic:
       type: object
       properties:
@@ -3290,7 +3290,7 @@ components:
           format: int32
           nullable: true
       additionalProperties: false
-      description: "Request payload for the lifecycle transition endpoints (P2.3, story\r\nrivoli-ai/andy-policies#13): publish, winding-down, retire. The\r\n`rationale` field is forwarded to `ILifecycleTransitionService`\r\nwhere `IRationalePolicy` validates it against the\r\n`andy.policies.rationaleRequired` setting (P2.4 wires the dynamic\r\ngate; P2.3 ships with the require-non-empty default).\r\n\n`ExpectedRevision` (P9 follow-up #194, 2026-05-07) is an optional\r\noptimistic-concurrency token. When supplied, the service verifies the\r\nloaded version's `Revision` matches before transitioning; mismatch\r\nreturns 412. Nullable for backward compat — clients that don't set it\r\nfall through to last-write-wins (the existing behavior).\r\n"
+      description: "Request payload for the lifecycle transition endpoints (P2.3, story\nrivoli-ai/andy-policies#13): publish, winding-down, retire. The\n`rationale` field is forwarded to `ILifecycleTransitionService`\nwhere `IRationalePolicy` validates it against the\n`andy.policies.rationaleRequired` setting (P2.4 wires the dynamic\ngate; P2.3 ships with the require-non-empty default).\n\n`ExpectedRevision` (P9 follow-up #194, 2026-05-07) is an optional\noptimistic-concurrency token. When supplied, the service verifies the\nloaded version's `Revision` matches before transitioning; mismatch\nreturns 412. Nullable for backward compat — clients that don't set it\nfall through to last-write-wins (the existing behavior)."
     OverrideDto:
       type: object
       properties:
@@ -3336,7 +3336,7 @@ components:
           type: string
           nullable: true
       additionalProperties: false
-      description: "Wire-format projection of an `Override` (P5.2, story\r\nrivoli-ai/andy-policies#52). Surface controllers (REST P5.5,\r\nMCP/gRPC/CLI in P5.6 / P5.7) emit this shape directly so wire\r\nbehaviour stays uniform across surfaces."
+      description: "Wire-format projection of an `Override` (P5.2, story\nrivoli-ai/andy-policies#52). Surface controllers (REST P5.5,\nMCP/gRPC/CLI in P5.6 / P5.7) emit this shape directly so wire\nbehaviour stays uniform across surfaces."
     OverrideEffect:
       enum:
         - Exempt
@@ -3381,7 +3381,7 @@ components:
           format: uuid
           nullable: true
       additionalProperties: false
-      description: "Stable identity of a policy plus summary metadata about its version history.\r\nAndy.Policies.Application.Dtos.PolicyDto.ActiveVersionId resolves per P1 rule \"highest `Version` with\r\n`State != Draft`\"; P2 tightens to `State == Active`. Null while every\r\nversion is still a Draft."
+      description: "Stable identity of a policy plus summary metadata about its version history.\nAndy.Policies.Application.Dtos.PolicyDto.ActiveVersionId resolves per P1 rule \"highest `Version` with\n`State != Draft`\"; P2 tightens to `State == Active`. Null while every\nversion is still a Draft."
     PolicyVersionDto:
       type: object
       properties:
@@ -3445,7 +3445,7 @@ components:
         readyForReview:
           type: boolean
       additionalProperties: false
-      description: "Wire-format projection of a `PolicyVersion`. Enum-shaped fields are\r\nserialised in the casing required by ADR 0001 §6:\r\n<list type=\"bullet\"><item><term>Enforcement</term><description>uppercase RFC 2119 tokens (`MUST` / `SHOULD` / `MAY`).</description></item><item><term>Severity</term><description>lowercase (`info` / `moderate` / `critical`).</description></item><item><term>State</term><description>PascalCase (`Draft` / `Active` / `WindingDown` / `Retired`) — matches DB storage and consumer-visible lifecycle labels.</description></item></list>\r\nService layer performs the casing conversion; controllers pass the DTO through unchanged.\r\n\n`Revision` is the optimistic-concurrency token (P9 follow-up #194,\r\n2026-05-07). On Postgres + SQLite alike it's a manually-bumped `uint`;\r\nEF raises `DbUpdateConcurrencyException` when the loaded version's\r\n`Revision` diverges from what's on disk. UI flows that present a\r\nversion DTO and let the user save later should round-trip the value via\r\n`UpdatePolicyVersionRequest.ExpectedRevision` and the lifecycle\r\ntransition request's `ExpectedRevision`; mismatch returns 412.\r\n"
+      description: "Wire-format projection of a `PolicyVersion`. Enum-shaped fields are\nserialised in the casing required by ADR 0001 §6:\n<list type=\"bullet\"><item><term>Enforcement</term><description>uppercase RFC 2119 tokens (`MUST` / `SHOULD` / `MAY`).</description></item><item><term>Severity</term><description>lowercase (`info` / `moderate` / `critical`).</description></item><item><term>State</term><description>PascalCase (`Draft` / `Active` / `WindingDown` / `Retired`) — matches DB storage and consumer-visible lifecycle labels.</description></item></list>\nService layer performs the casing conversion; controllers pass the DTO through unchanged.\n\n`Revision` is the optimistic-concurrency token (P9 follow-up #194,\n2026-05-07). On Postgres + SQLite alike it's a manually-bumped `uint`;\nEF raises `DbUpdateConcurrencyException` when the loaded version's\n`Revision` diverges from what's on disk. UI flows that present a\nversion DTO and let the user save later should round-trip the value via\n`UpdatePolicyVersionRequest.ExpectedRevision` and the lifecycle\ntransition request's `ExpectedRevision`; mismatch returns 412."
     PredicateResultDto:
       type: object
       properties:
@@ -3458,7 +3458,7 @@ components:
           type: string
           nullable: true
       additionalProperties: false
-      description: "One predicate evaluation result. Andy.Policies.Application.Dtos.PredicateResultDto.Passed is the\r\nraw boolean; Andy.Policies.Application.Dtos.PredicateResultDto.Reason carries a human-readable\r\nexplanation, especially in the negative case (e.g.\r\n`\"data unavailable\"` when the predicate could not evaluate\r\nbecause the goal view was missing the relevant field — per the\r\nissue spec, missing data must never be treated as silently passing)."
+      description: "One predicate evaluation result. Andy.Policies.Application.Dtos.PredicateResultDto.Passed is the\nraw boolean; Andy.Policies.Application.Dtos.PredicateResultDto.Reason carries a human-readable\nexplanation, especially in the negative case (e.g.\n`\"data unavailable\"` when the predicate could not evaluate\nbecause the goal view was missing the relevant field — per the\nissue spec, missing data must never be treated as silently passing)."
     ProblemDetails:
       type: object
       properties:
@@ -3503,7 +3503,7 @@ components:
           type: string
           nullable: true
       additionalProperties: false
-      description: "Request payload for `IOverrideService.ProposeAsync` (P5.2,\r\nstory rivoli-ai/andy-policies#52). The service validates that\r\nAndy.Policies.Application.Dtos.ProposeOverrideRequest.Effect matches the presence of\r\nAndy.Policies.Application.Dtos.ProposeOverrideRequest.ReplacementPolicyVersionId: `Replace` requires\r\nnon-null, `Exempt` requires null. Both\r\nAndy.Policies.Application.Dtos.ProposeOverrideRequest.PolicyVersionId and (if present)\r\nAndy.Policies.Application.Dtos.ProposeOverrideRequest.ReplacementPolicyVersionId must reference an\r\nexisting `PolicyVersion`."
+      description: "Request payload for `IOverrideService.ProposeAsync` (P5.2,\nstory rivoli-ai/andy-policies#52). The service validates that\nAndy.Policies.Application.Dtos.ProposeOverrideRequest.Effect matches the presence of\nAndy.Policies.Application.Dtos.ProposeOverrideRequest.ReplacementPolicyVersionId: `Replace` requires\nnon-null, `Exempt` requires null. Both\nAndy.Policies.Application.Dtos.ProposeOverrideRequest.PolicyVersionId and (if present)\nAndy.Policies.Application.Dtos.ProposeOverrideRequest.ReplacementPolicyVersionId must reference an\nexisting `PolicyVersion`."
     RejectOverrideRequest:
       type: object
       properties:
@@ -3511,7 +3511,7 @@ components:
           type: string
           nullable: true
       additionalProperties: false
-      description: "Request payload for `IOverrideService.RejectAsync` (P9 follow-up\r\n#201, 2026-05-07). The reason is required and persisted to\r\n`Override.RevocationReason` — the column is reused so the audit\r\nchain can record the human-readable cause regardless of which\r\nterminal state was reached. The Andy.Policies.Application.Dtos.RejectOverrideRequest.RejectionReason\r\nalias makes the intent explicit on the wire."
+      description: "Request payload for `IOverrideService.RejectAsync` (P9 follow-up\n#201, 2026-05-07). The reason is required and persisted to\n`Override.RevocationReason` — the column is reused so the audit\nchain can record the human-readable cause regardless of which\nterminal state was reached. The Andy.Policies.Application.Dtos.RejectOverrideRequest.RejectionReason\nalias makes the intent explicit on the wire."
     ResolveBindingsResponse:
       type: object
       properties:
@@ -3529,7 +3529,7 @@ components:
           type: integer
           format: int32
       additionalProperties: false
-      description: "Response envelope for `GET /api/bindings/resolve` (P3.4, story\r\nrivoli-ai/andy-policies#22). Carries the requested target so callers\r\ncaching the response can key on `(TargetType, TargetRef)`\r\nwithout re-parsing their own input. Andy.Policies.Application.Dtos.ResolveBindingsResponse.Count mirrors\r\n`Bindings.Count` for paginating callers that read the count\r\nheader field before the array."
+      description: "Response envelope for `GET /api/bindings/resolve` (P3.4, story\nrivoli-ai/andy-policies#22). Carries the requested target so callers\ncaching the response can key on `(TargetType, TargetRef)`\nwithout re-parsing their own input. Andy.Policies.Application.Dtos.ResolveBindingsResponse.Count mirrors\n`Bindings.Count` for paginating callers that read the count\nheader field before the array."
     ResolvedBindingDto:
       type: object
       properties:
@@ -3573,7 +3573,7 @@ components:
         bindStrength:
           $ref: '#/components/schemas/BindStrength'
       additionalProperties: false
-      description: "A consumer-ready binding projection (P3.4, story\r\nrivoli-ai/andy-policies#22). Joins the live `Binding` row to its\r\ntarget `PolicyVersion` and stable `Policy` identity so a\r\ncaller (Conductor's ActionBus, andy-tasks per-task gates) gets enough\r\ncontext to decide what to do without a second round-trip. Wire-format\r\ncasing follows ADR 0001 §6: `Enforcement` uppercase RFC 2119\r\ntokens, `Severity` lowercase, `VersionState` PascalCase."
+      description: "A consumer-ready binding projection (P3.4, story\nrivoli-ai/andy-policies#22). Joins the live `Binding` row to its\ntarget `PolicyVersion` and stable `Policy` identity so a\ncaller (Conductor's ActionBus, andy-tasks per-task gates) gets enough\ncontext to decide what to do without a second round-trip. Wire-format\ncasing follows ADR 0001 §6: `Enforcement` uppercase RFC 2119\ntokens, `Severity` lowercase, `VersionState` PascalCase."
     RevokeOverrideRequest:
       type: object
       properties:
@@ -3581,7 +3581,7 @@ components:
           type: string
           nullable: true
       additionalProperties: false
-      description: "Request payload for `IOverrideService.RevokeAsync` (P5.2).\r\nThe reason is required and persisted to\r\n`Override.RevocationReason`; reaper-driven expiry\r\n(`Expired`) leaves the column null."
+      description: "Request payload for `IOverrideService.RevokeAsync` (P5.2).\nThe reason is required and persisted to\n`Override.RevocationReason`; reaper-driven expiry\n(`Expired`) leaves the column null."
     RiskTier:
       enum:
         - None
@@ -3590,7 +3590,7 @@ components:
         - High
         - Critical
       type: string
-      description: "Aggregate risk tier for a Andy.Policies.Application.Dtos.ComplianceAssessment\r\n(rivoli-ai/conductor#1944 — TX F7.1). Wire-stable, lowercase on the\r\nwire; the order is the severity order (a higher enum value is a\r\nstrictly worse tier). The tier is a deterministic fold over the\r\nassessment's Andy.Policies.Application.Dtos.ComplianceViolations — see\r\n`IComplianceScorer` for the weight table — so the same violation\r\nset always produces the same tier."
+      description: "Aggregate risk tier for a Andy.Policies.Application.Dtos.ComplianceAssessment\n(rivoli-ai/conductor#1944 — TX F7.1). Wire-stable, lowercase on the\nwire; the order is the severity order (a higher enum value is a\nstrictly worse tier). The tier is a deterministic fold over the\nassessment's Andy.Policies.Application.Dtos.ComplianceViolations — see\n`IComplianceScorer` for the weight table — so the same violation\nset always produces the same tier."
     ScopeNodeDto:
       type: object
       properties:
@@ -3622,7 +3622,7 @@ components:
           type: string
           format: date-time
       additionalProperties: false
-      description: "Wire-format projection of a `ScopeNode` (P4.2, story\r\nrivoli-ai/andy-policies#29). Surface controllers (REST P4.5, MCP /\r\ngRPC / CLI in P4.6) emit this shape directly so wire behaviour stays\r\nuniform across surfaces."
+      description: "Wire-format projection of a `ScopeNode` (P4.2, story\nrivoli-ai/andy-policies#29). Surface controllers (REST P4.5, MCP /\ngRPC / CLI in P4.6) emit this shape directly so wire behaviour stays\nuniform across surfaces."
     ScopeTreeDto:
       type: object
       properties:
@@ -3634,7 +3634,7 @@ components:
             $ref: '#/components/schemas/ScopeTreeDto'
           nullable: true
       additionalProperties: false
-      description: "Recursive tree projection: a `ScopeNode` plus its full subtree\r\n(P4.2, story rivoli-ai/andy-policies#29). Returned by\r\n`IScopeService.GetTreeAsync` and surfaced unchanged by the\r\nREST/MCP/gRPC tree endpoints in P4.5 / P4.6."
+      description: "Recursive tree projection: a `ScopeNode` plus its full subtree\n(P4.2, story rivoli-ai/andy-policies#29). Returned by\n`IScopeService.GetTreeAsync` and surfaced unchanged by the\nREST/MCP/gRPC tree endpoints in P4.5 / P4.6."
     ScopeType:
       enum:
         - Org
@@ -3680,7 +3680,7 @@ components:
           format: int32
           nullable: true
       additionalProperties: false
-      description: "Request payload for `IPolicyService.UpdateDraftAsync`. Mutates the content\r\nof an existing Draft version. The `Policy.Name` slug is never updated via\r\nthis path — that would require a separate endpoint (deliberately deferred).\r\n\n`Rationale` is captured into the audit chain (P6.2) when supplied; the\r\n`RationaleRequiredFilter` rejects empty values when the\r\n`andy.policies.rationaleRequired` setting is on. Nullable for\r\nbackward compatibility (P9 follow-up #193).\r\n\n`ExpectedRevision` (P9 follow-up #194, 2026-05-07) is an optional\r\noptimistic-concurrency token sourced from `PolicyVersionDto.Revision`.\r\nWhen supplied, the service verifies the loaded version's\r\n`Revision` matches before mutating; mismatch returns 412. Nullable\r\nfor backward compat — clients that don't set it fall through to\r\nlast-write-wins.\r\n"
+      description: "Request payload for `IPolicyService.UpdateDraftAsync`. Mutates the content\nof an existing Draft version. The `Policy.Name` slug is never updated via\nthis path — that would require a separate endpoint (deliberately deferred).\n\n`Rationale` is captured into the audit chain (P6.2) when supplied; the\n`RationaleRequiredFilter` rejects empty values when the\n`andy.policies.rationaleRequired` setting is on. Nullable for\nbackward compatibility (P9 follow-up #193).\n`ExpectedRevision` (P9 follow-up #194, 2026-05-07) is an optional\noptimistic-concurrency token sourced from `PolicyVersionDto.Revision`.\nWhen supplied, the service verifies the loaded version's\n`Revision` matches before mutating; mismatch returns 412. Nullable\nfor backward compat — clients that don't set it fall through to\nlast-write-wins."
   securitySchemes:
     Bearer:
       type: http
@@ -3690,29 +3690,31 @@ components:
 security:
   - Bearer: [ ]
 tags:
+  - name: Andy.Policies.Api
   - name: Audit
-    description: "REST surface for the catalog audit chain (P6.5+). This file\r\nscaffolds the `verify` endpoint (P6.5, story\r\nrivoli-ai/andy-policies#45); list / get / export endpoints\r\nfollow in P6.6+."
+    description: "REST surface for the catalog audit chain (P6.5+). This file\nscaffolds the `verify` endpoint (P6.5, story\nrivoli-ai/andy-policies#45); list / get / export endpoints\nfollow in P6.6+."
   - name: Auth
-    description: "#216 — caller-permission introspection (P9.3 prerequisite). Answers\r\nthe question the SPA needs to gate button visibility: \"what\r\npermissions does the current subject have on this service?\""
+    description: "#216 — caller-permission introspection (P9.3 prerequisite). Answers\nthe question the SPA needs to gate button visibility: \"what\npermissions does the current subject have on this service?\""
   - name: Bindings
-    description: "REST surface for `Binding` mutation, single-id read, and target-side\r\nquery (P3.3, story rivoli-ai/andy-policies#21). Delegates to\r\nAndy.Policies.Application.Interfaces.IBindingService from P3.2 — same service powering MCP\r\n(P3.5), gRPC (P3.6), and CLI (P3.7). Service exceptions are mapped by\r\nthe global `PolicyExceptionHandler` (already covers\r\nAndy.Policies.Application.Exceptions.NotFoundException,\r\nAndy.Policies.Application.Exceptions.ConflictException, and\r\nAndy.Policies.Application.Exceptions.ValidationException; the\r\nAndy.Policies.Application.Exceptions.BindingRetiredVersionException\r\ninherits from Andy.Policies.Application.Exceptions.ConflictException so\r\nthe existing 409 mapping catches it)."
+    description: "REST surface for `Binding` mutation, single-id read, and target-side\nquery (P3.3, story rivoli-ai/andy-policies#21). Delegates to\nAndy.Policies.Application.Interfaces.IBindingService from P3.2 — same service powering MCP\n(P3.5), gRPC (P3.6), and CLI (P3.7). Service exceptions are mapped by\nthe global `PolicyExceptionHandler` (already covers\nAndy.Policies.Application.Exceptions.NotFoundException,\nAndy.Policies.Application.Exceptions.ConflictException, and\nAndy.Policies.Application.Exceptions.ValidationException; the\nAndy.Policies.Application.Exceptions.BindingRetiredVersionException\ninherits from Andy.Policies.Application.Exceptions.ConflictException so\nthe existing 409 mapping catches it)."
   - name: Bundles
-    description: "REST surface for resolving and reading from a frozen\r\nAndy.Policies.Domain.Entities.Bundle snapshot\r\n(P8.3, story rivoli-ai/andy-policies#83). Two endpoints today:\r\n<list type=\"bullet\"><item>`GET /api/bundles/{id}/resolve?targetType=&targetRef=`\r\n    — bindings against the snapshot for a target.</item><item>`GET /api/bundles/{id}/policies/{policyId}` — pinned\r\n    policy lookup.</item></list>\r\nMutation surfaces (POST / DELETE) land in P8.4–P8.5 alongside the\r\nMCP and gRPC parity."
+    description: "REST surface for resolving and reading from a frozen\nAndy.Policies.Domain.Entities.Bundle snapshot\n(P8.3, story rivoli-ai/andy-policies#83). Two endpoints today:\n<list type=\"bullet\"><item>`GET /api/bundles/{id}/resolve?targetType=&targetRef=`\n    — bindings against the snapshot for a target.</item><item>`GET /api/bundles/{id}/policies/{policyId}` — pinned\n    policy lookup.</item></list>\nMutation surfaces (POST / DELETE) land in P8.4–P8.5 alongside the\nMCP and gRPC parity."
   - name: EvaluatePlan
-    description: "Plan-evaluation surface for rivoli-ai/andy-policies#232 (companion\r\nto rivoli-ai/conductor#1633 SP.4.2). andy-tasks calls\r\n`POST /api/policies/evaluate-plan` on plan finalize to decide\r\nwhether the plan can auto-approve, must surface to a human, or is\r\nrejected outright. The endpoint itself is intentionally narrow —\r\nidempotent per `(goalId, planVersion)`, no side effects beyond\r\nthe 5-minute decision cache, no audit row of its own (the caller\r\nrecords the decision as it pipes it into the goal lifecycle)."
+    description: "Plan-evaluation surface for rivoli-ai/andy-policies#232 (companion\nto rivoli-ai/conductor#1633 SP.4.2). andy-tasks calls\n`POST /api/policies/evaluate-plan` on plan finalize to decide\nwhether the plan can auto-approve, must surface to a human, or is\nrejected outright. The endpoint itself is intentionally narrow —\nidempotent per `(goalId, planVersion)`, no side effects beyond\nthe 5-minute decision cache, no audit row of its own (the caller\nrecords the decision as it pipes it into the goal lifecycle)."
   - name: EvaluateTask
-    description: "Per-task / per-run compliance-evaluation surface for\r\nrivoli-ai/conductor#1944 (TX F7.1). The cockpit (via andy-tasks'\r\n`PlanExecutor`) calls `POST /api/policies/evaluate-task`\r\nduring execution — once per task / agent run — to re-evaluate the\r\ntask against the goal's effective policies and obtain a structured\r\nAndy.Policies.Application.Dtos.ComplianceAssessment (violations + risk tier/score),\r\nnot just the binary plan-finalize verdict. Reuses the same\r\nbinding-resolution + predicate pipeline as\r\nAndy.Policies.Api.Controllers.EvaluatePlanController (no forked evaluator) and is\r\nidempotent per `(goalId, taskId, planVersion)`."
+    description: "Per-task / per-run compliance-evaluation surface for\nrivoli-ai/conductor#1944 (TX F7.1). The cockpit (via andy-tasks'\n`PlanExecutor`) calls `POST /api/policies/evaluate-task`\nduring execution — once per task / agent run — to re-evaluate the\ntask against the goal's effective policies and obtain a structured\nAndy.Policies.Application.Dtos.ComplianceAssessment (violations + risk tier/score),\nnot just the binary plan-finalize verdict. Reuses the same\nbinding-resolution + predicate pipeline as\nAndy.Policies.Api.Controllers.EvaluatePlanController (no forked evaluator) and is\nidempotent per `(goalId, taskId, planVersion)`."
   - name: Help
-    description: "Serves help content from markdown files in content/help/.\r\nConsumable by any client: Angular, Swift (Conductor), CLI, MCP."
+    description: "Serves help content from markdown files in content/help/.\nConsumable by any client: Angular, Swift (Conductor), CLI, MCP."
+  - name: Items
   - name: Overrides
     description: Per-principal or per-cohort experimental policy overrides with approver + expiry. Writes (propose / approve / revoke) are gated by andy.policies.experimentalOverridesEnabled (default false); reads remain available regardless of the toggle so the resolution algorithm keeps working when the gate is off.
   - name: Policies
-    description: "REST surface for the policy catalog (P1.5, story rivoli-ai/andy-policies#75).\r\nAll endpoints delegate to Andy.Policies.Application.Interfaces.IPolicyService; service exceptions are\r\nmapped to status codes by `PolicyExceptionHandler` (registered globally)."
+    description: "REST surface for the policy catalog (P1.5, story rivoli-ai/andy-policies#75).\nAll endpoints delegate to Andy.Policies.Application.Interfaces.IPolicyService; service exceptions are\nmapped to status codes by `PolicyExceptionHandler` (registered globally)."
   - name: PolicyVersionBindings
-    description: "Version-rooted enumeration of `Binding`s (P3.3, story\r\nrivoli-ai/andy-policies#21). Sits next to the version resource so\r\nHATEOAS-style clients can discover bindings without a separate\r\nquery. Delegates to Andy.Policies.Application.Interfaces.IBindingService; the controller is\r\npurely a wire-format adapter."
+    description: "Version-rooted enumeration of `Binding`s (P3.3, story\nrivoli-ai/andy-policies#21). Sits next to the version resource so\nHATEOAS-style clients can discover bindings without a separate\nquery. Delegates to Andy.Policies.Application.Interfaces.IBindingService; the controller is\npurely a wire-format adapter."
   - name: PolicyVersionsLifecycle
-    description: "REST surface for lifecycle transitions on a `PolicyVersion` (P2.3, story\r\nrivoli-ai/andy-policies#13). Three action-shaped endpoints — `publish`,\r\n`winding-down`, `retire` — sit on top of\r\nAndy.Policies.Application.Interfaces.ILifecycleTransitionService. Auto-supersede of the previous\r\nActive happens inside the service's serializable transaction; the controller\r\nis a thin wire-format adapter and never re-implements state-machine logic.\r\nService exceptions map to status codes via `PolicyExceptionHandler`:\r\nAndy.Policies.Application.Exceptions.ValidationException → 400 (rationale\r\nmissing), Andy.Policies.Application.Exceptions.NotFoundException → 404\r\n(unknown id), Andy.Policies.Application.Exceptions.InvalidLifecycleTransitionException\r\nand Andy.Policies.Application.Exceptions.ConcurrentPublishException → 409."
+    description: "REST surface for lifecycle transitions on a `PolicyVersion` (P2.3, story\nrivoli-ai/andy-policies#13). Three action-shaped endpoints — `publish`,\n`winding-down`, `retire` — sit on top of\nAndy.Policies.Application.Interfaces.ILifecycleTransitionService. Auto-supersede of the previous\nActive happens inside the service's serializable transaction; the controller\nis a thin wire-format adapter and never re-implements state-machine logic.\nService exceptions map to status codes via `PolicyExceptionHandler`:\nAndy.Policies.Application.Exceptions.ValidationException → 400 (rationale\nmissing), Andy.Policies.Application.Exceptions.NotFoundException → 404\n(unknown id), Andy.Policies.Application.Exceptions.InvalidLifecycleTransitionException\nand Andy.Policies.Application.Exceptions.ConcurrentPublishException → 409."
   - name: Schemas
-    description: "P9 follow-up #191 (2026-05-07) — JSON Schema served from the API so\r\neditors (the Angular policy editor, P9.2; the Monaco swap-in P9.8\r\nfollow-up #192) can wire schema-aware validation without hard-coding\r\nthe contract. Anonymous read; trivially cacheable."
+    description: "P9 follow-up #191 (2026-05-07) — JSON Schema served from the API so\neditors (the Angular policy editor, P9.2; the Monaco swap-in P9.8\nfollow-up #192) can wire schema-aware validation without hard-coding\nthe contract. Anonymous read; trivially cacheable."
   - name: Scopes
-    description: "REST surface for the scope hierarchy (P4.5, story\r\nrivoli-ai/andy-policies#33). Six endpoints sit on top of\r\nAndy.Policies.Application.Interfaces.IScopeService (P4.2) and\r\nAndy.Policies.Application.Interfaces.IBindingResolutionService (P4.3): list, get-by-id,\r\ntree, effective-policies, create, delete. Service exceptions are\r\nmapped to status codes by `PolicyExceptionHandler`:\r\n<list type=\"bullet\"><item>Andy.Policies.Application.Exceptions.NotFoundException → 404</item><item>Andy.Policies.Application.Exceptions.InvalidScopeTypeException → 400 (`scope.parent-type-mismatch`)</item><item>Andy.Policies.Application.Exceptions.ScopeRefConflictException → 409 (`scope.ref-conflict`)</item><item>Andy.Policies.Application.Exceptions.ScopeHasDescendantsException → 409 (`scope.has-descendants`)</item></list>"
+    description: "REST surface for the scope hierarchy (P4.5, story\nrivoli-ai/andy-policies#33). Six endpoints sit on top of\nAndy.Policies.Application.Interfaces.IScopeService (P4.2) and\nAndy.Policies.Application.Interfaces.IBindingResolutionService (P4.3): list, get-by-id,\ntree, effective-policies, create, delete. Service exceptions are\nmapped to status codes by `PolicyExceptionHandler`:\n<list type=\"bullet\"><item>Andy.Policies.Application.Exceptions.NotFoundException → 404</item><item>Andy.Policies.Application.Exceptions.InvalidScopeTypeException → 400 (`scope.parent-type-mismatch`)</item><item>Andy.Policies.Application.Exceptions.ScopeRefConflictException → 409 (`scope.ref-conflict`)</item><item>Andy.Policies.Application.Exceptions.ScopeHasDescendantsException → 409 (`scope.has-descendants`)</item></list>"
