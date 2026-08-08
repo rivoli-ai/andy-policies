@@ -1,8 +1,8 @@
 // Copyright (c) Rivoli AI 2026. All rights reserved.
 // Licensed under the Apache License, Version 2.0.
 
-using Microsoft.OpenApi.Any;
-using Microsoft.OpenApi.Models;
+using System.Text.Json.Nodes;
+using Microsoft.OpenApi;
 using Swashbuckle.AspNetCore.SwaggerGen;
 
 namespace Andy.Policies.Api.Swagger;
@@ -64,7 +64,8 @@ internal sealed class OverridesDocumentFilter : IDocumentFilter
             "remain available regardless of the toggle so the resolution " +
             "algorithm keeps working when the gate is off.";
 
-        doc.Tags ??= new List<OpenApiTag>();
+        // v2 models document tags as a set rather than a list.
+        doc.Tags ??= new HashSet<OpenApiTag>();
         var existing = doc.Tags.FirstOrDefault(t => t.Name == "Overrides");
         if (existing is null)
         {
@@ -78,10 +79,10 @@ internal sealed class OverridesDocumentFilter : IDocumentFilter
         // x-error-codes extension on every /api/overrides[/...] operation
         // so generated clients can render typed error messages without
         // parsing English.
-        var codesArray = new OpenApiArray();
+        var codesArray = new JsonArray();
         foreach (var code in OverrideErrorCodes)
         {
-            codesArray.Add(new OpenApiString(code));
+            codesArray.Add(JsonValue.Create(code));
         }
 
         foreach (var (path, item) in doc.Paths)
@@ -90,9 +91,16 @@ internal sealed class OverridesDocumentFilter : IDocumentFilter
             {
                 continue;
             }
-            foreach (var op in item.Operations.Values)
+            // v2: Operations is nullable and its values are the read-only
+            // IOpenApiOperation; mutate the concrete type Swashbuckle builds, and
+            // wrap the JsonNode as an IOpenApiExtension.
+            foreach (var op in item.Operations!.Values)
             {
-                op.Extensions["x-error-codes"] = codesArray;
+                if (op is OpenApiOperation concreteOp)
+                {
+                    concreteOp.Extensions ??= new Dictionary<string, IOpenApiExtension>();
+                    concreteOp.Extensions["x-error-codes"] = new JsonNodeExtension(codesArray);
+                }
             }
         }
     }

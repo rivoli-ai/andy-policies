@@ -8,6 +8,7 @@ using Andy.Policies.Infrastructure.Data;
 using FluentAssertions;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Npgsql;
 using Testcontainers.PostgreSql;
 using Xunit;
@@ -72,6 +73,7 @@ public class AuditChainTests : IAsyncLifetime
     private static DbContextOptions<AppDbContext> SqliteOptions(SqliteConnection conn) =>
         new DbContextOptionsBuilder<AppDbContext>()
             .UseSqlite(conn)
+                        .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning))
             .Options;
 
     private static AuditAppendRequest SampleRequest(int n) => new(

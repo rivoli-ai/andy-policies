@@ -11,6 +11,7 @@ using Andy.Policies.Shared.Auditing;
 using FluentAssertions;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Xunit;
 
 namespace Andy.Policies.Tests.Integration.Audit;
@@ -39,6 +40,7 @@ public class AuditExporterTests
         conn.Open();
         var options = new DbContextOptionsBuilder<AppDbContext>()
             .UseSqlite(conn)
+                        .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning))
             .Options;
         var db = new AppDbContext(options);
         db.Database.Migrate();

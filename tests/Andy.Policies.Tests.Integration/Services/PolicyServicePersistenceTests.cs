@@ -8,6 +8,7 @@ using Andy.Policies.Infrastructure.Data;
 using Andy.Policies.Infrastructure.Services;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Xunit;
 
 namespace Andy.Policies.Tests.Integration.Services;
@@ -28,6 +29,7 @@ public class PolicyServicePersistenceTests : IDisposable
         _connection.Open();
         _options = new DbContextOptionsBuilder<AppDbContext>()
             .UseSqlite(_connection)
+                        .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning))
             .Options;
 
         using var seed = new AppDbContext(_options);

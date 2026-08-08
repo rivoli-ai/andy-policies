@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
@@ -175,8 +176,23 @@ public class SqliteBootTests : IAsyncLifetime
                 var ctxDescriptor = services.SingleOrDefault(d =>
                     d.ServiceType == typeof(DbContextOptions<AppDbContext>));
                 if (ctxDescriptor is not null) services.Remove(ctxDescriptor);
+                // EF Core 9+ registers several descriptors per context; leaving the Npgsql
+                // ones in place makes EF 10 refuse two providers in one container.
+                var dbDescriptors = services
+                    .Where(d => (d.ServiceType.IsGenericType
+                                 && d.ServiceType.GetGenericArguments().Contains(typeof(AppDbContext)))
+                             || d.ServiceType == typeof(DbContextOptions)
+                             || d.ServiceType == typeof(AppDbContext))
+                    .ToList();
+
+                foreach (var descriptor in dbDescriptors)
+                {
+                    services.Remove(descriptor);
+                }
+
                 services.AddDbContext<AppDbContext>(opts =>
-                    opts.UseSqlite($"Data Source={_dbPath}"));
+                    opts.UseSqlite($"Data Source={_dbPath}")
+                        .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning)));
 
                 services.AddAuthentication(TestAuthHandler.SchemeName)
                     .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(

@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
@@ -102,7 +103,22 @@ public class RbacInterceptorTests
                 var ctxDescriptor = services.SingleOrDefault(d =>
                     d.ServiceType == typeof(DbContextOptions<AppDbContext>));
                 if (ctxDescriptor is not null) services.Remove(ctxDescriptor);
-                services.AddDbContext<AppDbContext>(opts => opts.UseSqlite(_connection));
+                // EF Core 9+ registers several descriptors per context; leaving the Npgsql
+                // ones in place makes EF 10 refuse two providers in one container.
+                var dbDescriptors = services
+                    .Where(d => (d.ServiceType.IsGenericType
+                                 && d.ServiceType.GetGenericArguments().Contains(typeof(AppDbContext)))
+                             || d.ServiceType == typeof(DbContextOptions)
+                             || d.ServiceType == typeof(AppDbContext))
+                    .ToList();
+
+                foreach (var descriptor in dbDescriptors)
+                {
+                    services.Remove(descriptor);
+                }
+
+                services.AddDbContext<AppDbContext>(opts => opts.UseSqlite(_connection)
+                        .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning)));
 
                 var rbacDescriptors = services
                     .Where(d => d.ServiceType == typeof(IRbacChecker))

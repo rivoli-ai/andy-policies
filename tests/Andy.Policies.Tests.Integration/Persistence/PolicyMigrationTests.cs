@@ -6,6 +6,7 @@ using Andy.Policies.Domain.Enums;
 using Andy.Policies.Infrastructure.Data;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Xunit;
 
 namespace Andy.Policies.Tests.Integration.Persistence;
@@ -31,6 +32,7 @@ public class PolicyMigrationTests : IDisposable
 
         _options = new DbContextOptionsBuilder<AppDbContext>()
             .UseSqlite(_connection)
+                        .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning))
             .Options;
     }
 

@@ -7,6 +7,7 @@ using Andy.Policies.Infrastructure.Data;
 using FluentAssertions;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Xunit;
 
 namespace Andy.Policies.Tests.Integration.Persistence;
@@ -41,6 +42,7 @@ public class OverrideMigrationTests : IDisposable
     private DbContextOptions<AppDbContext> NewOptions() =>
         new DbContextOptionsBuilder<AppDbContext>()
             .UseSqlite(_connection)
+                        .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning))
             .Options;
 
     private async Task<(Guid policyId, Guid versionId)> SeedPolicyAndDraftAsync(AppDbContext db)

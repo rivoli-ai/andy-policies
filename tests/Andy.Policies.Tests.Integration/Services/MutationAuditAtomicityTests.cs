@@ -10,6 +10,7 @@ using Andy.Policies.Infrastructure.Services;
 using FluentAssertions;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Xunit;
 
 namespace Andy.Policies.Tests.Integration.Services;
@@ -123,7 +124,8 @@ public sealed class MutationAuditAtomicityTests
             var connection = new SqliteConnection("Data Source=:memory:");
             await connection.OpenAsync();
             var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>()
-                .UseSqlite(connection).Options);
+                .UseSqlite(connection)
+                        .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning)).Options);
             await db.Database.EnsureCreatedAsync();
             return new SqliteFixture(connection, db);
         }

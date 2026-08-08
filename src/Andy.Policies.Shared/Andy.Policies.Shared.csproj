@@ -1,7 +1,21 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
   </PropertyGroup>
+
+
+  <!-- Transitive pins for the .NET 10 migration. Each of these is pulled in
+       by a direct dependency at a version carrying a published advisory; the
+       versions below are the patched builds. Drop a pin once its direct
+       dependency resolves a clean version on its own. -->
+  <ItemGroup>
+    <PackageReference Include="OpenTelemetry.Api" Version="1.17.0" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.17.0" />
+    <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" Version="2.1.12" />
+    <PackageReference Include="Microsoft.OpenApi" Version="2.11.0" />
+    <PackageReference Include="System.Security.Cryptography.Xml" Version="10.0.10" />
+    <PackageReference Include="Microsoft.AspNetCore.DataProtection" Version="10.0.10" />
+  </ItemGroup>
 
 </Project>

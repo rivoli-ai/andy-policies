@@ -5,6 +5,7 @@ using Andy.Policies.Infrastructure.Data;
 using FluentAssertions;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Xunit;
 
@@ -53,6 +54,7 @@ public class SqliteModelCompatibilityTests
         connection.Open();
         var options = new DbContextOptionsBuilder<AppDbContext>()
             .UseSqlite(connection)
+                        .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning))
             .Options;
         using var db = new AppDbContext(options);
 
@@ -89,6 +91,7 @@ public class SqliteModelCompatibilityTests
         connection.Open();
         var options = new DbContextOptionsBuilder<AppDbContext>()
             .UseSqlite(connection)
+                        .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning))
             .Options;
         using var db = new AppDbContext(options);
 
