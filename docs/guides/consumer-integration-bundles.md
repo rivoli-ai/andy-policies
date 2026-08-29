@@ -3,7 +3,7 @@
 A practical guide for services that need to **pin a frozen catalog
 version** and resolve policies against it deterministically.
 Targeted at: Conductor's admission gate, andy-tasks per-task gates,
-andy-mcp-gateway tool policy, and any consumer that wants
+andy-mcp-proxy tool policy, and any consumer that wants
 *"identical answers across catalog mutations until I say otherwise"*.
 
 For the *what* and *why* — entity shape, design rules, surface

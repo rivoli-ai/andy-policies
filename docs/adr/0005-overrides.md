@@ -8,7 +8,7 @@ P5.5 #58, P5.6 #59, P5.7 #60, P5.8 #62) shipped ahead of this ADR's
 acceptance because the aggregate shape, state machine, and reaper
 semantics were already pinned in the per-story specs. This ADR
 captures the decisions authoritatively for downstream readers
-(Conductor admission, Cockpit, andy-mcp-gateway).
+(Conductor admission, Cockpit, andy-mcp-proxy).
 
 Supersedes: nothing. Companion to:
 

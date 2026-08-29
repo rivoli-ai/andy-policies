@@ -2,7 +2,7 @@
 
 A practical guide for services that need to ask **"which policies apply
 to this target?"** and act on the answer. Targeted at: Conductor's
-ActionBus, andy-tasks per-task gates, andy-mcp-gateway tool policy, and
+ActionBus, andy-tasks per-task gates, andy-mcp-proxy tool policy, and
 any future consumer of andy-policies bindings.
 
 For the *what* and *why* — entity shape, design rules, surface parity —
@@ -242,6 +242,6 @@ For consumer-side integrations:
 - **andy-tasks** —
   [rivoli-ai/andy-tasks#10 (Epic U)](https://github.com/rivoli-ai/andy-tasks/issues/10)
   for `DelegationContract.PolicyVersionId` usage.
-- **andy-mcp-gateway** —
-  [rivoli-ai/andy-mcp-gateway#2 (Epic AM)](https://github.com/rivoli-ai/andy-mcp-gateway/issues/2)
+- **andy-mcp-proxy** —
+  [rivoli-ai/andy-mcp-proxy](https://github.com/rivoli-ai/andy-mcp-proxy)
   for tool-policy binding patterns.

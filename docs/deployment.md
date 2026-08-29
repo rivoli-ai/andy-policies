@@ -50,18 +50,20 @@ kubectl create secret generic andy-policies-db \
 | `Database__Provider` | `PostgreSql` or `Sqlite` | `PostgreSql` |
 | `AndyAuth__Authority` | Andy Auth server URL | `https://localhost:5001` |
 | `AndyAuth__Audience` | JWT audience | `urn:andy-policies-api` |
-| `Rbac__ApiBaseUrl` | Andy RBAC server URL | `https://localhost:5003` |
-| `Rbac__ApplicationCode` | RBAC application code | `andy-policies` |
+| `AndyRbac__BaseUrl` | Andy RBAC server URL | `https://localhost:5003` |
+| `AndySettings__ApiBaseUrl` | Andy Settings server URL | `https://localhost:5300` |
+| `ANDY_POLICIES_API_SECRET` | M2M client secret for service-to-service calls | — |
 | `OpenTelemetry__OtlpEndpoint` | OTLP collector endpoint | (empty) |
 
 ## Ports
 
-| Service | Port |
-|---------|------|
-| API HTTPS | 5112 |
-| API HTTP | 5113 |
-| PostgreSQL | 5439 |
-| Client (Angular) | 4206 |
+| Service | Mode 1 (dotnet) | Mode 2 (docker) | Mode 3 (Conductor) |
+|---------|----------------|-----------------|---------------------|
+| API HTTPS | 5112 | 7112 | via proxy `/policies` |
+| API HTTP | 5113 | 7113 | — |
+| PostgreSQL | 5439 | 7439 | (SQLite embedded) |
+| Angular client | 4206 | 6206 | via proxy `/policies` |
+| Embedded proxy | — | — | 9100 |
 
 ## Conductor Integration
 

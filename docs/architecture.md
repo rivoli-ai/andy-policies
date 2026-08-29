@@ -43,7 +43,7 @@ Standard HTTP API with OpenAPI documentation available at `/swagger`.
 AI assistant integration endpoint at `/mcp`. MCP tools share the same service layer as REST controllers.
 
 ### gRPC
-High-performance RPC defined in `Protos/items.proto`. Uses the same service layer.
+High-performance RPC defined in `src/Andy.Policies.Api/Protos/` (`policies.proto`, `lifecycle.proto`, `bindings.proto`, `scopes.proto`, `overrides.proto`, `bundles.proto`, `audit.proto`). All services share the same `andy_policies` package + `Andy.Policies.Api.Protos` namespace and delegate to the same service layer as REST + MCP.
 
 ## Database Strategy
 

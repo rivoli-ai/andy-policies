@@ -4,7 +4,7 @@ How andy-policies answers "which policies apply to this target?" when
 the answer involves a hierarchy walk. Targeted at: a contributor about
 to touch `BindingResolutionService`, and a consumer engineer
 (Conductor's ActionBus, andy-tasks per-task gates,
-andy-mcp-gateway tool-policy) who needs to predict what an effective-
+andy-mcp-proxy tool-policy) who needs to predict what an effective-
 policies call will return.
 
 For the *what* and *why* — entity shape, cycle-impossibility, dual

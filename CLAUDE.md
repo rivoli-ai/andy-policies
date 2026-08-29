@@ -59,8 +59,10 @@ andy-policies/
 │   ├── angular.json
 │   └── package.json
 ├── config/
-│   ├── auth-seed.sql            # Andy Auth OAuth client registration
-│   └── rbac-seed.json           # Andy RBAC application/role/permission seed
+│   ├── registration.json        # Auto-discovered manifest (auth + RBAC + settings)
+│   ├── rbac-seed.json           # Andy RBAC application/role/permission seed
+│   ├── policies-seed.json       # Stock policy seed
+│   └── bindings-seed.json       # Default binding seed
 ├── docs/                        # MkDocs documentation
 ├── examples/                    # Multi-language API usage examples
 ├── local-packages/              # Local NuGet packages
@@ -149,13 +151,13 @@ dotnet ef database update --project src/Andy.Policies.Infrastructure --startup-p
 
 ## Ports
 
-| Service | Port |
-|---------|------|
-| API HTTPS | 5112 |
-| API HTTP | 5113 |
-| PostgreSQL | 5439 |
-| Client (Angular dev) | 4200 |
-| Client (Docker) | 4206 |
+| Service | Mode 1 (dotnet) | Mode 2 (docker) | Mode 3 (Conductor) |
+|---------|----------------|-----------------|---------------------|
+| API HTTPS | 5112 | 7112 | via proxy `/policies` |
+| API HTTP | 5113 | 7113 | — |
+| PostgreSQL | 5439 | 7439 | (SQLite embedded) |
+| Angular client | 4206 | 6206 | via proxy `/policies` |
+| Embedded proxy | — | — | 9100 |
 
 ## External Dependencies
 
