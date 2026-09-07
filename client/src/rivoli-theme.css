@@ -1,0 +1,90 @@
+/* Rivoli service theme v1. Astryx semantic foundations, adapted to native controls.
+ * Brand source: website/DESIGN.md. No React component runtime is installed.
+ */
+:root {
+  --color-background-body: #fafafa;
+  --color-text-primary: #171717;
+  --color-text-secondary: #737373;
+  --color-accent: #0a0a0a;
+  --color-on-accent: #fafafa;
+  --color-border: #e5e5e5;
+  --font-family-body: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  --font-family-code: ui-monospace, "SF Mono", Menlo, monospace;
+  --font-sans: var(--font-family-body);
+  --font-mono: var(--font-family-code);
+  --primary-soft: #f5f5f5;
+  --primary-soft-strong: #ededed;
+  --radius-element: 8px;
+  --radius-container: 12px;
+  --primary: var(--color-accent);
+  --primary-dark: #404040;
+  --primary-light: #404040;
+  --background: var(--color-background-body);
+  --surface: #fff;
+  --surface-2: #f5f5f5;
+  --text: var(--color-text-primary);
+  --text-secondary: var(--color-text-secondary);
+  --text-muted: var(--color-text-secondary);
+  --border: var(--color-border);
+  --accent: #1fa6a0;
+  --accent-secondary: #1fa6a0;
+}
+body {
+  font-family: var(--font-family-body);
+  color: var(--text);
+  background: var(--background);
+  -webkit-font-smoothing: antialiased;
+}
+button, input, select, textarea { font-family: inherit; }
+:where(button, a, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid #087c77;
+  outline-offset: 3px;
+}
+:where(button):disabled { cursor: not-allowed; }
+.btn-primary, .btn-secondary {
+  min-height: 40px;
+  border-radius: var(--radius-element);
+  font-weight: 500;
+  transition: background-color 150ms, border-color 150ms;
+}
+.btn-primary:not(:disabled) { background: var(--primary); color: var(--color-on-accent); }
+.btn-primary:not(:disabled):hover { background: var(--primary-dark); transform: none; box-shadow: none; }
+.btn-secondary:not(:disabled) { color: var(--text); background: var(--surface); border: 1px solid var(--border); }
+.btn-secondary:not(:disabled):hover { background: var(--surface-2); }
+.card { border-radius: var(--radius-container); box-shadow: none; }
+.rivoli-skip-link {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 1000;
+  padding: 12px 16px;
+  background: #0a0a0a;
+  color: #fff;
+  border-radius: 8px;
+  transform: translateY(-150%);
+}
+.rivoli-skip-link:focus { transform: translateY(0); }
+.rivoli-table-region { max-width: 100%; overflow-x: auto; }
+.rivoli-notice {
+  padding: 16px;
+  margin-block: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-container);
+  background: var(--surface);
+}
+.rivoli-notice p { margin-bottom: 12px; }
+@media (prefers-reduced-motion: reduce) {
+  .btn-primary, .btn-secondary { transition: none; }
+}
+
+:root.dark {
+  --color-background-body: #0a1f22;
+  --color-text-primary: #fafafa;
+  --color-text-secondary: #a3a3a3;
+  --color-accent: #1fa6a0;
+  --color-on-accent: #04211f;
+  --color-border: #1e3f40;
+  --primary-dark: #2bc0b9;
+  --surface: #102e30;
+  --surface-2: #163638;
+}

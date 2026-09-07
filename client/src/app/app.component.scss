@@ -31,7 +31,7 @@
     padding: 8px 12px;
     border-radius: 4px;
     font-size: 14px;
-    &.active { color: var(--primary); background: rgba(26, 115, 232, 0.08); }
+    &.active { color: var(--primary); background: var(--surface-2); }
     &:hover { background: var(--background); }
   }
 }
@@ -51,4 +51,15 @@
   max-width: 1200px;
   margin: 24px auto;
   padding: 0 24px;
+}
+
+// Keep navigation and identity actions reachable at narrow widths and zoom.
+@media (max-width: 900px) {
+  .app-header { padding: 0 16px; }
+  .nav-bar { height: auto; min-height: 64px; flex-wrap: wrap; gap: 12px; padding: 12px 0; }
+  .logo { margin-right: auto; }
+  .auth-section { flex-wrap: wrap; }
+  .user-name { max-width: 16rem; overflow-wrap: anywhere; }
+  .nav-links { order: 3; flex-basis: 100%; min-width: 0; flex-wrap: wrap; gap: 4px; }
+  .app-content { margin: 24px auto; padding: 0 16px; min-width: 0; }
 }

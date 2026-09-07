@@ -1,20 +1,21 @@
 <!-- Copyright (c) Rivoli AI 2026. All rights reserved. -->
+<a class="rivoli-skip-link" href="#main-content">Skip to content</a>
 <header class="app-header">
-  <nav class="nav-bar">
+  <nav class="nav-bar" aria-label="Policies navigation">
     <a class="logo" routerLink="/">{{ title }}</a>
     <div class="nav-links">
-      <a routerLink="/dashboard" routerLinkActive="active">Dashboard</a>
-      <a routerLink="/policies" routerLinkActive="active">Policies</a>
+      <a routerLink="/dashboard" routerLinkActive="active" ariaCurrentWhenActive="page">Dashboard</a>
+      <a routerLink="/policies" routerLinkActive="active" ariaCurrentWhenActive="page">Policies</a>
       <a *ngIf="permissions.canPublish()"
          routerLink="/approvals"
-         routerLinkActive="active"
+         routerLinkActive="active" ariaCurrentWhenActive="page"
          data-testid="nav-approvals">
         Approvals
       </a>
-      <a routerLink="/overrides" routerLinkActive="active">Overrides</a>
-      <a routerLink="/audit" routerLinkActive="active">Audit</a>
-      <a routerLink="/bundles" routerLinkActive="active">Bundles</a>
-      <a routerLink="/help" routerLinkActive="active">Help</a>
+      <a routerLink="/overrides" routerLinkActive="active" ariaCurrentWhenActive="page">Overrides</a>
+      <a routerLink="/audit" routerLinkActive="active" ariaCurrentWhenActive="page">Audit</a>
+      <a routerLink="/bundles" routerLinkActive="active" ariaCurrentWhenActive="page">Bundles</a>
+      <a routerLink="/help" routerLinkActive="active" ariaCurrentWhenActive="page">Help</a>
     </div>
     <div class="auth-section">
       <span *ngIf="isAuthenticated" class="user-name">{{ userName }}</span>
@@ -23,6 +24,6 @@
     </div>
   </nav>
 </header>
-<main class="app-content">
+<main class="app-content" id="main-content" tabindex="-1">
   <router-outlet></router-outlet>
 </main>

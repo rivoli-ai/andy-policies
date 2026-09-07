@@ -29,7 +29,7 @@
                 "output": "/assets/monaco/vs"
               }
             ],
-            "styles": ["src/styles.scss"],
+            "styles": ["src/styles.scss", "src/rivoli-theme.css"],
             "scripts": []
           },
           "configurations": {
@@ -71,7 +71,7 @@
             "polyfills": ["zone.js", "zone.js/testing"],
             "tsConfig": "tsconfig.spec.json",
             "assets": [],
-            "styles": ["src/styles.scss"],
+            "styles": ["src/styles.scss", "src/rivoli-theme.css"],
             "scripts": []
           }
         }
