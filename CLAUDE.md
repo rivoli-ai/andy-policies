@@ -221,3 +221,14 @@ The Gitleaks CI job has been removed — the action requires a paid licence for 
 
 This project was scaffolded from [andy-service-template](https://github.com/rivoli-ai/andy-service-template).
 Run `check-compliance.sh` from the template repo to verify template compliance.
+
+<!-- coord:begin -->
+## Coordination and agent contract
+
+The instructions in [AGENTS.md](AGENTS.md) apply to every agent working here, Claude Code
+included. Read it first, then `docs/coordination/README.md`.
+
+Coordination is not file-based in this repository. Do not look for a claims table or a board file
+to edit: run `coord next` and `coord start`. The live state is in the service, and it is
+returned to you on every call.
+<!-- coord:end -->
