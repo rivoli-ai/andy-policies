@@ -1,3 +1,4 @@
+import { PageIntroComponent } from '../../shared/ui/page-intro.component';
 // Copyright (c) Rivoli AI 2026. All rights reserved.
 
 import { Component, OnInit } from '@angular/core';
@@ -8,9 +9,9 @@ import { ApiService, PolicyDto } from '../../shared/services/api.service';
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [PageIntroComponent, CommonModule, RouterLink],
   template: `
-    <h1>Dashboard</h1>
+    <app-page-intro eyebrow="Policies" heading="Governance overview" description="Follow policies from draft to active version, with clear release and audit context." [actions]="workflowLinks" />
     <div class="stats">
       <div class="stat-card">
         <div class="stat-value">{{ policies.length }}</div>
@@ -44,6 +45,24 @@ import { ApiService, PolicyDto } from '../../shared/services/api.service';
   `],
 })
 export class DashboardComponent implements OnInit {
+  readonly workflowLinks = [
+  {
+    "path": "/policies",
+    "title": "Browse policies",
+    "description": "Inspect versions, enforcement and bindings."
+  },
+  {
+    "path": "/bundles",
+    "title": "Review bundles",
+    "description": "Compare the policies in each release."
+  },
+  {
+    "path": "/audit",
+    "title": "Inspect audit history",
+    "description": "Understand changes and decisions."
+  }
+];
+
   policies: PolicyDto[] = [];
 
   get activeCount(): number {

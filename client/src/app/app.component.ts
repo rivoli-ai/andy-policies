@@ -1,7 +1,8 @@
+import { ServiceShellComponent, ServiceNavItem } from './shared/ui/service-shell.component';
 // Copyright (c) Rivoli AI 2026. All rights reserved.
 
 import { Component, OnInit, inject } from '@angular/core';
-import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
+import { RouterOutlet } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { OidcSecurityService } from 'angular-auth-oidc-client';
 import { PermissionsService } from './core/auth/permissions.service';
@@ -9,11 +10,49 @@ import { PermissionsService } from './core/auth/permissions.service';
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, CommonModule],
+  imports: [ServiceShellComponent, RouterOutlet, CommonModule],
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss'],
 })
 export class AppComponent implements OnInit {
+  get navigation(): ServiceNavItem[] { return [
+  {
+    "path": "/dashboard",
+    "label": "Overview",
+    "group": "Workspace"
+  },
+  {
+    "path": "/policies",
+    "label": "Policies",
+    "group": "Governance"
+  },
+  {
+    "path": "/approvals",
+    "label": "Approvals", "visible": this.permissions.canPublish(),
+    "group": "Governance"
+  },
+  {
+    "path": "/overrides",
+    "label": "Overrides",
+    "group": "Governance"
+  },
+  {
+    "path": "/bundles",
+    "label": "Bundles",
+    "group": "Release"
+  },
+  {
+    "path": "/audit",
+    "label": "Audit history",
+    "group": "Release"
+  },
+  {
+    "path": "/help",
+    "label": "Help",
+    "group": "Resources"
+  }
+]; }
+
   title = 'Andy Policies';
   isAuthenticated = false;
   userName = '';

@@ -1,28 +1,8 @@
-<!-- Copyright (c) Rivoli AI 2026. All rights reserved. -->
-<header class="app-header">
-  <nav class="nav-bar">
-    <a class="logo" routerLink="/">{{ title }}</a>
-    <div class="nav-links">
-      <a routerLink="/dashboard" routerLinkActive="active">Dashboard</a>
-      <a routerLink="/policies" routerLinkActive="active">Policies</a>
-      <a *ngIf="permissions.canPublish()"
-         routerLink="/approvals"
-         routerLinkActive="active"
-         data-testid="nav-approvals">
-        Approvals
-      </a>
-      <a routerLink="/overrides" routerLinkActive="active">Overrides</a>
-      <a routerLink="/audit" routerLinkActive="active">Audit</a>
-      <a routerLink="/bundles" routerLinkActive="active">Bundles</a>
-      <a routerLink="/help" routerLinkActive="active">Help</a>
-    </div>
-    <div class="auth-section">
+<app-service-shell serviceName="Policies" serviceDescription="Governance you can follow." [links]="navigation">
+  <div service-account class="service-account">
       <span *ngIf="isAuthenticated" class="user-name">{{ userName }}</span>
       <button *ngIf="!isAuthenticated" class="btn-primary" (click)="login()">Sign In</button>
       <button *ngIf="isAuthenticated" class="btn-secondary" (click)="logout()">Sign Out</button>
     </div>
-  </nav>
-</header>
-<main class="app-content">
-  <router-outlet></router-outlet>
-</main>
+  <router-outlet />
+</app-service-shell>
