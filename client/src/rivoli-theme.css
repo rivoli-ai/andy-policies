@@ -88,3 +88,26 @@ button, input, select, textarea { font-family: inherit; }
   --surface: #102e30;
   --surface-2: #163638;
 }
+
+/* Shared console layout and control rhythm. Feature-specific states retain their colors. */
+.service-account { display:flex; align-items:center; justify-content:flex-end; flex-wrap:wrap; gap:10px; font-size:12px; min-width:0; }
+.service-account>span { max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text-secondary); }
+.service-account button { min-height:36px; padding:8px 12px; font-size:12px; }
+app-service-shell .service-main h1 { letter-spacing:-.6px; }
+app-service-shell .service-main :is(.stats,.stats-grid) { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(180px,100%),1fr)); gap:16px; }
+app-service-shell .service-main :is(.stat-card,.tile) { min-width:0; text-align:left; border-radius:12px; box-shadow:none; }
+app-service-shell .service-main :is(.quick-links,.filters,.filter-bar) { flex-wrap:wrap; }
+app-service-shell .service-main .card { border:1px solid var(--border); }
+app-service-shell .service-main :is(input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]),select,textarea) { max-width:100%; min-height:42px; border-radius:8px; font-family:var(--font-family-body); font-size:14px; padding:10px 12px; }
+app-service-shell .service-main :is(input,select,textarea):focus-visible { outline:2px solid #087c77; outline-offset:2px; }
+app-service-shell .service-main :is(.btn-primary,.btn-secondary,.btn-danger) { min-height:40px; padding:10px 16px; border-radius:8px; font-size:14px; line-height:1.25; }
+app-service-shell .service-main table { border-collapse:collapse; font-size:14px; }
+app-service-shell .service-main th { font-size:12px; font-weight:600; letter-spacing:.02em; }
+app-service-shell .service-main td { line-height:1.6; }
+@media(max-width:959px) {
+ .service-account { gap:8px; }
+ .service-account>span { max-width:120px; }
+ app-service-shell .service-main :is(.p-8,.p-6) { padding:16px; }
+ app-service-shell .service-main .service-page { padding:0; }
+ app-service-shell .service-main :is(.modal,.dialog) { max-width:calc(100vw - 32px); }
+}

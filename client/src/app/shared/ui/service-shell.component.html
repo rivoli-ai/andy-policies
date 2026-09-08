@@ -1,0 +1,38 @@
+<a class="skip-link" href="#service-main">Skip to content</a>
+<div class="service-frame">
+  <button *ngIf="mobile && menuOpen" class="drawer-backdrop" aria-label="Close navigation" tabindex="-1" (click)="closeMenu()"></button>
+  <aside *ngIf="chrome" #drawer id="service-navigation" class="service-sidebar" [class.is-open]="menuOpen"
+    [attr.role]="mobile ? 'dialog' : null" [attr.aria-modal]="mobile && menuOpen ? 'true' : null"
+    [attr.aria-label]="serviceName + ' navigation'">
+    <div class="service-brand">
+      <a [routerLink]="homePath" class="brand-home">
+        <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M5 18V6h7a4 4 0 0 1 0 8H5m7 0 6 4" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        <span><small>RIVOLI AI</small><strong>{{ serviceName }}</strong></span>
+      </a>
+      <button type="button" class="drawer-close" aria-label="Close navigation" (click)="closeMenu()">×</button>
+    </div>
+    <div class="sidebar-scroll">
+      <p class="service-description">{{ serviceDescription }}</p>
+      <nav aria-label="Service pages">
+        <section class="nav-group" *ngFor="let group of groups">
+          <h2>{{ group }}</h2>
+          <a *ngFor="let link of linksIn(group); trackBy: trackLink" [routerLink]="link.path" [class.is-active]="isCurrent(link)"
+            [attr.aria-current]="isCurrent(link) ? 'page' : null" class="service-nav-link">
+            <span class="nav-indicator" aria-hidden="true"></span><span>{{ link.label }}</span>
+          </a>
+        </section>
+      </nav>
+      <ng-content select="[service-nav-extra]"></ng-content>
+    </div>
+    <div class="sidebar-footer"><span class="workspace-mark" aria-hidden="true">R</span><div><strong>Rivoli workspace</strong><span>Service console</span></div></div>
+  </aside>
+  <div class="service-body" [class.no-chrome]="!chrome" [attr.inert]="mobile && menuOpen ? '' : null">
+    <header *ngIf="chrome" class="service-topbar">
+      <button #menuButton type="button" class="menu-button" aria-label="Open navigation" aria-controls="service-navigation"
+        [attr.aria-expanded]="menuOpen" (click)="openMenu()"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></button>
+      <div class="location"><span>{{ serviceName }}</span><span aria-hidden="true">/</span><strong>{{ currentLabel }}</strong></div>
+      <div class="account"><ng-content select="[service-account]"></ng-content></div>
+    </header>
+    <main #mainContent id="service-main" class="service-main" tabindex="-1"><ng-content></ng-content></main>
+  </div>
+</div>

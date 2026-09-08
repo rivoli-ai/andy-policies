@@ -46,7 +46,7 @@ interface HelpTopic extends HelpTopicSummary {
         </div>
       </aside>
 
-      <main class="help-content">
+      <div class="help-content">
         <div *ngIf="loading" class="loading">Loading...</div>
         <div *ngIf="error" class="error">{{ error }}</div>
         <div
@@ -57,7 +57,7 @@ interface HelpTopic extends HelpTopicSummary {
         <div *ngIf="!currentTopic && !loading && !error" class="empty">
           Select a topic from the sidebar.
         </div>
-      </main>
+      </div>
     </div>
   `,
   styles: [`
